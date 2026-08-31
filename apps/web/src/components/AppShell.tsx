@@ -16,11 +16,13 @@ interface AppShellProps {
   onAdd?: () => void;
   showFab?: boolean;
   children: ReactNode;
+  /** Overlays (e.g. bottom sheets) rendered at the shell root, above the nav. */
+  overlay?: ReactNode;
 }
 
-export function AppShell({ active, onNavigate, onAdd, showFab, children }: AppShellProps) {
+export function AppShell({ active, onNavigate, onAdd, showFab, children, overlay }: AppShellProps) {
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-md flex-col bg-bg">
+    <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg">
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-8">{children}</main>
 
       {showFab && onAdd && (
@@ -69,6 +71,8 @@ export function AppShell({ active, onNavigate, onAdd, showFab, children }: AppSh
           </button>
         ))}
       </nav>
+
+      {overlay}
     </div>
   );
 }

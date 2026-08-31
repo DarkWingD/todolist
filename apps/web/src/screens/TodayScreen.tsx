@@ -1,14 +1,38 @@
-import { useState } from 'react';
 import { Avatar } from '../components/Avatar';
-import { TaskRow } from '../components/TaskRow';
-import { SAMPLE_TODAY, SAMPLE_USERS } from '../data/sample';
+import { TaskRow, type TaskRowData } from '../components/TaskRow';
+import { formatDue, recurrenceLabel } from '../lib/format';
+import { trpc } from '../lib/trpc';
+import type { SessionUser } from '../types';
 
-export function TodayScreen() {
-  const [tasks, setTasks] = useState(SAMPLE_TODAY);
-  const done = tasks.filter((t) => t.completed).length;
+export function TodayScreen({ me }: { me: SessionUser }) {
+  const utils = trpc.useUtils();
+  const { data: tasks = [], isLoading } = trpc.tasks.dueToday.useQuery();
+  const toggle = trpc.tasks.toggle.useMutation({
+    onSuccess: () => utils.tasks.dueToday.invalidate(),
+  });
 
-  const toggle = (id: string, completed: boolean) =>
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+  const rows: TaskRowData[] = tasks.map((t) => {
+    const due = formatDue(t.dueAt as unknown as string);
+    return {
+      id: t.id,
+      title: t.title,
+      completed: !!t.completedAt,
+      leadEmoji: t.listEmoji,
+      due: due?.label,
+      dueVariant: due?.variant,
+      recurrence: recurrenceLabel(t.recurrenceRule) ?? undefined,
+      assignee: t.assigneeId
+        ? { id: t.assigneeId, emoji: t.assigneeEmoji ?? '🙂', color: t.assigneeColor ?? '#888' }
+        : undefined,
+    };
+  });
+  const done = rows.filter((r) => r.completed).length;
+
+  const today = new Date().toLocaleDateString([], {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   return (
     <>
@@ -16,32 +40,30 @@ export function TodayScreen() {
         <div>
           <h1
             className="font-head"
-            style={{
-              fontSize: 'var(--fs-big)',
-              fontWeight: 'var(--title-weight)',
-              letterSpacing: 'var(--title-tracking)',
-            }}
+            style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
           >
             Today
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            Wednesday, 3 September
+            {today}
           </div>
         </div>
-        <Avatar emoji={SAMPLE_USERS.JD.emoji} color={SAMPLE_USERS.JD.color} size={36} />
+        <Avatar emoji={me.avatarEmoji} color={me.avatarColor} size={36} />
       </header>
 
-      <div className="mb-d3 mt-d3 flex items-center gap-2">
-        <div className="h-[7px] flex-1 overflow-hidden rounded-full bg-track">
-          <div
-            className="h-full rounded-full bg-accent transition-all"
-            style={{ width: `${Math.round((done / tasks.length) * 100)}%` }}
-          />
+      {rows.length > 0 && (
+        <div className="mb-d3 mt-d3 flex items-center gap-2">
+          <div className="h-[7px] flex-1 overflow-hidden rounded-full bg-track">
+            <div
+              className="h-full rounded-full bg-accent transition-all"
+              style={{ width: `${Math.round((done / rows.length) * 100)}%` }}
+            />
+          </div>
+          <span className="font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            {done} of {rows.length}
+          </span>
         </div>
-        <span className="font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          {done} of {tasks.length}
-        </span>
-      </div>
+      )}
 
       <h2
         className="mb-d2 mt-d3 font-bold uppercase text-muted"
@@ -50,9 +72,20 @@ export function TodayScreen() {
         Focus
       </h2>
 
-      {tasks.map((t) => (
-        <TaskRow key={t.id} task={t} onToggle={toggle} />
-      ))}
+      {isLoading ? (
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Loading…
+        </p>
+      ) : rows.length === 0 ? (
+        <div className="mt-8 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          <div className="mb-2 text-4xl">🌤️</div>
+          Nothing due today. Enjoy the calm.
+        </div>
+      ) : (
+        rows.map((t) => (
+          <TaskRow key={t.id} task={t} onToggle={(id, completed) => toggle.mutate({ id, completed })} />
+        ))
+      )}
     </>
   );
 }

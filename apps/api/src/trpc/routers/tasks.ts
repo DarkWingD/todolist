@@ -1,9 +1,26 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
-import { db, task } from '@todolist/db';
+import { and, asc, eq, isNull, lt } from 'drizzle-orm';
+import { db, list, listMember, task, user } from '@todolist/db';
 import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
+
+// Task columns plus the assignee's identity (nullable).
+const taskWithAssignee = {
+  id: task.id,
+  listId: task.listId,
+  title: task.title,
+  notes: task.notes,
+  dueAt: task.dueAt,
+  priority: task.priority,
+  completedAt: task.completedAt,
+  recurrenceRule: task.recurrenceRule,
+  sortOrder: task.sortOrder,
+  assigneeId: task.assigneeId,
+  assigneeName: user.name,
+  assigneeEmoji: user.avatarEmoji,
+  assigneeColor: user.avatarColor,
+};
 
 export const tasksRouter = router({
   byList: protectedProcedure
@@ -11,11 +28,33 @@ export const tasksRouter = router({
     .query(async ({ ctx, input }) => {
       await assertListAccess(ctx.user.id, input.listId);
       return db
-        .select()
+        .select(taskWithAssignee)
         .from(task)
+        .leftJoin(user, eq(user.id, task.assigneeId))
         .where(and(eq(task.listId, input.listId), isNull(task.deletedAt)))
         .orderBy(asc(task.sortOrder), asc(task.createdAt));
     }),
+
+  // Tasks due today or overdue (not completed) across all the user's lists.
+  dueToday: protectedProcedure.query(async ({ ctx }) => {
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 0, 0);
+    return db
+      .select({ ...taskWithAssignee, listEmoji: list.emojiIcon, listName: list.name })
+      .from(task)
+      .innerJoin(list, eq(list.id, task.listId))
+      .innerJoin(listMember, eq(listMember.listId, list.id))
+      .leftJoin(user, eq(user.id, task.assigneeId))
+      .where(
+        and(
+          eq(listMember.userId, ctx.user.id),
+          isNull(task.completedAt),
+          isNull(task.deletedAt),
+          lt(task.dueAt, tomorrow),
+        ),
+      )
+      .orderBy(asc(task.dueAt));
+  }),
 
   create: protectedProcedure.input(createTaskSchema).mutation(async ({ ctx, input }) => {
     await assertListAccess(ctx.user.id, input.listId);

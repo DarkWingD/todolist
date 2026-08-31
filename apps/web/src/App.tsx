@@ -1,24 +1,116 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell, type TabId } from './components/AppShell';
+import { QuickAddSheet } from './components/QuickAddSheet';
+import { useSession } from './lib/auth';
+import { trpc } from './lib/trpc';
+import { AppearanceScreen } from './screens/AppearanceScreen';
+import { ListDetailScreen } from './screens/ListDetailScreen';
+import { ListsScreen } from './screens/ListsScreen';
+import { SearchScreen } from './screens/SearchScreen';
+import { SignInScreen } from './screens/SignInScreen';
 import { TodayScreen } from './screens/TodayScreen';
+import { YouScreen } from './screens/YouScreen';
+import { useTheme } from './theme/ThemeProvider';
+import type { SessionUser } from './types';
 
-function Placeholder({ title }: { title: string }) {
+interface MinList {
+  id: string;
+  name: string;
+  emojiIcon: string;
+}
+
+function Splash() {
   return (
-    <div className="grid flex-1 place-items-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-      {title} — coming next
+    <div className="grid h-[100dvh] place-items-center bg-bg text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+      <div className="animate-pulse text-3xl">✓</div>
     </div>
   );
 }
 
+function toSessionUser(u: Record<string, unknown>): SessionUser {
+  return {
+    id: String(u.id),
+    email: String(u.email ?? ''),
+    name: String(u.name ?? u.email ?? 'You'),
+    avatarEmoji: (u.avatarEmoji as string) ?? '🙂',
+    avatarColor: (u.avatarColor as string) ?? '#8B5CF6',
+  };
+}
+
 export function App() {
+  const { data: session, isPending } = useSession();
+  if (isPending) return <Splash />;
+  if (!session) return <SignInScreen />;
+  return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
+}
+
+function AuthedApp({ me }: { me: SessionUser }) {
+  const { theme, setPrefs } = useTheme();
+  const { data: serverPrefs } = trpc.prefs.get.useQuery();
+  const { data: lists = [] } = trpc.lists.mine.useQuery();
+
   const [tab, setTab] = useState<TabId>('today');
+  const [view, setView] = useState<'main' | 'listDetail' | 'appearance'>('main');
+  const [selectedList, setSelectedList] = useState<MinList | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Apply server-side prefs once they load (cross-device sync).
+  useEffect(() => {
+    if (serverPrefs) {
+      setPrefs({
+        theme: serverPrefs.theme,
+        appearance: serverPrefs.appearance,
+        density: serverPrefs.density,
+        textScale: serverPrefs.textScale,
+      });
+    }
+  }, [serverPrefs, setPrefs]);
+
+  function navigate(t: TabId) {
+    setTab(t);
+    setView('main');
+    setSelectedList(null);
+  }
+  function openList(l: MinList) {
+    setSelectedList(l);
+    setView('listDetail');
+  }
+
+  const activeTab: TabId = view === 'appearance' ? 'you' : view === 'listDetail' ? 'lists' : tab;
+  const showFab =
+    (view === 'main' && (tab === 'today' || tab === 'lists')) || view === 'listDetail';
+
+  let content;
+  if (view === 'listDetail' && selectedList) {
+    content = <ListDetailScreen list={selectedList} onBack={() => navigate('lists')} />;
+  } else if (view === 'appearance') {
+    content = <AppearanceScreen onBack={() => setView('main')} />;
+  } else if (tab === 'today') {
+    content = <TodayScreen me={me} />;
+  } else if (tab === 'lists') {
+    content = <ListsScreen onOpenList={openList} />;
+  } else if (tab === 'search') {
+    content = <SearchScreen onOpenList={openList} />;
+  } else {
+    content = <YouScreen me={me} themeName={theme} onOpenAppearance={() => setView('appearance')} />;
+  }
 
   return (
-    <AppShell active={tab} onNavigate={setTab} showFab={tab === 'today' || tab === 'lists'} onAdd={() => {}}>
-      {tab === 'today' && <TodayScreen />}
-      {tab === 'lists' && <Placeholder title="Lists" />}
-      {tab === 'search' && <Placeholder title="Search" />}
-      {tab === 'you' && <Placeholder title="You / Settings" />}
+    <AppShell
+      active={activeTab}
+      onNavigate={navigate}
+      showFab={showFab}
+      onAdd={() => setSheetOpen(true)}
+      overlay={
+        <QuickAddSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+          lists={lists}
+          defaultListId={selectedList?.id}
+        />
+      }
+    >
+      {content}
     </AppShell>
   );
 }

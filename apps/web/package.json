@@ -12,7 +12,12 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
+    "@todolist/api": "workspace:*",
     "@todolist/shared": "workspace:*",
+    "@trpc/client": "^11.0.0",
+    "@trpc/react-query": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "better-auth": "^1.2.0",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.0",
     "react": "^18.3.1",

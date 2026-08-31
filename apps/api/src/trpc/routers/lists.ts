@@ -1,5 +1,5 @@
-import { and, eq, getTableColumns, isNull } from 'drizzle-orm';
-import { db, list, listInvite, listMember } from '@todolist/db';
+import { and, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
+import { db, list, listInvite, listMember, task, user } from '@todolist/db';
 import { createListSchema, inviteToListSchema } from '@todolist/shared';
 import { z } from 'zod';
 import { env } from '../../env.js';
@@ -12,12 +12,40 @@ const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 export const listsRouter = router({
   mine: protectedProcedure.query(async ({ ctx }) => {
     return db
-      .select(getTableColumns(list))
+      .select({
+        ...getTableColumns(list),
+        remaining: sql<number>`(
+          select count(*)::int from ${task}
+          where ${task.listId} = ${list.id}
+            and ${task.completedAt} is null
+            and ${task.deletedAt} is null
+        )`,
+        memberCount: sql<number>`(
+          select count(*)::int from ${listMember} lm where lm.list_id = ${list.id}
+        )`,
+      })
       .from(list)
       .innerJoin(listMember, eq(listMember.listId, list.id))
       .where(and(eq(listMember.userId, ctx.user.id), isNull(list.deletedAt)))
       .orderBy(list.sortOrder);
   }),
+
+  members: protectedProcedure
+    .input(z.object({ listId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      return db
+        .select({
+          id: user.id,
+          name: user.name,
+          avatarEmoji: user.avatarEmoji,
+          avatarColor: user.avatarColor,
+          role: listMember.role,
+        })
+        .from(listMember)
+        .innerJoin(user, eq(user.id, listMember.userId))
+        .where(eq(listMember.listId, input.listId));
+    }),
 
   create: protectedProcedure.input(createListSchema).mutation(async ({ ctx, input }) => {
     const [created] = await db
