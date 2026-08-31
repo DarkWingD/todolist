@@ -8,6 +8,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
+      workbox: {
+        // Let server routes (auth verify, tRPC, etc.) bypass the SPA nav fallback —
+        // otherwise the service worker serves index.html for /api/auth/... and
+        // magic-link sign-in silently never runs.
+        navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'ToDoList',
         short_name: 'ToDoList',

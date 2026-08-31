@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AvatarStack } from '../components/Avatar';
+import { BackButton } from '../components/BackButton';
 import { TaskRow } from '../components/TaskRow';
 import { toTaskRow } from '../lib/mapTask';
 import { trpc } from '../lib/trpc';
@@ -44,9 +45,7 @@ export function ListDetailScreen({
 
   return (
     <>
-      <button className="mb-d2 font-semibold text-accent" style={{ fontSize: 'var(--fs-base)' }} onClick={onBack}>
-        ‹ Lists
-      </button>
+      <BackButton label="Lists" onClick={onBack} />
 
       <header className="flex items-center gap-d3">
         <span

@@ -1,14 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
 
-export function ListsScreen({ onOpenList }: { onOpenList: (list: ListSummary) => void }) {
+export function ListsScreen({
+  onOpenList,
+  createSignal,
+}: {
+  onOpenList: (list: ListSummary) => void;
+  createSignal?: number;
+}) {
   const utils = trpc.useUtils();
   const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
+
+  // The floating + button (in AppShell) opens the create form via this signal.
+  useEffect(() => {
+    if (createSignal) setCreating(true);
+  }, [createSignal]);
 
   const create = trpc.lists.create.useMutation({
     onSuccess: () => {
@@ -21,21 +32,13 @@ export function ListsScreen({ onOpenList }: { onOpenList: (list: ListSummary) =>
 
   return (
     <>
-      <header className="mb-d3 flex items-center justify-between">
+      <header className="mb-d3">
         <h1
           className="font-head"
           style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
         >
           Lists
         </h1>
-        <button
-          className="grid h-9 w-9 place-items-center rounded-full text-accent"
-          style={{ background: 'var(--color-accent-soft)', fontSize: 20 }}
-          onClick={() => setCreating((v) => !v)}
-          aria-label="New list"
-        >
-          +
-        </button>
       </header>
 
       {creating && (

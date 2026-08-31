@@ -1,6 +1,7 @@
 import type { Priority } from '@todolist/shared';
 import { useEffect, useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { BackButton } from '../components/BackButton';
 import {
   formatDateTime,
   freqToRule,
@@ -86,9 +87,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
   if (isLoading || !task) {
     return (
       <>
-        <button className="mb-d2 font-semibold text-accent" style={{ fontSize: 'var(--fs-base)' }} onClick={onBack}>
-          ‹ Back
-        </button>
+        <BackButton label="Back" onClick={onBack} />
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
       </>
     );
@@ -102,10 +101,8 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
 
   return (
     <>
-      <div className="mb-d2 flex items-center justify-between">
-        <button className="font-semibold text-accent" style={{ fontSize: 'var(--fs-base)' }} onClick={onBack}>
-          ‹ Back
-        </button>
+      <div className="flex items-center justify-between">
+        <BackButton label="Back" onClick={onBack} />
         <button
           className="font-semibold text-danger"
           style={{ fontSize: 'var(--fs-sm)' }}

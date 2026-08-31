@@ -1,4 +1,5 @@
 import type { Appearance, Density, Theme } from '@todolist/shared';
+import { BackButton } from '../components/BackButton';
 import { trpc } from '../lib/trpc';
 import { useTheme, type ThemePrefs } from '../theme/ThemeProvider';
 
@@ -45,9 +46,7 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <>
-      <button className="mb-d2 font-semibold text-accent" style={{ fontSize: 'var(--fs-base)' }} onClick={onBack}>
-        ‹ You
-      </button>
+      <BackButton label="You" onClick={onBack} />
       <h1
         className="mb-d3 font-head"
         style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}

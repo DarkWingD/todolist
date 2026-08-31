@@ -33,7 +33,10 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
   return {
     id: String(u.id),
     email: String(u.email ?? ''),
-    name: (typeof u.name === 'string' && u.name.trim()) || String(u.email ?? 'you').split('@')[0],
+    name:
+      typeof u.name === 'string' && u.name.trim()
+        ? u.name.trim()
+        : String(u.email ?? 'you').split('@')[0] || 'you',
     avatarEmoji: (u.avatarEmoji as string) ?? '🙂',
     avatarColor: (u.avatarColor as string) ?? '#8B5CF6',
   };
@@ -62,6 +65,14 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskReturn, setTaskReturn] = useState<'today' | 'listDetail'>('today');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [createListSignal, setCreateListSignal] = useState(0);
+
+  // The floating + adds whatever the current screen is about:
+  // a list on the Lists tab, otherwise a task.
+  function onAdd() {
+    if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
+    else setSheetOpen(true);
+  }
 
   useEffect(() => {
     if (serverPrefs) {
@@ -116,7 +127,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (tab === 'today') {
     content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
-    content = <ListsScreen onOpenList={openList} />;
+    content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
   } else if (tab === 'search') {
     content = <SearchScreen onOpenList={openList} />;
   } else {
@@ -128,7 +139,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
       active={activeTab}
       onNavigate={navigate}
       showFab={showFab}
-      onAdd={() => setSheetOpen(true)}
+      onAdd={onAdd}
       overlay={
         <QuickAddSheet
           open={sheetOpen}
