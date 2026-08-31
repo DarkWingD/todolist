@@ -219,6 +219,52 @@ export const taskTag = pgTable(
   (t) => [primaryKey({ columns: [t.taskId, t.tagId] })],
 );
 
+// ─────────────────────────── calendar: events & birthdays ───────────────────────────
+export const event = pgTable(
+  'event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => list.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    notes: text('notes'),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    allDay: boolean('all_day').notNull().default(false),
+    // Whose event it is (drives the per-person colour on the calendar).
+    assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('event_list_idx').on(t.listId), index('event_start_idx').on(t.startAt)],
+);
+
+export const birthday = pgTable(
+  'birthday',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => list.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    day: integer('day').notNull(), // 1–31
+    month: integer('month').notNull(), // 1–12
+    year: integer('year'), // optional birth year, for showing age
+    // Optional link to an app user (e.g. a family member's account).
+    linkedUserId: text('linked_user_id').references(() => user.id, { onDelete: 'set null' }),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('birthday_list_idx').on(t.listId)],
+);
+
 // ─────────────────────────── reminders & notifications ───────────────────────────
 export const reminder = pgTable(
   'reminder',

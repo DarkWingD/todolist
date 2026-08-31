@@ -55,7 +55,8 @@ export const createTaskSchema = z.object({
   notes: z.string().max(10_000).optional(),
   dueAt: z.string().datetime().optional(),
   priority: z.enum(PRIORITIES).default('none'),
-  assigneeId: z.string().uuid().optional(),
+  // User IDs come from Better Auth and are NOT uuids.
+  assigneeId: z.string().min(1).optional(),
   recurrenceRule: recurrenceSchema.optional(),
   tagIds: z.array(z.string().uuid()).max(20).optional(),
 });
@@ -69,12 +70,47 @@ export const updateTaskSchema = createTaskSchema
     completed: z.boolean().optional(),
     // Nullable so the UI can clear these fields.
     dueAt: z.string().datetime().nullable().optional(),
-    assigneeId: z.string().uuid().nullable().optional(),
+    assigneeId: z.string().min(1).nullable().optional(),
     recurrenceRule: recurrenceSchema.nullable().optional(),
   });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
 export const acceptInviteSchema = z.object({ token: z.string().min(1) });
+
+// ─────────────────────────── calendar ───────────────────────────
+export const calendarRangeSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
+
+export const createEventSchema = z.object({
+  listId: z.string().uuid(),
+  title: z.string().trim().min(1).max(300),
+  notes: z.string().max(5000).optional(),
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  allDay: z.boolean().default(false),
+  assigneeId: z.string().min(1).optional(),
+});
+export type CreateEventInput = z.infer<typeof createEventSchema>;
+
+export const updateEventSchema = createEventSchema
+  .partial()
+  .omit({ listId: true })
+  .extend({
+    id: z.string().uuid(),
+    assigneeId: z.string().min(1).nullable().optional(),
+  });
+
+export const createBirthdaySchema = z.object({
+  listId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  day: z.number().int().min(1).max(31),
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(1900).max(2100).optional(),
+  linkedUserId: z.string().min(1).optional(),
+});
+export type CreateBirthdayInput = z.infer<typeof createBirthdaySchema>;
 
 export const createReminderSchema = z.object({
   taskId: z.string().uuid(),

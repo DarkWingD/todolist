@@ -1,11 +1,12 @@
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
 
-export type TabId = 'today' | 'lists' | 'search' | 'you';
+export type TabId = 'today' | 'lists' | 'cal' | 'search' | 'you';
 
 const TABS: { id: TabId; icon: string; label: string }[] = [
   { id: 'today', icon: '◎', label: 'Today' },
   { id: 'lists', icon: '☰', label: 'Lists' },
+  { id: 'cal', icon: '▦', label: 'Cal' },
   { id: 'search', icon: '⌕', label: 'Search' },
   { id: 'you', icon: '◔', label: 'You' },
 ];

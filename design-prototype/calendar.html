@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ToDoList — Calendar (design)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800&family=Quicksand:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, system-ui, sans-serif; background: #0e0e11; color: #e7e7ea; padding: 26px 16px 80px; line-height: 1.5; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .lede { color: #a1a1aa; margin-top: 8px; max-width: 720px; font-size: 15px; }
+  .controls { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 18px; background: #17171c; border: 1px solid #26262c; border-radius: 14px; padding: 14px 16px; }
+  .ctl { display: flex; flex-direction: column; gap: 7px; }
+  .ctl .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7c7c86; font-weight: 700; }
+  .seg { display: inline-flex; background: #0e0e11; border: 1px solid #26262c; border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: #a1a1aa; font: inherit; font-size: 13px; font-weight: 600; padding: 6px 11px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .seg button[aria-pressed="true"] { background: #2b2b34; color: #fff; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .stage { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 28px; align-items: flex-start; }
+  .cap { font-size: 12px; color: #7c7c86; text-align: center; margin-top: 8px; }
+
+  /* Phone */
+  .phone { --density: .92; width: 340px; height: 720px; border-radius: 40px; overflow: hidden; position: relative;
+    background: var(--bg); color: var(--text); font-family: var(--font-body);
+    box-shadow: 0 0 0 10px #1b1b20, 0 24px 46px -14px rgba(0,0,0,.65); display: flex; flex-direction: column; isolation: isolate; }
+  .app { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  .calbar { display: flex; align-items: center; justify-content: space-between; padding: 34px 16px 8px; }
+  .calbar .month { font-family: var(--font-head); font-size: calc(21px * 1); font-weight: var(--title-weight); letter-spacing: var(--title-tracking); }
+  .calbar .navs { display: flex; align-items: center; gap: 4px; }
+  .iconbtn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--chip-bg); color: var(--muted); border: 0; font-size: 15px; cursor: pointer; }
+  .vtoggle { display: inline-flex; background: var(--chip-bg); border-radius: 9px; padding: 3px; }
+  .vtoggle button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 7px; cursor: pointer; font-family: var(--font-body); }
+  .vtoggle button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+
+  .people { display: flex; gap: 7px; padding: 6px 16px 10px; overflow-x: auto; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 5px; border-radius: 999px; background: var(--chip-bg); color: var(--text); font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; border: 1.5px solid transparent; }
+  .chip .av { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; }
+  .chip.all { padding-left: 11px; }
+  .chip.sel { border-color: var(--pc); }
+  .chip.off { opacity: .45; }
+
+  .weekhead { display: grid; grid-template-columns: repeat(7,1fr); padding: 0 8px; }
+  .weekhead div { text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding-bottom: 4px; }
+
+  .grid { flex: 1; display: grid; grid-template-columns: repeat(7,1fr); grid-auto-rows: 1fr; padding: 0 8px 4px; gap: 2px; overflow: hidden; }
+  .cell { border-radius: 8px; padding: 3px 3px 0; display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow: hidden; cursor: pointer; }
+  .cell.out .n { color: var(--muted); opacity: .5; }
+  .cell.sel { background: var(--chip-bg); }
+  .n { font-size: 11px; font-weight: 600; text-align: center; width: 20px; height: 20px; line-height: 20px; margin: 0 auto; border-radius: 50%; }
+  .n.today { background: var(--accent); color: var(--accent-contrast); }
+  .pill { font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 4px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+  .pill.span-l { border-top-left-radius: 4px; border-bottom-left-radius: 4px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .pill.span-m { border-radius: 0; }
+  .pill.span-r { border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .pill.task { color: var(--text); background: transparent !important; display: flex; align-items: center; gap: 3px; padding-left: 1px; }
+  .pill.task .tdot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .more { font-size: 9px; color: var(--muted); font-weight: 700; padding-left: 2px; }
+  .bday { font-size: 10px; }
+
+  /* Week view */
+  .weekview { flex: 1; overflow-y: auto; padding: 4px 14px; }
+  .dayrow { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .dayrow .dcol { width: 44px; flex: none; text-align: center; }
+  .dayrow .dw { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+  .dayrow .dd { font-size: 20px; font-weight: 700; font-family: var(--font-head); }
+  .dayrow .dd.today { color: var(--accent); }
+  .dayrow .items { flex: 1; display: flex; flex-direction: column; gap: 5px; padding-top: 2px; }
+  .evt { display: flex; align-items: center; gap: 7px; border-radius: 8px; padding: 7px 9px; background: var(--surface); box-shadow: var(--card-shadow); font-size: 13px; }
+  .evt .bar { width: 4px; align-self: stretch; border-radius: 99px; }
+  .evt .time { color: var(--muted); font-size: 11px; margin-left: auto; }
+  .evt .av2 { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; }
+
+  .fab { position: absolute; right: 16px; bottom: 74px; width: 54px; height: 54px; border-radius: var(--fab-radius); background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font-size: 26px; box-shadow: 0 12px 26px -6px var(--accent-glow); z-index: 6; border: 0; cursor: pointer; }
+  .tabbar { height: 62px; display: flex; align-items: center; justify-content: space-around; padding: 0 6px 6px; background: var(--tabbar-bg); border-top: 1px solid var(--border); backdrop-filter: blur(10px); flex: none; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; color: var(--muted); }
+  .tab .ico { font-size: 17px; }
+  .tab.active { color: var(--accent); font-weight: 700; }
+
+  /* day sheet */
+  .backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 10; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg); border-radius: 22px 22px 0 0; padding: 8px 16px 22px; z-index: 11; transform: translateY(110%); transition: transform .26s cubic-bezier(.32,.72,0,1); max-height: 72%; overflow-y: auto; }
+  .sheet.open { transform: translateY(0); }
+  .grip { width: 40px; height: 5px; border-radius: 99px; background: var(--check-border); margin: 4px auto 14px; }
+  .sheet h3 { font-family: var(--font-head); font-size: 18px; margin-bottom: 12px; }
+  @media (max-width: 740px){ .phone{ width: 100%; max-width: 360px; height: 700px; } .stage{ justify-content:center; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ToDoList — Calendar tab (design mockup)</h1>
+    <p class="lede">A new <strong>Cal</strong> tab: a month grid (like the reference) with a Month/Week toggle, family filter chips, colour-coded pills for <strong>tasks, events and birthdays</strong>, and a day-detail sheet. Tap days, toggle people, switch Month/Week. This is a design mockup — nothing is wired to the real app yet.</p>
+
+    <div class="controls">
+      <div class="ctl"><span class="lbl">Theme</span>
+        <div class="seg" data-group="dir">
+          <button data-val="a" aria-pressed="false"><span class="dot" style="background:#5A5FCC"></span>Tento</button>
+          <button data-val="b" aria-pressed="true"><span class="dot" style="background:#FF6B5E"></span>Nudge</button>
+          <button data-val="c" aria-pressed="false"><span class="dot" style="background:#7C3AED"></span>Momentum</button>
+        </div>
+      </div>
+      <div class="ctl"><span class="lbl">Appearance</span>
+        <div class="seg" data-group="appearance">
+          <button data-val="system" aria-pressed="true">System</button>
+          <button data-val="light" aria-pressed="false">Light</button>
+          <button data-val="dark" aria-pressed="false">Dark</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div><div class="phone" id="phone"></div><div class="cap">Tap a day · toggle people · Month / Week</div></div>
+      <div style="max-width:280px">
+        <p class="lede" style="margin-top:0"><strong>Design choices to react to</strong></p>
+        <ul style="color:#a1a1aa; font-size:14px; margin-top:10px; padding-left:18px; line-height:1.7">
+          <li><strong>Colour by person</strong> (family member), like the reference. Filter chips at top show/hide each person.</li>
+          <li><strong>Events</strong> = coloured bars (can span days). <strong>Tasks</strong> = a dot + title. <strong>Birthdays</strong> = 🎂 in that person's colour.</li>
+          <li><strong>Week view</strong> is a scrollable day-by-day list for the current week.</li>
+          <li><strong>Birthdays</strong> live in a yearly Birthdays list; add manually or import a contacts file (vCard/CSV).</li>
+          <li>A 5th bottom tab <strong>Cal</strong> sits between Lists and Search.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const PEOPLE = {
+    you:   { name:'You',   emoji:'🦊', color:'#F59E0B' },
+    sadie: { name:'Sadie', emoji:'🐧', color:'#3B82F6' },
+    dan:   { name:'Dan',   emoji:'🐨', color:'#10B981' },
+    rowan: { name:'Rowan', emoji:'🦉', color:'#8B5CF6' },
+  };
+  const state = { dir:'b', appearance:'system', view:'month', sel:null, active:new Set(Object.keys(PEOPLE)) };
+
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), todayD = now.getDate();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  // Monday-first offset for day 1
+  const firstDow = (new Date(y, m, 1).getDay() + 6) % 7;
+
+  // Events keyed by day-of-month. type: event|task|birthday. span for multi-day events (start day only).
+  const D = (off) => Math.min(Math.max(todayD + off, 1), daysInMonth);
+  const EVENTS = [
+    { day: D(0), type:'event', who:'you',   title:'Dentist 2pm', time:'2:00 PM' },
+    { day: D(0), type:'task',  who:'you',   title:'Spray the weeds' },
+    { day: D(1), type:'event', who:'sadie', title:'Netball', time:'6:00 PM' },
+    { day: D(1), type:'task',  who:'dan',   title:'Do that thing' },
+    { day: D(2), type:'event', who:'dan',   title:'Weekend away', time:'', span:3 },
+    { day: D(5), type:'birthday', who:'rowan', title:'Rowan’s birthday 🎂' },
+    { day: D(6), type:'event', who:'rowan', title:'Soccer 9am', time:'9:00 AM' },
+    { day: D(-2), type:'event', who:'sadie', title:'Book club', time:'7:30 PM' },
+    { day: D(3), type:'event', who:'you',   title:'Work trip', time:'', span:2 },
+    { day: D(3), type:'task',  who:'sadie', title:'Pack bags' },
+    { day: D(8), type:'birthday', who:'you', title:'Mum’s birthday 🎂' },
+  ];
+  const WEEKDAYS = ['M','T','W','T','F','S','S'];
+
+  function eventsFor(day) {
+    return EVENTS.filter(e => {
+      const inSpan = e.span ? (day >= e.day && day < e.day + e.span) : e.day === day;
+      return inSpan && state.active.has(e.who);
+    });
+  }
+
+  function pillFor(e, day) {
+    const p = PEOPLE[e.who];
+    if (e.type === 'task') return `<div class="pill task" title="${e.title}"><span class="tdot" style="background:${p.color}"></span>${e.title}</div>`;
+    if (e.type === 'birthday') return `<div class="pill bday" style="background:${p.color}">🎂 ${p.name}</div>`;
+    // event, maybe spanning
+    let cls = 'pill';
+    let label = e.title;
+    if (e.span) {
+      if (day === e.day) cls += ' span-l';
+      else if (day === e.day + e.span - 1) { cls += ' span-r'; label = '&nbsp;'; }
+      else { cls += ' span-m'; label = '&nbsp;'; }
+    }
+    return `<div class="${cls}" style="background:${p.color}" title="${e.title}">${label}</div>`;
+  }
+
+  function monthGrid() {
+    let cells = '';
+    const totalCells = Math.ceil((firstDow + daysInMonth) / 7) * 7;
+    for (let i = 0; i < totalCells; i++) {
+      const dnum = i - firstDow + 1;
+      const out = dnum < 1 || dnum > daysInMonth;
+      const day = out ? null : dnum;
+      const evs = day ? eventsFor(day) : [];
+      const shown = evs.slice(0, 3);
+      const extra = evs.length - shown.length;
+      const nCls = day === todayD ? 'n today' : 'n';
+      const selCls = state.sel === day ? ' sel' : '';
+      cells += `<div class="cell ${out?'out':''}${selCls}" ${day?`data-day="${day}"`:''}>
+        <div class="${nCls}">${out ? new Date(y, m, dnum).getDate() : dnum}</div>
+        ${shown.map(e => pillFor(e, day)).join('')}
+        ${extra>0 ? `<div class="more">+${extra}</div>` : ''}
+      </div>`;
+    }
+    return `<div class="weekhead">${WEEKDAYS.map(d=>`<div>${d}</div>`).join('')}</div>
+      <div class="grid">${cells}</div>`;
+  }
+
+  function weekView() {
+    // the 7 days of the current week (Mon–Sun) containing today
+    const start = new Date(y, m, todayD - ((now.getDay()+6)%7));
+    let rows = '';
+    for (let i=0;i<7;i++){
+      const d = new Date(start); d.setDate(start.getDate()+i);
+      const inMonth = d.getMonth() === m;
+      const evs = inMonth ? eventsFor(d.getDate()) : [];
+      rows += `<div class="dayrow">
+        <div class="dcol">
+          <div class="dw">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</div>
+          <div class="dd ${inMonth&&d.getDate()===todayD?'today':''}">${d.getDate()}</div>
+        </div>
+        <div class="items">
+          ${evs.length? evs.map(e=>{const p=PEOPLE[e.who];
+            return `<div class="evt"><span class="bar" style="background:${p.color}"></span>
+              <span>${e.type==='birthday'?'🎂 ':''}${e.title}</span>
+              ${e.type!=='task'&&e.time?`<span class="time">${e.time}</span>`:''}
+              <span class="av2" style="background:${p.color}22;color:${p.color}">${p.emoji}</span></div>`;
+          }).join('') : `<div class="evt" style="background:transparent;box-shadow:none;color:var(--muted);font-size:12px;padding-left:0">—</div>`}
+        </div>
+      </div>`;
+    }
+    return `<div class="weekview">${rows}</div>`;
+  }
+
+  function daySheet() {
+    const day = state.sel; if (!day) return `<div class="backdrop" data-close></div><div class="sheet"></div>`;
+    const evs = eventsFor(day);
+    const label = new Date(y, m, day).toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' });
+    return `<div class="backdrop open" data-close></div>
+      <div class="sheet open">
+        <div class="grip"></div>
+        <h3>${label}</h3>
+        ${evs.length? evs.map(e=>{const p=PEOPLE[e.who];
+          return `<div class="evt" style="margin-bottom:8px"><span class="bar" style="background:${p.color}"></span>
+            <span>${e.type==='birthday'?'🎂 ':''}${e.title}</span>
+            ${e.type!=='task'&&e.time?`<span class="time">${e.time}</span>`:''}
+            <span class="av2" style="background:${p.color}22;color:${p.color}">${p.emoji}</span></div>`;
+        }).join('') : `<p style="color:var(--muted);font-size:14px">Nothing on this day.</p>`}
+        <button class="fab" style="position:static;width:auto;height:auto;border-radius:12px;padding:12px;margin-top:10px;font-size:15px;font-weight:700;box-shadow:none">＋ Add to this day</button>
+      </div>`;
+  }
+
+  function peopleChips() {
+    const chip = (k) => { const p=PEOPLE[k]; const on=state.active.has(k);
+      return `<div class="chip ${on?'sel':'off'}" style="--pc:${p.color}" data-person="${k}">
+        <span class="av" style="background:${p.color}22">${p.emoji}</span>${p.name}</div>`; };
+    return `<div class="people">${Object.keys(PEOPLE).map(chip).join('')}</div>`;
+  }
+
+  const phone = document.getElementById('phone');
+  function render() {
+    phone.dataset.dir = state.dir;
+    phone.dataset.theme = state.appearance!=='system' ? state.appearance
+      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light');
+    const monthName = new Date(y, m, 1).toLocaleDateString([], { month:'long', year:'numeric' });
+    phone.innerHTML = `<div class="app">
+      <div class="calbar">
+        <div class="month">${monthName}</div>
+        <div class="navs">
+          <div class="vtoggle">
+            <button class="${state.view==='month'?'on':''}" data-view="month">Month</button>
+            <button class="${state.view==='week'?'on':''}" data-view="week">Week</button>
+          </div>
+          <button class="iconbtn" title="Search">⌕</button>
+        </div>
+      </div>
+      ${peopleChips()}
+      ${state.view==='month' ? monthGrid() : weekView()}
+      <div class="tabbar">
+        <div class="tab"><span class="ico">◎</span>Today</div>
+        <div class="tab"><span class="ico">☰</span>Lists</div>
+        <div class="tab active"><span class="ico">▦</span>Cal</div>
+        <div class="tab"><span class="ico">⌕</span>Search</div>
+        <div class="tab"><span class="ico">◔</span>You</div>
+      </div>
+    </div>
+    <button class="fab">+</button>
+    ${daySheet()}`;
+    // sync controls
+    document.querySelectorAll('.controls [data-group]').forEach(seg=>{
+      const g=seg.dataset.group; seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(state[g]===b.dataset.val)));
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    const gb = e.target.closest('.controls [data-group] button');
+    if (gb){ state[gb.closest('[data-group]').dataset.group]=gb.dataset.val; return render(); }
+    const vb = e.target.closest('[data-view]'); if (vb){ state.view=vb.dataset.view; return render(); }
+    const pc = e.target.closest('[data-person]'); if (pc){ const k=pc.dataset.person; state.active.has(k)?state.active.delete(k):state.active.add(k); return render(); }
+    const cell = e.target.closest('[data-day]'); if (cell){ state.sel=Number(cell.dataset.day); return render(); }
+    if (e.target.closest('[data-close]')){ state.sel=null; return render(); }
+  });
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(state.appearance==='system') render(); });
+  render();
+</script>
+
+<style>
+  [data-dir="a"] { --font-head: Fraunces, serif; --font-body: Inter, sans-serif; --title-weight: 600; --title-tracking: 0; --fab-radius: 18px; }
+  [data-dir="a"][data-theme="light"] { --bg:#FBFAF8; --surface:#fff; --text:#1C1B1A; --muted:#8A8783; --accent:#5A5FCC; --accent-contrast:#fff; --accent-soft:#ECEDFA; --accent-glow:rgba(90,95,204,.4); --border:#EEECE8; --chip-bg:#F3F1ED; --tabbar-bg:rgba(251,250,248,.85); --check-border:#D8D5D0; --card-shadow:0 1px 2px rgba(20,20,20,.04); }
+  [data-dir="a"][data-theme="dark"] { --bg:#16151A; --surface:#201F26; --text:#F0EEF6; --muted:#918EA0; --accent:#9A9AF5; --accent-contrast:#16151A; --accent-soft:#262636; --accent-glow:rgba(154,154,245,.35); --border:#2A2933; --chip-bg:#26252E; --tabbar-bg:rgba(22,21,26,.85); --check-border:#3A3945; --card-shadow:none; }
+  [data-dir="b"] { --font-head: Quicksand, sans-serif; --font-body: Nunito, sans-serif; --title-weight: 700; --title-tracking: 0; --fab-radius: 20px; }
+  [data-dir="b"][data-theme="light"] { --bg:#FFF9F5; --surface:#fff; --text:#2B2422; --muted:#9A8C85; --accent:#FF6B5E; --accent-contrast:#fff; --accent-soft:#FFEAE6; --accent-glow:rgba(255,107,94,.45); --border:#F6E9E1; --chip-bg:#FBF0EA; --tabbar-bg:rgba(255,249,245,.85); --check-border:#E7D5CC; --card-shadow:0 2px 6px rgba(255,107,94,.06); }
+  [data-dir="b"][data-theme="dark"] { --bg:#211A18; --surface:#2C2320; --text:#FBEFE9; --muted:#B39C92; --accent:#FF7A6E; --accent-contrast:#211A18; --accent-soft:#3A2823; --accent-glow:rgba(255,122,110,.4); --border:#362A26; --chip-bg:#33272E; --tabbar-bg:rgba(33,26,24,.85); --check-border:#4A3A34; --card-shadow:none; }
+  [data-dir="c"] { --font-head: "Space Grotesk", sans-serif; --font-body: Inter, sans-serif; --title-weight: 700; --title-tracking: -0.02em; --fab-radius: 16px; }
+  [data-dir="c"][data-theme="light"] { --bg:#fff; --surface:#F7F7F9; --text:#0A0A0B; --muted:#85858F; --accent:#7C3AED; --accent-contrast:#fff; --accent-soft:#F0E9FE; --accent-glow:rgba(124,58,237,.4); --border:#ECECEF; --chip-bg:#F1F1F4; --tabbar-bg:rgba(255,255,255,.85); --check-border:#D4D4DA; --card-shadow:0 1px 2px rgba(10,10,11,.05); }
+  [data-dir="c"][data-theme="dark"] { --bg:#0A0A0C; --surface:#151519; --text:#FAFAFB; --muted:#82828E; --accent:#A78BFA; --accent-contrast:#0A0A0C; --accent-soft:#1F1A2E; --accent-glow:rgba(167,139,250,.4); --border:#222228; --chip-bg:#1B1B20; --tabbar-bg:rgba(10,10,12,.85); --check-border:#33333B; --card-shadow:none; }
+</style>
+</body>
+</html>

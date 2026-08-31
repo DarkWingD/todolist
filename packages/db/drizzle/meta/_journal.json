@@ -8,6 +8,13 @@
       "when": 1788169144357,
       "tag": "0000_furry_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788220406476,
+      "tag": "0001_glossy_reaper",
+      "breakpoints": true
     }
   ]
 }

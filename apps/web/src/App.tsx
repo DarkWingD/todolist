@@ -4,6 +4,7 @@ import { QuickAddSheet } from './components/QuickAddSheet';
 import { useSession } from './lib/auth';
 import { trpc } from './lib/trpc';
 import { AppearanceScreen } from './screens/AppearanceScreen';
+import { CalScreen } from './screens/CalScreen';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
@@ -63,14 +64,19 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [view, setView] = useState<View>('main');
   const [selectedList, setSelectedList] = useState<MinList | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [taskReturn, setTaskReturn] = useState<'today' | 'listDetail'>('today');
+  const [taskReturn, setTaskReturn] = useState<{ view: 'main' | 'listDetail'; tab: TabId }>({
+    view: 'main',
+    tab: 'today',
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createListSignal, setCreateListSignal] = useState(0);
+  const [calCreateSignal, setCalCreateSignal] = useState(0);
 
   // The floating + adds whatever the current screen is about:
-  // a list on the Lists tab, otherwise a task.
+  // a list on Lists, an event/birthday on Cal, otherwise a task.
   function onAdd() {
     if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
+    else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
     else setSheetOpen(true);
   }
 
@@ -96,26 +102,29 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
   function openTask(id: string) {
     setSelectedTaskId(id);
-    setTaskReturn(view === 'listDetail' ? 'listDetail' : 'today');
+    setTaskReturn(view === 'listDetail' ? { view: 'listDetail', tab: 'lists' } : { view: 'main', tab });
     setView('taskDetail');
   }
   function closeTask() {
-    if (taskReturn === 'listDetail' && selectedList) setView('listDetail');
+    if (taskReturn.view === 'listDetail' && selectedList) setView('listDetail');
     else {
       setView('main');
-      setTab('today');
+      setTab(taskReturn.tab);
     }
   }
 
   const activeTab: TabId =
     view === 'appearance'
       ? 'you'
-      : view === 'listDetail' || (view === 'taskDetail' && taskReturn === 'listDetail')
+      : view === 'listDetail'
         ? 'lists'
         : view === 'taskDetail'
-          ? 'today'
+          ? taskReturn.view === 'listDetail'
+            ? 'lists'
+            : taskReturn.tab
           : tab;
-  const showFab = (view === 'main' && (tab === 'today' || tab === 'lists')) || view === 'listDetail';
+  const showFab =
+    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) || view === 'listDetail';
 
   let content;
   if (view === 'taskDetail' && selectedTaskId) {
@@ -128,6 +137,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
     content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
+  } else if (tab === 'cal') {
+    content = <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} />;
   } else if (tab === 'search') {
     content = <SearchScreen onOpenList={openList} />;
   } else {
