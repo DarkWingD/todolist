@@ -1,0 +1,69 @@
+import { and, asc, eq, isNull } from 'drizzle-orm';
+import { db, task } from '@todolist/db';
+import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
+import { z } from 'zod';
+import { assertListAccess } from '../access.js';
+import { protectedProcedure, router } from '../trpc.js';
+
+export const tasksRouter = router({
+  byList: protectedProcedure
+    .input(z.object({ listId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      return db
+        .select()
+        .from(task)
+        .where(and(eq(task.listId, input.listId), isNull(task.deletedAt)))
+        .orderBy(asc(task.sortOrder), asc(task.createdAt));
+    }),
+
+  create: protectedProcedure.input(createTaskSchema).mutation(async ({ ctx, input }) => {
+    await assertListAccess(ctx.user.id, input.listId);
+    const [created] = await db
+      .insert(task)
+      .values({
+        listId: input.listId,
+        title: input.title,
+        notes: input.notes,
+        dueAt: input.dueAt ? new Date(input.dueAt) : undefined,
+        priority: input.priority,
+        assigneeId: input.assigneeId,
+        recurrenceRule: input.recurrenceRule,
+        createdBy: ctx.user.id,
+      })
+      .returning();
+    return created;
+  }),
+
+  toggle: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), completed: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await db.select({ listId: task.listId }).from(task).where(eq(task.id, input.id)).limit(1);
+      const found = rows[0];
+      if (!found) return { ok: false };
+      await assertListAccess(ctx.user.id, found.listId);
+      await db
+        .update(task)
+        .set({ completedAt: input.completed ? new Date() : null, updatedAt: new Date() })
+        .where(eq(task.id, input.id));
+      return { ok: true };
+    }),
+
+  update: protectedProcedure.input(updateTaskSchema).mutation(async ({ ctx, input }) => {
+    const rows = await db.select({ listId: task.listId }).from(task).where(eq(task.id, input.id)).limit(1);
+    const found = rows[0];
+    if (!found) return { ok: false };
+    await assertListAccess(ctx.user.id, found.listId);
+    const { id, dueAt, completed, tagIds: _tagIds, ...rest } = input;
+    await db
+      .update(task)
+      .set({
+        ...rest,
+        ...(dueAt !== undefined ? { dueAt: dueAt ? new Date(dueAt) : null } : {}),
+        ...(completed !== undefined ? { completedAt: completed ? new Date() : null } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(task.id, id));
+    return { ok: true };
+  }),
+});

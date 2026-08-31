@@ -1,0 +1,27 @@
+{
+  "name": "todolist",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:web": "pnpm --filter @todolist/web dev",
+    "dev:api": "pnpm --filter @todolist/api dev",
+    "dev:worker": "pnpm --filter @todolist/worker dev",
+    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md}\"",
+    "db:generate": "pnpm --filter @todolist/db generate",
+    "db:migrate": "pnpm --filter @todolist/db migrate",
+    "db:studio": "pnpm --filter @todolist/db studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

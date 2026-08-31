@@ -1,0 +1,110 @@
+# Self-hosted stack for Fedora. Reads secrets from .env (see .env.example).
+# Start: docker compose up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: apply migrations, then exit.
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.api
+    command: ['pnpm', '--filter', '@todolist/db', 'migrate']
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      API_PORT: 8787
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      AUTH_SECRET: ${AUTH_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      # Bound to localhost only — reached via the host's Cloudflare Tunnel (todolist.yml → :3011).
+      - '127.0.0.1:3011:80'
+    depends_on:
+      - api
+
+  # Exposes `web` to the internet over your Cloudflare Tunnel.
+  # Configure the tunnel's public hostname to point at http://web:80.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ['production']
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - web
+
+  # Nightly pg_dump with 14-day retention.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    profiles: ['production']
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      bash -c '
+      while true; do
+        ts=$$(date +%F-%H%M);
+        echo "Backing up to /backups/todolist-$$ts.sql.gz";
+        pg_dump -h postgres -U ${POSTGRES_USER} ${POSTGRES_DB} | gzip > /backups/todolist-$$ts.sql.gz || echo "backup failed";
+        find /backups -name "*.sql.gz" -mtime +14 -delete;
+        sleep 86400;
+      done'
+    depends_on:
+      postgres:
+        condition: service_healthy

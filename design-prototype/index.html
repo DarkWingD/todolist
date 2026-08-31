@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ToDoList — Interactive Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800&family=Quicksand:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { font-family: Inter, system-ui, sans-serif; background: #0e0e11; color: #e7e7ea; padding: 26px 16px 80px; line-height: 1.5; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .lede { color: #a1a1aa; margin-top: 8px; max-width: 700px; font-size: 15px; }
+
+  .controls { margin-top: 22px; background: #17171c; border: 1px solid #26262c; border-radius: 16px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 22px; }
+  .ctl { display: flex; flex-direction: column; gap: 8px; }
+  .ctl > .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #7c7c86; font-weight: 700; }
+  .seg { display: inline-flex; background: #0e0e11; border: 1px solid #26262c; border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: #a1a1aa; font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: #2b2b34; color: #fff; }
+  .theme-seg button { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .slider { display: flex; align-items: center; gap: 10px; }
+  .slider .a-min { font-size: 12px; color: #7c7c86; } .slider .a-max { font-size: 17px; color: #7c7c86; }
+  input[type=range] { width: 130px; accent-color: #8b8bf0; }
+  .hint { margin-top: 14px; font-size: 13px; color: #6d6d76; }
+
+  .stage { display: flex; justify-content: center; margin-top: 30px; }
+
+  /* ---------- Phone shell ---------- */
+  .phone { --density: 1; --type-scale: 1; width: 340px; height: 720px; border-radius: 40px; overflow: hidden; position: relative;
+    background: var(--bg); color: var(--text); font-family: var(--font-body);
+    box-shadow: 0 0 0 10px #1b1b20, 0 26px 50px -14px rgba(0,0,0,.65);
+    display: flex; flex-direction: column; isolation: isolate; transition: background .25s ease, color .25s ease; }
+  .screen { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .body-scroll { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 0 calc(18px * var(--density)); }
+
+  .topbar { padding: 34px calc(18px * var(--density)) 0; }
+  .topbar.pad-b { padding-bottom: calc(16px * var(--density)); }
+  .appbar { display: flex; align-items: center; justify-content: space-between; }
+  .list-title { display: flex; align-items: center; gap: calc(10px * var(--density)); min-width: 0; }
+  .list-emoji { width: 40px; height: 40px; border-radius: var(--emoji-radius); display: grid; place-items: center; font-size: 20px; background: var(--emoji-bg); flex: none; }
+  .list-title h3 { font-family: var(--font-head); font-size: calc(var(--title-size) * var(--type-scale)); font-weight: var(--title-weight); letter-spacing: var(--title-tracking); line-height: 1.1; }
+  .list-title .sub { font-size: calc(12px * var(--type-scale)); color: var(--muted); margin-top: 2px; }
+  .big-title { font-family: var(--font-head); font-size: calc(28px * var(--type-scale)); font-weight: var(--title-weight); letter-spacing: var(--title-tracking); }
+  .icon-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--chip-bg); display: grid; place-items: center; font-size: 15px; font-weight: 600; color: var(--muted); flex: none; cursor: pointer; border: 0; font-family: inherit; }
+
+  .progress { display: flex; align-items: center; gap: 10px; margin: calc(16px * var(--density)) 0 calc(6px * var(--density)); }
+  .bar { flex: 1; height: 7px; border-radius: 99px; background: var(--track); overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width .3s ease; }
+  .progress .count { font-size: calc(12px * var(--type-scale)); color: var(--muted); font-weight: 600; }
+
+  .section-h { font-size: calc(11px * var(--type-scale)); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 700; margin: calc(12px * var(--density)) 2px calc(10px * var(--density)); }
+
+  .task { display: flex; align-items: flex-start; gap: calc(12px * var(--density)); padding: calc(12px * var(--density)); border-radius: var(--card-radius); background: var(--surface); margin-bottom: calc(9px * var(--density)); box-shadow: var(--card-shadow); cursor: pointer; }
+  .check { width: 22px; height: 22px; border-radius: var(--check-radius); flex: none; margin-top: 1px; box-shadow: inset 0 0 0 2px var(--check-border); display: grid; place-items: center; transition: background .15s ease; }
+  .check.done { background: var(--accent); box-shadow: none; }
+  .check.done::after { content: "✓"; color: var(--accent-contrast); font-size: 13px; font-weight: 700; }
+  .task .body { flex: 1; min-width: 0; }
+  .task .t { font-size: calc(14.5px * var(--type-scale)); font-weight: 500; letter-spacing: -0.005em; }
+  .task.done .t { text-decoration: line-through; color: var(--muted); }
+  .task .lead-emoji { font-size: 15px; margin-right: 2px; }
+  .task .metrow { display: flex; align-items: center; gap: 7px; margin-top: calc(7px * var(--density)); flex-wrap: wrap; }
+  .chip { font-size: calc(11px * var(--type-scale)); font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--chip-bg); color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+  .chip.due { color: var(--accent); background: var(--accent-soft); }
+  .chip.over { color: var(--danger); background: var(--danger-soft); }
+  .chip.tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .chip.rec::before { content: "🔁"; font-size: 9px; }
+  .mini-av { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; display: grid; place-items: center; flex: none; }
+  .push { margin-left: auto; }
+
+  /* lists overview */
+  .list-card { display: flex; align-items: center; gap: calc(12px * var(--density)); padding: calc(12px * var(--density)); border-radius: var(--card-radius); background: var(--surface); margin-bottom: calc(9px * var(--density)); box-shadow: var(--card-shadow); cursor: pointer; }
+  .list-card .nm { font-size: calc(15px * var(--type-scale)); font-weight: 600; }
+  .list-card .meta { font-size: calc(12px * var(--type-scale)); color: var(--muted); margin-top: 1px; }
+  .avstack { display: flex; }
+  .avstack .mini-av { box-shadow: 0 0 0 2px var(--surface); margin-left: -6px; }
+  .avstack .mini-av:first-child { margin-left: 0; }
+  .user-av { width: var(--sz); height: var(--sz); border-radius: 50%; display: inline-grid; place-items: center; flex: none; font-size: calc(var(--sz) * 0.56); line-height: 1; background: color-mix(in srgb, var(--uc) 22%, var(--surface)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--uc) 48%, transparent); }
+  .avstack .user-av { margin-left: -7px; box-shadow: 0 0 0 2px var(--surface), inset 0 0 0 1.5px color-mix(in srgb, var(--uc) 48%, transparent); }
+  .avstack .user-av:first-child { margin-left: 0; }
+  .plain-btn { border: 0; background: transparent; padding: 0; cursor: pointer; }
+
+  /* member row */
+  .memberbar { display: flex; align-items: center; gap: 8px; margin-top: calc(12px * var(--density)); }
+  .share-btn { font-size: calc(12px * var(--type-scale)); font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 6px 12px; border-radius: 999px; border: 0; cursor: pointer; font-family: inherit; }
+
+  /* search */
+  .searchbox { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 11px 13px; margin-bottom: calc(14px * var(--density)); box-shadow: var(--card-shadow); }
+  .searchbox input { border: 0; background: transparent; color: var(--text); font: inherit; font-size: calc(14.5px * var(--type-scale)); flex: 1; outline: none; font-family: inherit; }
+  .searchbox .ico { color: var(--muted); font-size: 16px; }
+  .chipwrap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fchip { font-size: calc(12.5px * var(--type-scale)); font-weight: 600; padding: 7px 12px; border-radius: 999px; background: var(--chip-bg); color: var(--text); cursor: pointer; }
+
+  /* profile / menu */
+  .profile { display: flex; align-items: center; gap: 12px; padding: calc(6px * var(--density)) 2px calc(16px * var(--density)); }
+  .profile .pic { width: 54px; height: 54px; border-radius: 50%; background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+  .profile .nm { font-size: calc(17px * var(--type-scale)); font-weight: 700; font-family: var(--font-head); }
+  .profile .em { font-size: calc(12.5px * var(--type-scale)); color: var(--muted); }
+  .menu-card { background: var(--surface); border-radius: var(--card-radius); box-shadow: var(--card-shadow); overflow: hidden; }
+  .menu-row { display: flex; align-items: center; gap: 12px; padding: calc(13px * var(--density)) 14px; cursor: pointer; }
+  .menu-row + .menu-row { border-top: 1px solid var(--border); }
+  .menu-row .mi { width: 26px; text-align: center; font-size: 16px; }
+  .menu-row .ml { flex: 1; font-size: calc(14.5px * var(--type-scale)); font-weight: 500; }
+  .menu-row .chev { color: var(--muted); font-size: 18px; }
+  .menu-row .val { color: var(--muted); font-size: calc(12.5px * var(--type-scale)); font-weight: 600; }
+
+  /* settings appearance */
+  .set-section-h { font-size: calc(11px * var(--type-scale)); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 700; margin: calc(10px * var(--density)) 2px calc(10px * var(--density)); }
+  .set-card { background: var(--surface); border-radius: var(--card-radius); box-shadow: var(--card-shadow); margin-bottom: calc(14px * var(--density)); }
+  .set-row { padding: calc(12px * var(--density)) 13px; }
+  .set-row + .set-row { border-top: 1px solid var(--border); }
+  .set-row .rlbl { font-size: calc(13.5px * var(--type-scale)); font-weight: 600; margin-bottom: calc(9px * var(--density)); }
+  .theme-cards { display: flex; gap: 8px; }
+  .tcard { flex: 1; border-radius: 12px; padding: 9px 8px; cursor: pointer; box-shadow: inset 0 0 0 1.5px var(--border); text-align: center; }
+  .tcard[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+  .tcard .sw { display: flex; gap: 3px; justify-content: center; margin-bottom: 6px; }
+  .tcard .sw i { width: 12px; height: 12px; border-radius: 4px; }
+  .tcard .nm { font-size: calc(11px * var(--type-scale)); font-weight: 700; }
+  .iseg { display: flex; background: var(--chip-bg); border-radius: 10px; padding: 3px; gap: 2px; }
+  .iseg button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: calc(12.5px * var(--type-scale)); font-weight: 600; padding: 7px 4px; border-radius: 8px; cursor: pointer; font-family: var(--font-body); }
+  .iseg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .txt-slider { display: flex; align-items: center; gap: 10px; }
+  .txt-slider .a-min { font-size: 12px; color: var(--muted); } .txt-slider .a-max { font-size: 18px; color: var(--muted); }
+  .txt-slider input { flex: 1; accent-color: var(--accent); }
+
+  .backbtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--accent); font: inherit; font-weight: 600; font-size: calc(14px * var(--type-scale)); cursor: pointer; padding: 0; margin-bottom: calc(10px * var(--density)); font-family: inherit; }
+
+  .fab { position: absolute; right: 18px; bottom: 76px; width: 56px; height: 56px; border-radius: var(--fab-radius); background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center; font-size: 27px; box-shadow: 0 12px 26px -6px var(--accent-glow); z-index: 6; cursor: pointer; border: 0; }
+  .tabbar { height: 64px; display: flex; align-items: center; justify-content: space-around; padding: 0 8px 8px; background: var(--tabbar-bg); border-top: 1px solid var(--border); backdrop-filter: blur(10px); flex: none; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); cursor: pointer; }
+  .tab .ico { font-size: 19px; line-height: 1; }
+  .tab.active { color: var(--accent); font-weight: 700; }
+
+  /* bottom sheet */
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.4); z-index: 10; opacity: 0; pointer-events: none; transition: opacity .22s ease; }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg); border-radius: 24px 24px 0 0; padding: 10px 18px calc(20px + env(safe-area-inset-bottom)); z-index: 11; transform: translateY(110%); transition: transform .28s cubic-bezier(.32,.72,0,1); box-shadow: 0 -10px 40px rgba(0,0,0,.25); }
+  .sheet.open { transform: translateY(0); }
+  .grip { width: 40px; height: 5px; border-radius: 99px; background: var(--check-border); margin: 4px auto 16px; }
+  .sheet .sheet-input { font-size: calc(17px * var(--type-scale)); font-weight: 500; color: var(--text); border: 0; background: transparent; outline: none; width: 100%; font-family: var(--font-head); margin-bottom: 14px; }
+  .sheet .opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .opt { font-size: calc(13px * var(--type-scale)); font-weight: 600; padding: 8px 13px; border-radius: 999px; background: var(--chip-bg); color: var(--text); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .opt.on { background: var(--accent-soft); color: var(--accent); }
+  .sheet .add-btn { width: 100%; background: var(--accent); color: var(--accent-contrast); border: 0; border-radius: 14px; padding: 14px; font-size: calc(15px * var(--type-scale)); font-weight: 700; cursor: pointer; font-family: var(--font-body); }
+
+  @media (max-width: 720px) { .phone { width: 100%; max-width: 360px; height: 700px; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ToDoList — Interactive Prototype</h1>
+    <p class="lede">The core screens, navigable. Use the bottom tabs, tap a list to open it, tap the <strong>+</strong> to add a task, and tap checkboxes to complete. Everything responds live to the theme / density / text controls below.</p>
+
+    <div class="controls">
+      <div class="ctl"><span class="lbl">Theme</span>
+        <div class="seg theme-seg" data-group="dir">
+          <button data-val="a" aria-pressed="false"><span class="dot" style="background:#5A5FCC"></span>Tento</button>
+          <button data-val="b" aria-pressed="true"><span class="dot" style="background:#FF6B5E"></span>Nudge</button>
+          <button data-val="c" aria-pressed="false"><span class="dot" style="background:#7C3AED"></span>Momentum</button>
+        </div>
+      </div>
+      <div class="ctl"><span class="lbl">Appearance</span>
+        <div class="seg" data-group="appearance">
+          <button data-val="system" aria-pressed="true">System</button>
+          <button data-val="light" aria-pressed="false">Light</button>
+          <button data-val="dark" aria-pressed="false">Dark</button>
+        </div>
+      </div>
+      <div class="ctl"><span class="lbl">Density</span>
+        <div class="seg" data-group="density">
+          <button data-val="comfortable" aria-pressed="false">Comfortable</button>
+          <button data-val="cozy" aria-pressed="true">Cozy</button>
+          <button data-val="compact" aria-pressed="false">Compact</button>
+        </div>
+      </div>
+      <div class="ctl"><span class="lbl">Text size</span>
+        <div class="slider"><span class="a-min">A</span><input type="range" id="text-range" min="0.88" max="1.14" step="0.02" value="0.96" /><span class="a-max">A</span></div>
+      </div>
+    </div>
+    <p class="hint">Screens: Today · Lists · List detail (incl. a shared list with assignment) · Quick-Add sheet · Search · You / Settings → Appearance.</p>
+
+    <div class="stage"><div class="phone" id="phone"></div></div>
+  </div>
+
+<script>
+  const THEME_SW = { a:["#FBFAF8","#5A5FCC","#1C1B1A"], b:["#FFF9F5","#FF6B5E","#FFB020"], c:["#151519","#A78BFA","#7C3AED"] };
+  const DENSITY = { comfortable: 1, cozy: 0.9, compact: 0.8 };
+
+  const USERS = {
+    JD: { name:"Jamie Doe", emoji:"🦊", color:"#F59E0B" },
+    SW: { name:"Sam Wu",    emoji:"🐧", color:"#3B82F6" },
+    MK: { name:"Mia Khan",  emoji:"🐨", color:"#10B981" },
+  };
+  const ME = "JD";
+  const avatar = (code, size=20) => {
+    const u = USERS[code] || { emoji:"🙂", color:"#888" };
+    return `<span class="user-av" style="--sz:${size}px; --uc:${u.color}">${u.emoji}</span>`;
+  };
+
+  const LISTS = [
+    { id:"home",    emoji:"🏡", name:"Home",          shared:false },
+    { id:"work",    emoji:"💼", name:"Work",          shared:false },
+    { id:"grocery", emoji:"🛒", name:"Groceries",     shared:true,  members:["JD","SW","MK"] },
+    { id:"trip",    emoji:"🧳", name:"Weekend Trip",  shared:true,  members:["JD","SW"] },
+    { id:"fitness", emoji:"🏃", name:"Fitness",       shared:false },
+  ];
+  const TASKS = {
+    home: [
+      { id:"h1", t:"Water the plants", due:"5:00 PM", dueType:"due", tag:"Garden" },
+      { id:"h2", t:"Book dentist appointment", due:"Tomorrow", assignee:"SW" },
+      { id:"h3", t:"Pay electricity bill", due:"Overdue · Mon", dueType:"over" },
+      { id:"h5", t:"Vacuum living room", rec:"Every Sat" },
+      { id:"h4", t:"Buy oat milk", done:true },
+    ],
+    work: [
+      { id:"w1", t:"Finish Q3 report", due:"Today", dueType:"due", tag:"Priority" },
+      { id:"w2", t:"Reply to client email", due:"2:30 PM", dueType:"due" },
+      { id:"w3", t:"Weekly standup notes", rec:"Every Mon", done:true },
+    ],
+    grocery: [
+      { id:"g1", t:"Oat milk ×2", assignee:"JD" },
+      { id:"g2", t:"Sourdough loaf", assignee:"SW" },
+      { id:"g3", t:"Avocados", assignee:"MK", tag:"Ripe!" },
+      { id:"g4", t:"Coffee beans", assignee:"JD", done:true },
+    ],
+    trip: [
+      { id:"t1", t:"Book train tickets", due:"Fri", dueType:"due", assignee:"JD" },
+      { id:"t2", t:"Reserve Airbnb", assignee:"SW" },
+      { id:"t3", t:"Pack rain jackets", assignee:"JD" },
+    ],
+    fitness: [
+      { id:"f1", t:"Morning run — 5k", rec:"Every day", due:"7:00 AM", dueType:"due" },
+      { id:"f2", t:"Stretch + mobility", rec:"Every day" },
+    ],
+  };
+  const TODAY = [
+    { id:"h3", emoji:"🏡", t:"Pay electricity bill", due:"Overdue · Mon", dueType:"over" },
+    { id:"w1", emoji:"💼", t:"Finish Q3 report", due:"Today", dueType:"due", tag:"Priority" },
+    { id:"f1", emoji:"🏃", t:"Morning run — 5k", due:"7:00 AM", dueType:"due", rec:"Daily" },
+    { id:"h1", emoji:"🏡", t:"Water the plants", due:"5:00 PM", dueType:"due" },
+    { id:"w2", emoji:"💼", t:"Reply to client email", due:"2:30 PM", dueType:"due" },
+    { id:"h4", emoji:"🏡", t:"Buy oat milk", done:true },
+  ];
+
+  const state = { dir:"b", appearance:"system", density:"cozy", text:0.96, screen:"today", listId:null, sheet:false, done:{} };
+
+  const resolvedTheme = () => state.appearance !== "system" ? state.appearance
+    : (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const isDone = (task) => state.done[task.id] !== undefined ? state.done[task.id] : !!task.done;
+
+  function taskRow(task, opts={}) {
+    const done = isDone(task);
+    const av = task.assignee ? `<span class="push">${avatar(task.assignee, 22)}</span>` : "";
+    const meta = [];
+    if (task.due) meta.push(`<span class="chip ${task.dueType==="over"?"over":task.dueType==="due"?"due":""}">${task.dueType!=="over"?"◷ ":""}${task.due}</span>`);
+    if (task.rec) meta.push(`<span class="chip rec">${task.rec}</span>`);
+    if (task.tag) meta.push(`<span class="chip tag">${task.tag}</span>`);
+    const metarow = (meta.length || task.assignee) ? `<div class="metrow">${meta.join("")}${av}</div>` : "";
+    const lead = opts.emoji ? `<span class="lead-emoji">${opts.emoji}</span>` : "";
+    return `<div class="task ${done?"done":""}" data-toggle="${task.id}">
+      <div class="check ${done?"done":""}"></div>
+      <div class="body"><div class="t">${lead}${task.t}</div>${metarow}</div>
+    </div>`;
+  }
+
+  function tabbar(active) {
+    const tab = (id, ico, label) => `<div class="tab ${active===id?"active":""}" data-nav="${id}"><span class="ico">${ico}</span>${label}</div>`;
+    return `<div class="tabbar">${tab("today","◎","Today")}${tab("lists","☰","Lists")}${tab("search","⌕","Search")}${tab("you","◔","You")}</div>`;
+  }
+
+  function screenToday() {
+    const open = TODAY.filter(t=>!isDone(t)), doneCt = TODAY.length - open.length;
+    return `<div class="screen">
+      <div class="topbar"><div class="appbar">
+        <div class="list-title"><div><div class="big-title">Today</div><div class="sub">Wednesday, 3 September</div></div></div>
+        <button class="plain-btn" data-nav="you">${avatar(ME, 36)}</button>
+      </div>
+      <div class="progress"><div class="bar"><i style="width:${Math.round(doneCt/TODAY.length*100)}%"></i></div><span class="count">${doneCt} of ${TODAY.length}</span></div>
+      </div>
+      <div class="body-scroll">
+        <div class="section-h">Focus</div>
+        ${TODAY.map(t=>taskRow(t,{emoji:t.emoji})).join("")}
+      </div>
+      ${tabbar("today")}</div>`;
+  }
+
+  function screenLists() {
+    const card = (l) => {
+      const tasks = TASKS[l.id]||[]; const remaining = tasks.filter(t=>!isDone(t)).length;
+      const members = l.shared ? `<div class="avstack push">${l.members.map(m=>avatar(m, 26)).join("")}</div>` : "";
+      return `<div class="list-card" data-open="${l.id}">
+        <div class="list-emoji">${l.emoji}</div>
+        <div><div class="nm">${l.name}</div><div class="meta">${remaining} to do${l.shared?" · Shared":""}</div></div>
+        ${members}</div>`;
+    };
+    return `<div class="screen">
+      <div class="topbar pad-b"><div class="appbar"><div class="big-title">Lists</div><button class="icon-btn">+</button></div></div>
+      <div class="body-scroll">${LISTS.map(card).join("")}</div>
+      ${tabbar("lists")}</div>`;
+  }
+
+  function screenListDetail(id) {
+    const l = LISTS.find(x=>x.id===id); const tasks = TASKS[id]||[];
+    const open = tasks.filter(t=>!isDone(t)), done = tasks.filter(t=>isDone(t));
+    const members = l.shared ? `<div class="memberbar"><div class="avstack">${l.members.map(m=>avatar(m, 28)).join("")}</div><button class="share-btn" data-nav="share">＋ Invite</button></div>` : "";
+    return `<div class="screen">
+      <div class="topbar pad-b">
+        <button class="backbtn" data-nav="lists">‹ Lists</button>
+        <div class="appbar"><div class="list-title"><div class="list-emoji">${l.emoji}</div><div><h3>${l.name}</h3><div class="sub">${open.length} to do · ${done.length} done</div></div></div><button class="icon-btn">⋯</button></div>
+        ${members}
+      </div>
+      <div class="body-scroll">
+        <div class="section-h">To do</div>
+        ${open.length? open.map(t=>taskRow(t)).join("") : `<div class="sub" style="padding:8px 2px">All done — nice. 🎉</div>`}
+        ${done.length?`<div class="section-h">Completed</div>${done.map(t=>taskRow(t)).join("")}`:""}
+      </div>
+      ${tabbar("lists")}</div>`;
+  }
+
+  function screenSearch() {
+    return `<div class="screen">
+      <div class="topbar pad-b">
+        <div class="searchbox"><span class="ico">⌕</span><input placeholder="Search tasks, lists, people…" /></div>
+      </div>
+      <div class="body-scroll">
+        <div class="section-h">Recent</div>
+        <div class="chipwrap" style="margin-bottom:16px"><span class="fchip">Dentist</span><span class="fchip">🛒 Groceries</span><span class="fchip">Overdue</span><span class="fchip">@SW</span></div>
+        <div class="section-h">Filters</div>
+        <div class="chipwrap"><span class="fchip">📅 Due today</span><span class="fchip">🚩 Priority</span><span class="fchip">🔁 Recurring</span><span class="fchip">👥 Assigned to me</span></div>
+      </div>
+      ${tabbar("search")}</div>`;
+  }
+
+  function screenYou() {
+    const row = (ico, label, opts={}) => `<div class="menu-row" ${opts.nav?`data-nav="${opts.nav}"`:""}><span class="mi">${ico}</span><span class="ml">${label}</span>${opts.val?`<span class="val">${opts.val}</span>`:""}<span class="chev">›</span></div>`;
+    const themeName = {a:"Tento",b:"Nudge",c:"Momentum"}[state.dir];
+    return `<div class="screen">
+      <div class="topbar pad-b"><div class="big-title">You</div></div>
+      <div class="body-scroll">
+        <div class="profile">${avatar(ME, 54)}<div><div class="nm">${USERS[ME].name}</div><div class="em">it@bert.com.au</div></div></div>
+        <div class="menu-card">
+          ${row("🎨","Appearance",{nav:"appearance",val:themeName})}
+          ${row("🔔","Notifications & reminders")}
+          ${row("🗂","Lists & tags")}
+        </div>
+        <div style="height:12px"></div>
+        <div class="menu-card">
+          ${row("👥","Shared with me")}
+          ${row("⚙️","Account")}
+          ${row("↪","Sign out")}
+        </div>
+      </div>
+      ${tabbar("you")}</div>`;
+  }
+
+  function screenAppearance() {
+    const tcard = (v, name) => `<div class="tcard" data-group="dir" data-val="${v}" aria-pressed="${state.dir===v}"><div class="sw">${THEME_SW[v].map(c=>`<i style="background:${c}"></i>`).join("")}</div><div class="nm">${name}</div></div>`;
+    const iseg = (group, opts) => `<div class="iseg" data-group="${group}">${opts.map(([v,l])=>`<button data-val="${v}" aria-pressed="${state[group]===v}">${l}</button>`).join("")}</div>`;
+    return `<div class="screen">
+      <div class="topbar pad-b"><button class="backbtn" data-nav="you">‹ You</button><div class="big-title">Appearance</div></div>
+      <div class="body-scroll">
+        <div class="set-section-h">Theme</div>
+        <div class="set-card"><div class="set-row"><div class="theme-cards">${tcard("a","Tento")}${tcard("b","Nudge")}${tcard("c","Momentum")}</div></div></div>
+        <div class="set-section-h">Display</div>
+        <div class="set-card">
+          <div class="set-row"><div class="rlbl">Appearance</div>${iseg("appearance",[["system","System"],["light","Light"],["dark","Dark"]])}</div>
+          <div class="set-row"><div class="rlbl">Density</div>${iseg("density",[["comfortable","Comfortable"],["cozy","Cozy"],["compact","Compact"]])}</div>
+          <div class="set-row"><div class="rlbl">Text size</div><div class="txt-slider"><span class="a-min">A</span><input type="range" data-group="text" min="0.88" max="1.14" step="0.02" value="${state.text}" /><span class="a-max">A</span></div></div>
+        </div>
+      </div>
+      ${tabbar("you")}</div>`;
+  }
+
+  function sheetHTML() {
+    const opt = (on, ico, label) => `<span class="opt ${on?"on":""}">${ico} ${label}</span>`;
+    return `<div class="sheet-backdrop ${state.sheet?"open":""}" data-nav="closesheet"></div>
+      <div class="sheet ${state.sheet?"open":""}">
+        <div class="grip"></div>
+        <input class="sheet-input" placeholder="What needs doing?" />
+        <div class="opts">${opt(true,"📅","Today")}${opt(false,"🏡","Home")}${opt(false,"🚩","Priority")}${opt(false,"🔁","Repeat")}${opt(false,"#","Tag")}${opt(false,"👤","Assign")}</div>
+        <button class="add-btn" data-nav="closesheet">Add task</button>
+      </div>`;
+  }
+
+  const phone = document.getElementById("phone");
+
+  function render() {
+    let content;
+    switch (state.screen) {
+      case "lists": content = screenLists(); break;
+      case "listDetail": content = screenListDetail(state.listId); break;
+      case "search": content = screenSearch(); break;
+      case "you": content = screenYou(); break;
+      case "appearance": content = screenAppearance(); break;
+      default: content = screenToday();
+    }
+    const showFab = ["today","lists","listDetail"].includes(state.screen);
+    phone.innerHTML = content + (showFab?`<button class="fab" data-nav="opensheet">+</button>`:"") + sheetHTML();
+    phone.dataset.dir = state.dir;
+    phone.dataset.theme = resolvedTheme();
+    phone.style.setProperty("--density", DENSITY[state.density]);
+    phone.style.setProperty("--type-scale", state.text);
+    // sync external bar
+    document.querySelectorAll(".controls [data-group]").forEach(seg => {
+      const g = seg.dataset.group;
+      seg.querySelectorAll("button[data-val]").forEach(b => b.setAttribute("aria-pressed", String(state[g] === b.dataset.val)));
+    });
+    document.getElementById("text-range").value = state.text;
+  }
+
+  function set(group, val) { if (group==="text") state.text = parseFloat(val); else state[group]=val; render(); }
+
+  document.addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-nav]");
+    if (nav) {
+      const v = nav.dataset.nav;
+      if (v==="opensheet") state.sheet = true;
+      else if (v==="closesheet") state.sheet = false;
+      else if (v==="share") { /* demo: no-op */ }
+      else if (["today","lists","search","you","appearance"].includes(v)) { state.screen = v; state.sheet=false; }
+      return render();
+    }
+    const openList = e.target.closest("[data-open]");
+    if (openList) { state.screen="listDetail"; state.listId=openList.dataset.open; return render(); }
+    const tog = e.target.closest("[data-toggle]");
+    if (tog) { const id=tog.dataset.toggle; state.done[id] = !isDone({id, done:false}); return render(); }
+    const grp = e.target.closest("[data-group][data-val]");
+    if (grp) return set(grp.dataset.group, grp.dataset.val);
+    const segBtn = e.target.closest(".controls [data-group] button[data-val], .iseg[data-group] button[data-val]");
+    if (segBtn) return set(segBtn.closest("[data-group]").dataset.group, segBtn.dataset.val);
+  });
+  document.addEventListener("input", (e) => { if (e.target.matches('input[type=range]')) set("text", e.target.value); });
+  if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (state.appearance==="system") render(); });
+
+  render();
+</script>
+
+<style>
+  [data-dir="a"] { --font-head: Fraunces, serif; --font-body: Inter, sans-serif; --title-size: 22px; --title-weight: 600; --title-tracking: 0; --emoji-radius: 12px; --card-radius: 14px; --check-radius: 7px; --fab-radius: 18px; }
+  [data-dir="a"][data-theme="light"] { --bg:#FBFAF8; --surface:#FFFFFF; --text:#1C1B1A; --muted:#8A8783; --accent:#5A5FCC; --accent-contrast:#fff; --accent-soft:#ECEDFA; --accent-glow:rgba(90,95,204,.4); --border:#EEECE8; --track:#ECEAE6; --chip-bg:#F3F1ED; --emoji-bg:#F1F0FB; --danger:#C2410C; --danger-soft:#FBEBE3; --tabbar-bg:rgba(251,250,248,.85); --check-border:#D8D5D0; --card-shadow:0 1px 2px rgba(20,20,20,.04); }
+  [data-dir="a"][data-theme="dark"] { --bg:#16151A; --surface:#201F26; --text:#F0EEF6; --muted:#918EA0; --accent:#9A9AF5; --accent-contrast:#16151A; --accent-soft:#262636; --accent-glow:rgba(154,154,245,.35); --border:#2A2933; --track:#2A2933; --chip-bg:#26252E; --emoji-bg:#26263A; --danger:#F0A987; --danger-soft:#33241E; --tabbar-bg:rgba(22,21,26,.85); --check-border:#3A3945; --card-shadow:none; }
+
+  [data-dir="b"] { --font-head: Quicksand, sans-serif; --font-body: Nunito, sans-serif; --title-size: 21px; --title-weight: 700; --title-tracking: 0; --emoji-radius: 14px; --card-radius: 18px; --check-radius: 8px; --fab-radius: 20px; }
+  [data-dir="b"][data-theme="light"] { --bg:#FFF9F5; --surface:#FFFFFF; --text:#2B2422; --muted:#9A8C85; --accent:#FF6B5E; --accent-contrast:#fff; --accent-soft:#FFEAE6; --accent-glow:rgba(255,107,94,.45); --border:#F6E9E1; --track:#F6E7DF; --chip-bg:#FBF0EA; --emoji-bg:#FFECC7; --danger:#E23D4B; --danger-soft:#FDE7E9; --tabbar-bg:rgba(255,249,245,.85); --check-border:#E7D5CC; --card-shadow:0 2px 6px rgba(255,107,94,.06); }
+  [data-dir="b"][data-theme="dark"] { --bg:#211A18; --surface:#2C2320; --text:#FBEFE9; --muted:#B39C92; --accent:#FF7A6E; --accent-contrast:#211A18; --accent-soft:#3A2823; --accent-glow:rgba(255,122,110,.4); --border:#362A26; --track:#362A26; --chip-bg:#33272E; --emoji-bg:#40301A; --danger:#FF8A94; --danger-soft:#3A2223; --tabbar-bg:rgba(33,26,24,.85); --check-border:#4A3A34; --card-shadow:none; }
+
+  [data-dir="c"] { --font-head: "Space Grotesk", sans-serif; --font-body: Inter, sans-serif; --title-size: 21px; --title-weight: 700; --title-tracking: -0.02em; --emoji-radius: 10px; --card-radius: 12px; --check-radius: 6px; --fab-radius: 16px; }
+  [data-dir="c"][data-theme="light"] { --bg:#FFFFFF; --surface:#F7F7F9; --text:#0A0A0B; --muted:#85858F; --accent:#7C3AED; --accent-contrast:#fff; --accent-soft:#F0E9FE; --accent-glow:rgba(124,58,237,.4); --border:#ECECEF; --track:#ECECEF; --chip-bg:#F1F1F4; --emoji-bg:#F0E9FE; --danger:#DC2626; --danger-soft:#FCE9E9; --tabbar-bg:rgba(255,255,255,.85); --check-border:#D4D4DA; --card-shadow:0 1px 2px rgba(10,10,11,.05); }
+  [data-dir="c"][data-theme="dark"] { --bg:#0A0A0C; --surface:#151519; --text:#FAFAFB; --muted:#82828E; --accent:#A78BFA; --accent-contrast:#0A0A0C; --accent-soft:#1F1A2E; --accent-glow:rgba(167,139,250,.4); --border:#222228; --track:#222228; --chip-bg:#1B1B20; --emoji-bg:#1F1A2E; --danger:#F87171; --danger-soft:#2A1A1A; --tabbar-bg:rgba(10,10,12,.85); --check-border:#33333B; --card-shadow:none; }
+</style>
+</body>
+</html>

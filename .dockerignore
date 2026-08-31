@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/build
+**/.pnpm-store
+**/dev-dist
+.git
+backups
+pgdata
+*.log
+.env

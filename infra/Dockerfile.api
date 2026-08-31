@@ -1,0 +1,13 @@
+# Runs the API directly with tsx (no build step) — fine at this scale and
+# avoids workspace-package build/exports complexity.
+FROM node:20-slim
+RUN corepack enable
+WORKDIR /repo
+
+# Copy the whole monorepo (dockerignore trims node_modules/dist).
+COPY . .
+RUN pnpm install --frozen-lockfile=false
+
+WORKDIR /repo/apps/api
+EXPOSE 8787
+CMD ["pnpm", "exec", "tsx", "src/index.ts"]

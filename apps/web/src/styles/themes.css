@@ -1,0 +1,112 @@
+/*
+ * Design tokens — ported from the approved prototype.
+ * Theme is selected by data-theme on <html>; light/dark by data-mode.
+ * Density and text scale are set as inline CSS vars (--density, --text-scale) by ThemeProvider.
+ *
+ * Component styles consume the semantic tokens below (never raw hex), so all
+ * three themes + light/dark + density + text size fall out for free.
+ */
+
+:root {
+  --density: 0.9; /* comfortable=1, cozy=0.9, compact=0.8 */
+  --text-scale: 0.96; /* 0.88 – 1.14 */
+
+  /* spacing scale, multiplied by density */
+  --space-1: calc(4px * var(--density));
+  --space-2: calc(8px * var(--density));
+  --space-3: calc(12px * var(--density));
+  --space-4: calc(16px * var(--density));
+  --space-5: calc(20px * var(--density));
+
+  /* font sizes, multiplied by text scale */
+  --fs-xs: calc(11px * var(--text-scale));
+  --fs-sm: calc(12.5px * var(--text-scale));
+  --fs-base: calc(14.5px * var(--text-scale));
+  --fs-lg: calc(17px * var(--text-scale));
+  --fs-title: calc(21px * var(--text-scale));
+  --fs-big: calc(28px * var(--text-scale));
+}
+
+/* ============ TENTO — Calm / Focus ============ */
+[data-theme='tento'] {
+  --font-head: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --title-weight: 600;
+  --title-tracking: 0;
+  --radius-emoji: 12px;
+  --radius-card: 14px;
+  --radius-check: 7px;
+  --radius-fab: 18px;
+}
+[data-theme='tento'][data-mode='light'] {
+  --color-bg: #fbfaf8; --color-surface: #ffffff; --color-text: #1c1b1a; --color-muted: #8a8783;
+  --color-accent: #5a5fcc; --color-accent-contrast: #ffffff; --color-accent-soft: #ecedfa;
+  --color-accent-glow: rgba(90, 95, 204, 0.4);
+  --color-border: #eeece8; --color-track: #eceae6; --color-chip-bg: #f3f1ed; --color-emoji-bg: #f1f0fb;
+  --color-danger: #c2410c; --color-danger-soft: #fbebe3; --color-tabbar: rgba(251, 250, 248, 0.85);
+  --color-check-border: #d8d5d0; --shadow-card: 0 1px 2px rgba(20, 20, 20, 0.04);
+}
+[data-theme='tento'][data-mode='dark'] {
+  --color-bg: #16151a; --color-surface: #201f26; --color-text: #f0eef6; --color-muted: #918ea0;
+  --color-accent: #9a9af5; --color-accent-contrast: #16151a; --color-accent-soft: #262636;
+  --color-accent-glow: rgba(154, 154, 245, 0.35);
+  --color-border: #2a2933; --color-track: #2a2933; --color-chip-bg: #26252e; --color-emoji-bg: #26263a;
+  --color-danger: #f0a987; --color-danger-soft: #33241e; --color-tabbar: rgba(22, 21, 26, 0.85);
+  --color-check-border: #3a3945; --shadow-card: none;
+}
+
+/* ============ NUDGE — Warm / Friendly ============ */
+[data-theme='nudge'] {
+  --font-head: 'Quicksand', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
+  --title-weight: 700;
+  --title-tracking: 0;
+  --radius-emoji: 14px;
+  --radius-card: 18px;
+  --radius-check: 8px;
+  --radius-fab: 20px;
+}
+[data-theme='nudge'][data-mode='light'] {
+  --color-bg: #fff9f5; --color-surface: #ffffff; --color-text: #2b2422; --color-muted: #9a8c85;
+  --color-accent: #ff6b5e; --color-accent-contrast: #ffffff; --color-accent-soft: #ffeae6;
+  --color-accent-glow: rgba(255, 107, 94, 0.45);
+  --color-border: #f6e9e1; --color-track: #f6e7df; --color-chip-bg: #fbf0ea; --color-emoji-bg: #ffecc7;
+  --color-danger: #e23d4b; --color-danger-soft: #fde7e9; --color-tabbar: rgba(255, 249, 245, 0.85);
+  --color-check-border: #e7d5cc; --shadow-card: 0 2px 6px rgba(255, 107, 94, 0.06);
+}
+[data-theme='nudge'][data-mode='dark'] {
+  --color-bg: #211a18; --color-surface: #2c2320; --color-text: #fbefe9; --color-muted: #b39c92;
+  --color-accent: #ff7a6e; --color-accent-contrast: #211a18; --color-accent-soft: #3a2823;
+  --color-accent-glow: rgba(255, 122, 110, 0.4);
+  --color-border: #362a26; --color-track: #362a26; --color-chip-bg: #33272e; --color-emoji-bg: #40301a;
+  --color-danger: #ff8a94; --color-danger-soft: #3a2223; --color-tabbar: rgba(33, 26, 24, 0.85);
+  --color-check-border: #4a3a34; --shadow-card: none;
+}
+
+/* ============ MOMENTUM — Bold / Modern ============ */
+[data-theme='momentum'] {
+  --font-head: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --title-weight: 700;
+  --title-tracking: -0.02em;
+  --radius-emoji: 10px;
+  --radius-card: 12px;
+  --radius-check: 6px;
+  --radius-fab: 16px;
+}
+[data-theme='momentum'][data-mode='light'] {
+  --color-bg: #ffffff; --color-surface: #f7f7f9; --color-text: #0a0a0b; --color-muted: #85858f;
+  --color-accent: #7c3aed; --color-accent-contrast: #ffffff; --color-accent-soft: #f0e9fe;
+  --color-accent-glow: rgba(124, 58, 237, 0.4);
+  --color-border: #ececef; --color-track: #ececef; --color-chip-bg: #f1f1f4; --color-emoji-bg: #f0e9fe;
+  --color-danger: #dc2626; --color-danger-soft: #fce9e9; --color-tabbar: rgba(255, 255, 255, 0.85);
+  --color-check-border: #d4d4da; --shadow-card: 0 1px 2px rgba(10, 10, 11, 0.05);
+}
+[data-theme='momentum'][data-mode='dark'] {
+  --color-bg: #0a0a0c; --color-surface: #151519; --color-text: #fafafb; --color-muted: #82828e;
+  --color-accent: #a78bfa; --color-accent-contrast: #0a0a0c; --color-accent-soft: #1f1a2e;
+  --color-accent-glow: rgba(167, 139, 250, 0.4);
+  --color-border: #222228; --color-track: #222228; --color-chip-bg: #1b1b20; --color-emoji-bg: #1f1a2e;
+  --color-danger: #f87171; --color-danger-soft: #2a1a1a; --color-tabbar: rgba(10, 10, 12, 0.85);
+  --color-check-border: #33333b; --shadow-card: none;
+}
