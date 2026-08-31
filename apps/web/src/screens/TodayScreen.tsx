@@ -4,7 +4,7 @@ import { formatDue, recurrenceLabel } from '../lib/format';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
 
-export function TodayScreen({ me }: { me: SessionUser }) {
+export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (id: string) => void }) {
   const utils = trpc.useUtils();
   const { data: tasks = [], isLoading } = trpc.tasks.dueToday.useQuery();
   const toggle = trpc.tasks.toggle.useMutation({
@@ -83,7 +83,12 @@ export function TodayScreen({ me }: { me: SessionUser }) {
         </div>
       ) : (
         rows.map((t) => (
-          <TaskRow key={t.id} task={t} onToggle={(id, completed) => toggle.mutate({ id, completed })} />
+          <TaskRow
+            key={t.id}
+            task={t}
+            onToggle={(id, completed) => toggle.mutate({ id, completed })}
+            onOpen={onOpenTask}
+          />
         ))
       )}
     </>

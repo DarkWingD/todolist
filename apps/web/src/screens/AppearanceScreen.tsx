@@ -20,7 +20,6 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   }
 
   const seg = <T extends string>(
-    group: T,
     current: T,
     options: { value: T; label: string }[],
     onPick: (v: T) => void,
@@ -85,13 +84,13 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       <div className="rounded-card bg-surface p-d3 shadow-card">
         <div className="mb-d3">
           <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>Appearance</div>
-          {seg<Appearance>('appearance', appearance,
+          {seg<Appearance>(appearance,
             [{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }],
             (v) => apply({ appearance: v }))}
         </div>
         <div className="mb-d3">
           <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>Density</div>
-          {seg<Density>('density', density,
+          {seg<Density>(density,
             [{ value: 'comfortable', label: 'Comfortable' }, { value: 'cozy', label: 'Cozy' }, { value: 'compact', label: 'Compact' }],
             (v) => apply({ density: v }))}
         </div>

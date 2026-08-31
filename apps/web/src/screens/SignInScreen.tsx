@@ -10,7 +10,9 @@ export function SignInScreen() {
     e.preventDefault();
     setStatus('sending');
     setError('');
-    const { error } = await signIn.magicLink({ email, callbackURL: '/' });
+    // Return to wherever they started (e.g. an /invite/:token link) after sign-in.
+    const callbackURL = window.location.pathname + window.location.search;
+    const { error } = await signIn.magicLink({ email, callbackURL });
     if (error) {
       setError(error.message ?? 'Something went wrong.');
       setStatus('error');

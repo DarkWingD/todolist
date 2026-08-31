@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, lt } from 'drizzle-orm';
 import { db, list, listMember, task, user } from '@todolist/db';
 import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
@@ -56,6 +57,21 @@ export const tasksRouter = router({
       .orderBy(asc(task.dueAt));
   }),
 
+  get: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await db
+        .select(taskWithAssignee)
+        .from(task)
+        .leftJoin(user, eq(user.id, task.assigneeId))
+        .where(eq(task.id, input.id))
+        .limit(1);
+      const found = rows[0];
+      if (!found) throw new TRPCError({ code: 'NOT_FOUND' });
+      await assertListAccess(ctx.user.id, found.listId);
+      return found;
+    }),
+
   create: protectedProcedure.input(createTaskSchema).mutation(async ({ ctx, input }) => {
     await assertListAccess(ctx.user.id, input.listId);
     const [created] = await db
@@ -105,4 +121,19 @@ export const tasksRouter = router({
       .where(eq(task.id, id));
     return { ok: true };
   }),
+
+  remove: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await db
+        .select({ listId: task.listId })
+        .from(task)
+        .where(eq(task.id, input.id))
+        .limit(1);
+      const found = rows[0];
+      if (!found) return { ok: false };
+      await assertListAccess(ctx.user.id, found.listId);
+      await db.update(task).set({ deletedAt: new Date() }).where(eq(task.id, input.id));
+      return { ok: true };
+    }),
 });

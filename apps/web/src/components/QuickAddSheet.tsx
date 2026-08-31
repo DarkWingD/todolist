@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Avatar } from './Avatar';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
 
@@ -28,10 +29,21 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '');
   const [due, setDue] = useState<DuePreset>('today');
   const [priority, setPriority] = useState<'none' | 'high'>('none');
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+
+  const { data: members = [] } = trpc.lists.members.useQuery(
+    { listId },
+    { enabled: !!listId },
+  );
 
   useEffect(() => {
     if (open) setListId(defaultListId ?? lists[0]?.id ?? '');
   }, [open, defaultListId, lists]);
+
+  // Clear a stale assignee when the list changes.
+  useEffect(() => {
+    setAssigneeId(null);
+  }, [listId]);
 
   const create = trpc.tasks.create.useMutation({
     onSuccess: () => {
@@ -40,6 +52,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
       utils.lists.mine.invalidate();
       setTitle('');
       setPriority('none');
+      setAssigneeId(null);
       onClose();
     },
   });
@@ -51,10 +64,11 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
       title: title.trim(),
       dueAt: dueFromPreset(due),
       priority,
+      assigneeId: assigneeId ?? undefined,
     });
   }
 
-  const optClass = (on: boolean) =>
+  const optClass = (_on: boolean) =>
     'inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold';
   const optStyle = (on: boolean) => ({
     fontSize: 'var(--fs-sm)',
@@ -128,6 +142,27 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
             🚩 Priority
           </button>
         </div>
+
+        {members.length > 1 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>Assign:</span>
+            {members.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setAssigneeId((a) => (a === m.id ? null : m.id))}
+                className="rounded-full"
+                style={{
+                  padding: 2,
+                  boxShadow: assigneeId === m.id ? '0 0 0 2px var(--color-accent)' : 'none',
+                  borderRadius: '50%',
+                }}
+                title={m.name}
+              >
+                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} size={30} />
+              </button>
+            ))}
+          </div>
+        )}
 
         <button
           disabled={!title.trim() || !listId || create.isPending}

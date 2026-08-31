@@ -4,7 +4,10 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // API runs via tsx and isn't consumed as a library for its runtime types,
+    // so we don't emit declarations (avoids TS2742 on Better Auth's inferred type).
+    "declaration": false
   },
   "include": ["src"]
 }

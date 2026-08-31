@@ -10,7 +10,15 @@ interface DetailList {
   emojiIcon: string;
 }
 
-export function ListDetailScreen({ list, onBack }: { list: DetailList; onBack: () => void }) {
+export function ListDetailScreen({
+  list,
+  onBack,
+  onOpenTask,
+}: {
+  list: DetailList;
+  onBack: () => void;
+  onOpenTask: (id: string) => void;
+}) {
   const utils = trpc.useUtils();
   const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery({ listId: list.id });
   const { data: members = [] } = trpc.lists.members.useQuery({ listId: list.id });
@@ -61,7 +69,12 @@ export function ListDetailScreen({ list, onBack }: { list: DetailList; onBack: (
       </header>
 
       <div className="mt-d3 flex items-center gap-2">
-        {members.length > 0 && <AvatarStack users={members} size={28} />}
+        {members.length > 0 && (
+          <AvatarStack
+            users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor }))}
+            size={28}
+          />
+        )}
         <button
           className="rounded-full px-3 py-1.5 font-bold text-accent"
           style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
@@ -105,7 +118,7 @@ export function ListDetailScreen({ list, onBack }: { list: DetailList; onBack: (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>All done — nice. 🎉</p>
       ) : (
         open.map((t) => (
-          <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} />
+          <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={onOpenTask} />
         ))
       )}
 
@@ -118,7 +131,7 @@ export function ListDetailScreen({ list, onBack }: { list: DetailList; onBack: (
             Completed
           </h2>
           {done.map((t) => (
-            <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} />
+            <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={onOpenTask} />
           ))}
         </>
       )}

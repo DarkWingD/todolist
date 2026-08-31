@@ -4,10 +4,12 @@ import { QuickAddSheet } from './components/QuickAddSheet';
 import { useSession } from './lib/auth';
 import { trpc } from './lib/trpc';
 import { AppearanceScreen } from './screens/AppearanceScreen';
+import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SignInScreen } from './screens/SignInScreen';
+import { TaskDetailScreen } from './screens/TaskDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { YouScreen } from './screens/YouScreen';
 import { useTheme } from './theme/ThemeProvider';
@@ -31,7 +33,7 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
   return {
     id: String(u.id),
     email: String(u.email ?? ''),
-    name: String(u.name ?? u.email ?? 'You'),
+    name: (typeof u.name === 'string' && u.name.trim()) || String(u.email ?? 'you').split('@')[0],
     avatarEmoji: (u.avatarEmoji as string) ?? '🙂',
     avatarColor: (u.avatarColor as string) ?? '#8B5CF6',
   };
@@ -39,10 +41,15 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
 
 export function App() {
   const { data: session, isPending } = useSession();
+  const inviteToken = window.location.pathname.match(/^\/invite\/(.+)$/)?.[1];
+
   if (isPending) return <Splash />;
   if (!session) return <SignInScreen />;
+  if (inviteToken) return <InviteAcceptScreen token={inviteToken} />;
   return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
 }
+
+type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail';
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
@@ -50,11 +57,12 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const { data: lists = [] } = trpc.lists.mine.useQuery();
 
   const [tab, setTab] = useState<TabId>('today');
-  const [view, setView] = useState<'main' | 'listDetail' | 'appearance'>('main');
+  const [view, setView] = useState<View>('main');
   const [selectedList, setSelectedList] = useState<MinList | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskReturn, setTaskReturn] = useState<'today' | 'listDetail'>('today');
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Apply server-side prefs once they load (cross-device sync).
   useEffect(() => {
     if (serverPrefs) {
       setPrefs({
@@ -75,18 +83,38 @@ function AuthedApp({ me }: { me: SessionUser }) {
     setSelectedList(l);
     setView('listDetail');
   }
+  function openTask(id: string) {
+    setSelectedTaskId(id);
+    setTaskReturn(view === 'listDetail' ? 'listDetail' : 'today');
+    setView('taskDetail');
+  }
+  function closeTask() {
+    if (taskReturn === 'listDetail' && selectedList) setView('listDetail');
+    else {
+      setView('main');
+      setTab('today');
+    }
+  }
 
-  const activeTab: TabId = view === 'appearance' ? 'you' : view === 'listDetail' ? 'lists' : tab;
-  const showFab =
-    (view === 'main' && (tab === 'today' || tab === 'lists')) || view === 'listDetail';
+  const activeTab: TabId =
+    view === 'appearance'
+      ? 'you'
+      : view === 'listDetail' || (view === 'taskDetail' && taskReturn === 'listDetail')
+        ? 'lists'
+        : view === 'taskDetail'
+          ? 'today'
+          : tab;
+  const showFab = (view === 'main' && (tab === 'today' || tab === 'lists')) || view === 'listDetail';
 
   let content;
-  if (view === 'listDetail' && selectedList) {
-    content = <ListDetailScreen list={selectedList} onBack={() => navigate('lists')} />;
+  if (view === 'taskDetail' && selectedTaskId) {
+    content = <TaskDetailScreen taskId={selectedTaskId} onBack={closeTask} />;
+  } else if (view === 'listDetail' && selectedList) {
+    content = <ListDetailScreen list={selectedList} onBack={() => navigate('lists')} onOpenTask={openTask} />;
   } else if (view === 'appearance') {
     content = <AppearanceScreen onBack={() => setView('main')} />;
   } else if (tab === 'today') {
-    content = <TodayScreen me={me} />;
+    content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
     content = <ListsScreen onOpenList={openList} />;
   } else if (tab === 'search') {

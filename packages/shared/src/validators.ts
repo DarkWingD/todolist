@@ -64,8 +64,17 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export const updateTaskSchema = createTaskSchema
   .partial()
   .omit({ listId: true })
-  .extend({ id: z.string().uuid(), completed: z.boolean().optional() });
+  .extend({
+    id: z.string().uuid(),
+    completed: z.boolean().optional(),
+    // Nullable so the UI can clear these fields.
+    dueAt: z.string().datetime().nullable().optional(),
+    assigneeId: z.string().uuid().nullable().optional(),
+    recurrenceRule: recurrenceSchema.nullable().optional(),
+  });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+
+export const acceptInviteSchema = z.object({ token: z.string().min(1) });
 
 export const createReminderSchema = z.object({
   taskId: z.string().uuid(),

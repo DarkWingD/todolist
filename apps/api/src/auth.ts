@@ -25,6 +25,17 @@ export const auth = betterAuth({
     },
   },
 
+  // Magic-link signups arrive with no name — default it to the email's local part.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (u) => ({
+          data: { ...u, name: u.name?.trim() || u.email.split('@')[0] },
+        }),
+      },
+    },
+  },
+
   // Long-lived, self-refreshing sessions so people rarely re-authenticate.
   session: {
     expiresIn: 60 * 60 * 24 * 60, // 60 days
