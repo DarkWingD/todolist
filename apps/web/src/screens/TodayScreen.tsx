@@ -6,7 +6,13 @@ import type { SessionUser } from '../types';
 
 export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (id: string) => void }) {
   const utils = trpc.useUtils();
-  const { data: tasks = [], isLoading } = trpc.tasks.dueToday.useQuery();
+  // Local start-of-tomorrow, so "today" respects the user's timezone.
+  const before = (() => {
+    const d = new Date();
+    d.setHours(24, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const { data: tasks = [], isLoading } = trpc.tasks.dueToday.useQuery({ before });
   const toggle = trpc.tasks.toggle.useMutation({
     onSuccess: () => utils.tasks.dueToday.invalidate(),
   });

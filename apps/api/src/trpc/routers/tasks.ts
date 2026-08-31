@@ -37,25 +37,34 @@ export const tasksRouter = router({
     }),
 
   // Tasks due today or overdue (not completed) across all the user's lists.
-  dueToday: protectedProcedure.query(async ({ ctx }) => {
-    const tomorrow = new Date();
-    tomorrow.setHours(24, 0, 0, 0);
-    return db
-      .select({ ...taskWithAssignee, listEmoji: list.emojiIcon, listName: list.name })
-      .from(task)
-      .innerJoin(list, eq(list.id, task.listId))
-      .innerJoin(listMember, eq(listMember.listId, list.id))
-      .leftJoin(user, eq(user.id, task.assigneeId))
-      .where(
-        and(
-          eq(listMember.userId, ctx.user.id),
-          isNull(task.completedAt),
-          isNull(task.deletedAt),
-          lt(task.dueAt, tomorrow),
-        ),
-      )
-      .orderBy(asc(task.dueAt));
-  }),
+  // `before` = the client's local start-of-tomorrow (ISO), so the day boundary
+  // matches the user's timezone rather than the server's UTC.
+  dueToday: protectedProcedure
+    .input(z.object({ before: z.string().datetime().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      let before: Date;
+      if (input?.before) {
+        before = new Date(input.before);
+      } else {
+        before = new Date();
+        before.setHours(24, 0, 0, 0);
+      }
+      return db
+        .select({ ...taskWithAssignee, listEmoji: list.emojiIcon, listName: list.name })
+        .from(task)
+        .innerJoin(list, eq(list.id, task.listId))
+        .innerJoin(listMember, eq(listMember.listId, list.id))
+        .leftJoin(user, eq(user.id, task.assigneeId))
+        .where(
+          and(
+            eq(listMember.userId, ctx.user.id),
+            isNull(task.completedAt),
+            isNull(task.deletedAt),
+            lt(task.dueAt, before),
+          ),
+        )
+        .orderBy(asc(task.dueAt));
+    }),
 
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
