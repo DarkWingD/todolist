@@ -48,7 +48,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const create = trpc.tasks.create.useMutation({
     onSuccess: () => {
       utils.tasks.byList.invalidate({ listId });
-      utils.tasks.dueToday.invalidate();
+      utils.tasks.agenda.invalidate();
       utils.lists.mine.invalidate();
       setTitle('');
       setPriority('none');

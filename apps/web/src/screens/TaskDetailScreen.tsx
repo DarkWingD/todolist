@@ -50,7 +50,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
   const invalidateTask = () => {
     utils.tasks.get.invalidate({ id: taskId });
     if (task) utils.tasks.byList.invalidate({ listId: task.listId });
-    utils.tasks.dueToday.invalidate();
+    utils.tasks.agenda.invalidate();
     utils.lists.mine.invalidate();
   };
 

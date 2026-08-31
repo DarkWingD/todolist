@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, lt } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull, lt } from 'drizzle-orm';
 import { db, list, listMember, task, user } from '@todolist/db';
 import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
@@ -36,19 +36,12 @@ export const tasksRouter = router({
         .orderBy(asc(task.sortOrder), asc(task.createdAt));
     }),
 
-  // Tasks due today or overdue (not completed) across all the user's lists.
-  // `before` = the client's local start-of-tomorrow (ISO), so the day boundary
-  // matches the user's timezone rather than the server's UTC.
-  dueToday: protectedProcedure
-    .input(z.object({ before: z.string().datetime().optional() }).optional())
+  // Dated, not-completed tasks up to `until` (the client's local horizon), across
+  // the user's lists. Ordered by due date so the client can group into
+  // Overdue / Today / Tomorrow / upcoming days in its own timezone.
+  agenda: protectedProcedure
+    .input(z.object({ until: z.string().datetime() }))
     .query(async ({ ctx, input }) => {
-      let before: Date;
-      if (input?.before) {
-        before = new Date(input.before);
-      } else {
-        before = new Date();
-        before.setHours(24, 0, 0, 0);
-      }
       return db
         .select({ ...taskWithAssignee, listEmoji: list.emojiIcon, listName: list.name })
         .from(task)
@@ -60,7 +53,8 @@ export const tasksRouter = router({
             eq(listMember.userId, ctx.user.id),
             isNull(task.completedAt),
             isNull(task.deletedAt),
-            lt(task.dueAt, before),
+            isNotNull(task.dueAt),
+            lt(task.dueAt, new Date(input.until)),
           ),
         )
         .orderBy(asc(task.dueAt));
