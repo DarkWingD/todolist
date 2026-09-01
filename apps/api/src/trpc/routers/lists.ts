@@ -1,6 +1,8 @@
 import { and, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db, list, listInvite, listMember, task, user } from '@todolist/db';
 import { createListSchema, inviteToListSchema, updateListSchema } from '@todolist/shared';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
@@ -77,6 +79,32 @@ export const listsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertListAccess(ctx.user.id, input.listId);
       await db.update(list).set({ deletedAt: new Date() }).where(eq(list.id, input.listId));
+      return { ok: true };
+    }),
+
+  // Directly add someone you already share a list with — no email round-trip.
+  // Note: Better Auth user ids aren't uuids, so plain string here.
+  addMember: protectedProcedure
+    .input(z.object({ listId: z.string().uuid(), userId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      const mine = alias(listMember, 'lm_mine');
+      const theirs = alias(listMember, 'lm_theirs');
+      const shared = await db
+        .select({ listId: mine.listId })
+        .from(mine)
+        .innerJoin(theirs, eq(theirs.listId, mine.listId))
+        .where(and(eq(mine.userId, ctx.user.id), eq(theirs.userId, input.userId)))
+        .limit(1);
+      if (shared.length === 0)
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You can only add people who already share a list with you.',
+        });
+      await db
+        .insert(listMember)
+        .values({ listId: input.listId, userId: input.userId, role: 'member' })
+        .onConflictDoNothing();
       return { ok: true };
     }),
 

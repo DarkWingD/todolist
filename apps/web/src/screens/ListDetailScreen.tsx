@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AvatarStack } from '../components/Avatar';
+import { Avatar, AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { TaskRow } from '../components/TaskRow';
@@ -55,6 +55,12 @@ export function ListDetailScreen({
       utils.lists.members.invalidate({ listId: list.id });
     },
   });
+  // People you already share any list with can be added directly, no email needed.
+  const { data: people = [] } = trpc.calendar.people.useQuery(undefined, { enabled: inviting });
+  const addMember = trpc.lists.addMember.useMutation({
+    onSuccess: () => utils.lists.members.invalidate({ listId: list.id }),
+  });
+  const addable = people.filter((p) => !members.some((m) => m.id === p.id));
 
   const addOne = (title: string) => {
     const t = title.trim();
@@ -114,21 +120,39 @@ export function ListDetailScreen({
       </div>
 
       {inviting && (
-        <div className="mt-d2 flex gap-2">
-          <input
-            autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="email to invite"
-            className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 outline-none"
-            style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-          />
-          <button
-            disabled={!email.trim() || invite.isPending}
-            className="rounded-lg px-3 font-bold text-accent-contrast disabled:opacity-50"
-            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-            onClick={() => invite.mutate({ listId: list.id, email: email.trim() })}
-          >
-            Send
-          </button>
+        <div className="mt-d2">
+          {addable.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {addable.map((p) => (
+                <button
+                  key={p.id}
+                  disabled={addMember.isPending}
+                  onClick={() => addMember.mutate({ listId: list.id, userId: p.id })}
+                  className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold disabled:opacity-50"
+                  style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
+                >
+                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} size={22} />
+                  ＋ {p.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              autoFocus={addable.length === 0} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder={addable.length ? 'or invite someone new by email' : 'email to invite'}
+              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 outline-none"
+              style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+            />
+            <button
+              disabled={!email.trim() || invite.isPending}
+              className="rounded-lg px-3 font-bold text-accent-contrast disabled:opacity-50"
+              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+              onClick={() => invite.mutate({ listId: list.id, email: email.trim() })}
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
 
