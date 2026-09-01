@@ -1,6 +1,6 @@
 import { and, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { db, list, listInvite, listMember, task, user } from '@todolist/db';
-import { createListSchema, inviteToListSchema } from '@todolist/shared';
+import { createListSchema, inviteToListSchema, updateListSchema } from '@todolist/shared';
 import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
@@ -61,6 +61,13 @@ export const listsRouter = router({
     if (!created) throw new Error('Failed to create list');
     await db.insert(listMember).values({ listId: created.id, userId: ctx.user.id, role: 'owner' });
     return created;
+  }),
+
+  update: protectedProcedure.input(updateListSchema).mutation(async ({ ctx, input }) => {
+    await assertListAccess(ctx.user.id, input.listId);
+    const { listId, ...rest } = input;
+    await db.update(list).set({ ...rest, updatedAt: new Date() }).where(eq(list.id, listId));
+    return { ok: true };
   }),
 
   softDelete: protectedProcedure

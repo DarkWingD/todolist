@@ -26,7 +26,14 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
     },
   });
 
+  const removeTask = trpc.tasks.remove.useMutation({
+    onSuccess: () => {
+      utils.tasks.agenda.invalidate();
+      utils.tasks.highPriority.invalidate();
+    },
+  });
   const onToggle = (id: string, completed: boolean) => toggle.mutate({ id, completed });
+  const onDelete = (id: string) => removeTask.mutate({ id });
 
   // Priority tasks get their own section; drop them from the dated agenda to avoid dupes.
   const flaggedIds = new Set(flagged.map((t) => t.id));
@@ -67,7 +74,7 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
                 ⚑ Priority
               </h2>
               {flagged.map((t) => (
-                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} />
+                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDelete} />
               ))}
             </section>
           )}
@@ -85,7 +92,7 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
               {/* keep spacing above today's block when a Priority section precedes it */}
               {section.key === 'today' && flagged.length > 0 && <div className="mt-d3" />}
               {section.tasks.map((t) => (
-                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} />
+                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDelete} />
               ))}
             </section>
           ))}

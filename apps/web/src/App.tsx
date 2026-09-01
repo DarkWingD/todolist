@@ -10,6 +10,7 @@ import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
 import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
+import { ManageListsScreen } from './screens/ManageListsScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SignInScreen } from './screens/SignInScreen';
 import { TaskDetailScreen } from './screens/TaskDetailScreen';
@@ -56,7 +57,7 @@ export function App() {
   return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
 }
 
-type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail' | 'account' | 'privacy';
+type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail' | 'account' | 'privacy' | 'manageLists';
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
@@ -117,7 +118,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
 
   const activeTab: TabId =
-    view === 'appearance' || view === 'account' || view === 'privacy'
+    view === 'appearance' || view === 'account' || view === 'privacy' || view === 'manageLists'
       ? 'you'
       : view === 'listDetail'
         ? 'lists'
@@ -140,6 +141,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <AccountScreen me={me} onBack={() => setView('main')} />;
   } else if (view === 'privacy') {
     content = <PrivacyScreen onBack={() => setView('main')} />;
+  } else if (view === 'manageLists') {
+    content = <ManageListsScreen onBack={() => setView('main')} onOpenList={openList} />;
   } else if (tab === 'today') {
     content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
@@ -156,6 +159,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
         onOpenAppearance={() => setView('appearance')}
         onOpenAccount={() => setView('account')}
         onOpenPrivacy={() => setView('privacy')}
+        onOpenManageLists={() => setView('manageLists')}
       />
     );
   }

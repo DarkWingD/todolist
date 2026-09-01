@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
+import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { TaskRow } from '../components/TaskRow';
 import { toTaskRow } from '../lib/mapTask';
 import { trpc } from '../lib/trpc';
@@ -21,10 +22,16 @@ export function ListDetailScreen({
   onBack: () => void;
   onOpenTask: (id: string) => void;
 }) {
-  const isChecklist = (list.type ?? 'tasks') === 'checklist';
   const utils = trpc.useUtils();
   const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery({ listId: list.id });
   const { data: members = [] } = trpc.lists.members.useQuery({ listId: list.id });
+  const { data: allLists = [] } = trpc.lists.mine.useQuery();
+  // Prefer live list data (reflects renames / type changes immediately).
+  const live = allLists.find((l) => l.id === list.id);
+  const displayName = live?.name ?? list.name;
+  const displayEmoji = live?.emojiIcon ?? list.emojiIcon;
+  const isChecklist = (live?.type ?? list.type ?? 'tasks') === 'checklist';
+  const [showSettings, setShowSettings] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [newItem, setNewItem] = useState('');
@@ -73,16 +80,24 @@ export function ListDetailScreen({
 
       <header className="flex items-center gap-d3">
         <span className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl" style={{ background: 'var(--color-emoji-bg)' }}>
-          {list.emojiIcon}
+          {displayEmoji}
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="font-head" style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}>
-            {list.name}
+            {displayName}
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {open.length} {isChecklist ? 'left' : 'to do'} · {done.length} done
           </div>
         </div>
+        <button
+          aria-label="List settings"
+          className="grid h-9 w-9 flex-none place-items-center rounded-full text-muted"
+          style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
+          onClick={() => setShowSettings(true)}
+        >
+          ⋯
+        </button>
       </header>
 
       <div className="mt-d3 flex items-center gap-2">
@@ -155,7 +170,7 @@ export function ListDetailScreen({
         </p>
       ) : (
         open.map((t) => (
-          <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} />
+          <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} onDelete={(id) => remove.mutate({ id })} />
         ))
       )}
 
@@ -165,7 +180,7 @@ export function ListDetailScreen({
             Done
           </h2>
           {done.map((t) => (
-            <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} />
+            <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} onDelete={(id) => remove.mutate({ id })} />
           ))}
         </>
       )}
@@ -202,6 +217,14 @@ export function ListDetailScreen({
             </div>
           </div>
         </>
+      )}
+
+      {showSettings && (
+        <ListSettingsSheet
+          list={{ id: list.id, name: displayName, emojiIcon: displayEmoji, type: live?.type ?? list.type ?? 'tasks' }}
+          onClose={() => setShowSettings(false)}
+          onDeleted={onBack}
+        />
       )}
     </>
   );

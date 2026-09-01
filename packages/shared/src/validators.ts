@@ -43,6 +43,13 @@ export const createListSchema = z.object({
 });
 export type CreateListInput = z.infer<typeof createListSchema>;
 
+export const updateListSchema = z.object({
+  listId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120).optional(),
+  emojiIcon: emojiSchema.optional(),
+  type: z.enum(LIST_TYPES).optional(),
+});
+
 export const inviteToListSchema = z.object({
   listId: z.string().uuid(),
   email: emailSchema,
