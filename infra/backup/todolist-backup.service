@@ -1,0 +1,11 @@
+[Unit]
+Description=ToDoList nightly encrypted backup
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Run under the `docker` group explicitly: the long-running `systemd --user`
+# manager may predate this user joining the docker group, so sg re-reads
+# group membership from /etc/group and grants docker.sock access.
+ExecStart=/usr/bin/sg docker -c "%h/todolist/scripts/backup.sh"

@@ -31,5 +31,10 @@ coverage/
 backups/
 pgdata/
 
+# Backup secrets (created on the host, never committed)
+backup.env
+.backup-passphrase
+scripts/
+
 # PWA generated
 apps/web/dev-dist/
