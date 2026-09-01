@@ -11,6 +11,7 @@ import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { ManageListsScreen } from './screens/ManageListsScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SignInScreen } from './screens/SignInScreen';
 import { TaskDetailScreen } from './screens/TaskDetailScreen';
@@ -57,7 +58,15 @@ export function App() {
   return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
 }
 
-type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail' | 'account' | 'privacy' | 'manageLists';
+type View =
+  | 'main'
+  | 'listDetail'
+  | 'appearance'
+  | 'taskDetail'
+  | 'account'
+  | 'privacy'
+  | 'manageLists'
+  | 'notifications';
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
@@ -118,7 +127,11 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
 
   const activeTab: TabId =
-    view === 'appearance' || view === 'account' || view === 'privacy' || view === 'manageLists'
+    view === 'appearance' ||
+    view === 'account' ||
+    view === 'privacy' ||
+    view === 'manageLists' ||
+    view === 'notifications'
       ? 'you'
       : view === 'listDetail'
         ? 'lists'
@@ -143,6 +156,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <PrivacyScreen onBack={() => setView('main')} />;
   } else if (view === 'manageLists') {
     content = <ManageListsScreen onBack={() => setView('main')} onOpenList={openList} />;
+  } else if (view === 'notifications') {
+    content = <NotificationsScreen onBack={() => setView('main')} />;
   } else if (tab === 'today') {
     content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
@@ -160,6 +175,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
         onOpenAccount={() => setView('account')}
         onOpenPrivacy={() => setView('privacy')}
         onOpenManageLists={() => setView('manageLists')}
+        onOpenNotifications={() => setView('notifications')}
       />
     );
   }

@@ -43,6 +43,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@todolist.dansownsite.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,6 +63,9 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM}
       WEB_ORIGIN: ${WEB_ORIGIN}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@todolist.dansownsite.com}
     depends_on:
       postgres:
         condition: service_healthy

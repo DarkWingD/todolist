@@ -14,6 +14,8 @@ export default defineConfig({
         // magic-link sign-in silently never runs.
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        // Add web-push handlers to the generated SW without a full custom SW.
+        importScripts: ['/push-handler.js'],
       },
       manifest: {
         name: 'ToDoList',

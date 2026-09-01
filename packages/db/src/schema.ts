@@ -288,6 +288,21 @@ export const reminder = pgTable(
   (t) => [index('reminder_send_idx').on(t.sendAt), index('reminder_task_idx').on(t.taskId)],
 );
 
+export const pushSubscription = pgTable(
+  'push_subscription',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('push_sub_user_idx').on(t.userId)],
+);
+
 export const notification = pgTable(
   'notification',
   {

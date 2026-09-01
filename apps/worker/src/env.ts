@@ -6,6 +6,9 @@ const schema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).default('ToDoList <onboarding@resend.dev>'),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().default('mailto:hello@todolist.dansownsite.com'),
 });
 
 // Treat empty strings (Docker Compose passes "" for unset vars) as undefined.

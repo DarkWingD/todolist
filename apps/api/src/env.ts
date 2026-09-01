@@ -9,6 +9,10 @@ const schema = z.object({
   // (magic-link URLs are printed so you can sign in without Resend configured).
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).default('ToDoList <onboarding@resend.dev>'),
+  // Web push (VAPID). When unset, push is simply unavailable.
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().default('mailto:hello@todolist.dansownsite.com'),
 });
 
 // Treat empty strings (Docker Compose passes "" for unset vars) as undefined

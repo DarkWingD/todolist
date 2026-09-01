@@ -130,3 +130,9 @@ export const createReminderSchema = z.object({
 export const requestMagicLinkSchema = z.object({
   email: emailSchema,
 });
+
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  p256dh: z.string().min(1),
+  auth: z.string().min(1),
+});
