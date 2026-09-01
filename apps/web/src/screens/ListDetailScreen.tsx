@@ -29,6 +29,7 @@ export function ListDetailScreen({
   const invalidate = () => {
     utils.tasks.byList.invalidate({ listId: list.id });
     utils.tasks.agenda.invalidate();
+    utils.tasks.highPriority.invalidate();
     utils.lists.mine.invalidate();
   };
   const toggle = trpc.tasks.toggle.useMutation({ onSuccess: invalidate });

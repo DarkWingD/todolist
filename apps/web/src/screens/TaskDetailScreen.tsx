@@ -12,13 +12,6 @@ import {
 } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 
-const PRIORITIES: { value: Priority; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Med' },
-  { value: 'high', label: 'High' },
-];
-
 export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: () => void }) {
   const utils = trpc.useUtils();
   const { data: task, isLoading } = trpc.tasks.get.useQuery({ id: taskId });
@@ -51,6 +44,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
     utils.tasks.get.invalidate({ id: taskId });
     if (task) utils.tasks.byList.invalidate({ listId: task.listId });
     utils.tasks.agenda.invalidate();
+    utils.tasks.highPriority.invalidate();
     utils.lists.mine.invalidate();
   };
 
@@ -157,22 +151,20 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
       </div>
 
       <h2 className={sectionH} style={sectionStyle}>Priority</h2>
-      <div className="flex rounded-lg p-0.5" style={{ background: 'var(--color-chip-bg)' }}>
-        {PRIORITIES.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => { setPriority(p.value); setTimeout(onSave, 0); }}
-            className="flex-1 rounded-md py-1.5 font-semibold"
-            style={{
-              fontSize: 'var(--fs-sm)',
-              background: priority === p.value ? 'var(--color-surface)' : 'transparent',
-              color: priority === p.value ? 'var(--color-text)' : 'var(--color-muted)',
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <button
+        onClick={() => {
+          setPriority((p) => (p === 'high' ? 'none' : 'high'));
+          setTimeout(onSave, 0);
+        }}
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-semibold"
+        style={{
+          fontSize: 'var(--fs-base)',
+          background: priority === 'high' ? 'var(--color-danger-soft)' : 'var(--color-chip-bg)',
+          color: priority === 'high' ? 'var(--color-danger)' : 'var(--color-muted)',
+        }}
+      >
+        <span>⚑</span> {priority === 'high' ? 'High priority' : 'Flag as priority'}
+      </button>
 
       <h2 className={sectionH} style={sectionStyle}>Repeat</h2>
       <select
@@ -266,6 +258,17 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
           Add
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          onSave();
+          onBack();
+        }}
+        className="mt-d4 w-full rounded-card py-3 font-bold text-accent-contrast"
+        style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+      >
+        Save
+      </button>
 
       <div className="h-8" />
     </>

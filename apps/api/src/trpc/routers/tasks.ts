@@ -75,6 +75,25 @@ export const tasksRouter = router({
       return found;
     }),
 
+  // High-priority, not-completed tasks across all the user's lists.
+  highPriority: protectedProcedure.query(async ({ ctx }) => {
+    return db
+      .select({ ...taskWithAssignee, listEmoji: list.emojiIcon })
+      .from(task)
+      .innerJoin(list, eq(list.id, task.listId))
+      .innerJoin(listMember, eq(listMember.listId, list.id))
+      .leftJoin(user, eq(user.id, task.assigneeId))
+      .where(
+        and(
+          eq(listMember.userId, ctx.user.id),
+          eq(task.priority, 'high'),
+          isNull(task.completedAt),
+          isNull(task.deletedAt),
+        ),
+      )
+      .orderBy(asc(task.dueAt));
+  }),
+
   create: protectedProcedure.input(createTaskSchema).mutation(async ({ ctx, input }) => {
     await assertListAccess(ctx.user.id, input.listId);
     const [created] = await db

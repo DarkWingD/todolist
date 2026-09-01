@@ -10,7 +10,6 @@ const HORIZON_DAYS = 14;
 
 export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (id: string) => void }) {
   const utils = trpc.useUtils();
-  // Local horizon: start of (today + N days), so day boundaries are in the user's timezone.
   const until = (() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -19,15 +18,24 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
   })();
 
   const { data: tasks = [], isLoading } = trpc.tasks.agenda.useQuery({ until });
-  const toggle = trpc.tasks.toggle.useMutation({ onSuccess: () => utils.tasks.agenda.invalidate() });
-
-  const sections = groupAgenda(tasks);
-
-  const today = new Date().toLocaleDateString([], {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
+  const { data: flagged = [] } = trpc.tasks.highPriority.useQuery();
+  const toggle = trpc.tasks.toggle.useMutation({
+    onSuccess: () => {
+      utils.tasks.agenda.invalidate();
+      utils.tasks.highPriority.invalidate();
+    },
   });
+
+  const onToggle = (id: string, completed: boolean) => toggle.mutate({ id, completed });
+
+  // Priority tasks get their own section; drop them from the dated agenda to avoid dupes.
+  const flaggedIds = new Set(flagged.map((t) => t.id));
+  const sections = groupAgenda(tasks.filter((t) => !flaggedIds.has(t.id)));
+  const hasAnything = flagged.length > 0 || sections.length > 0;
+
+  const today = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const sectionH = (color: string) => ({ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em', color });
 
   return (
     <>
@@ -39,48 +47,49 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
           >
             Today
           </h1>
-          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            {today}
-          </div>
+          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{today}</div>
         </div>
         <Avatar emoji={me.avatarEmoji} color={me.avatarColor} size={36} />
       </header>
 
       {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          Loading…
-        </p>
-      ) : sections.length === 0 ? (
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
+      ) : !hasAnything ? (
         <div className="mt-8 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           <div className="mb-2 text-4xl">🌤️</div>
-          Nothing scheduled. Add a due date to a task and it’ll show up here.
+          Nothing scheduled. Flag a task as priority or give it a due date and it’ll show up here.
         </div>
       ) : (
-        sections.map((section) => (
-          <section key={section.key}>
-            {/* The screen title already says "Today", so today's group needs no header. */}
-            {section.key !== 'today' && (
-              <h2
-                className="mb-d2 mt-d3 font-bold uppercase"
-                style={{
-                  fontSize: 'var(--fs-xs)',
-                  letterSpacing: '0.09em',
-                  color: section.overdue ? 'var(--color-danger)' : 'var(--color-muted)',
-                }}
-              >
-                {section.label}
+        <>
+          {flagged.length > 0 && (
+            <section>
+              <h2 className="mb-d2 font-bold uppercase" style={sectionH('var(--color-danger)')}>
+                ⚑ Priority
               </h2>
-            )}
-            {section.tasks.map((t) => (
-              <TaskRow
-                key={t.id}
-                task={toTaskRow(t, { withLeadEmoji: true })}
-                onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                onOpen={onOpenTask}
-              />
-            ))}
-          </section>
-        ))
+              {flagged.map((t) => (
+                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} />
+              ))}
+            </section>
+          )}
+
+          {sections.map((section) => (
+            <section key={section.key}>
+              {section.key !== 'today' && (
+                <h2
+                  className="mb-d2 mt-d3 font-bold uppercase"
+                  style={sectionH(section.overdue ? 'var(--color-danger)' : 'var(--color-muted)')}
+                >
+                  {section.label}
+                </h2>
+              )}
+              {/* keep spacing above today's block when a Priority section precedes it */}
+              {section.key === 'today' && flagged.length > 0 && <div className="mt-d3" />}
+              {section.tasks.map((t) => (
+                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} />
+              ))}
+            </section>
+          ))}
+        </>
       )}
     </>
   );

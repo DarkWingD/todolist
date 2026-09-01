@@ -49,6 +49,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
     onSuccess: () => {
       utils.tasks.byList.invalidate({ listId });
       utils.tasks.agenda.invalidate();
+      utils.tasks.highPriority.invalidate();
       utils.lists.mine.invalidate();
       setTitle('');
       setPriority('none');

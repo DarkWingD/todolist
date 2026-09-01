@@ -8,6 +8,7 @@ export interface TaskRowData {
   id: string;
   title: string;
   completed: boolean;
+  flagged?: boolean;
   leadEmoji?: string;
   due?: string;
   dueVariant?: 'due' | 'over';
@@ -67,6 +68,9 @@ export function TaskRow({ task, onToggle, onOpen }: TaskRowProps) {
             style={{ fontSize: 'var(--fs-base)', letterSpacing: '-0.005em' }}
           >
             {task.leadEmoji && <span className="mr-1">{task.leadEmoji}</span>}
+            {task.flagged && !task.completed && (
+              <span className="mr-1" style={{ color: 'var(--color-danger)' }}>⚑</span>
+            )}
             {task.title}
           </div>
           {hasMeta && (

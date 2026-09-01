@@ -7,6 +7,7 @@ export interface ServerTask {
   completedAt: string | Date | null;
   dueAt: string | Date | null;
   recurrenceRule: string | null;
+  priority?: string;
   assigneeId: string | null;
   assigneeEmoji?: string | null;
   assigneeColor?: string | null;
@@ -19,6 +20,7 @@ export function toTaskRow(t: ServerTask, opts: { withLeadEmoji?: boolean } = {})
     id: t.id,
     title: t.title,
     completed: !!t.completedAt,
+    flagged: t.priority === 'high',
     leadEmoji: opts.withLeadEmoji ? t.listEmoji : undefined,
     due: due?.label,
     dueVariant: due?.variant,
