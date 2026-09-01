@@ -39,6 +39,10 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
   const flaggedIds = new Set(flagged.map((t) => t.id));
   const sections = groupAgenda(tasks.filter((t) => !flaggedIds.has(t.id)));
   const hasAnything = flagged.length > 0 || sections.length > 0;
+  // The screen itself is "Today", so that section usually needs no header — but
+  // when an Overdue section renders above it, the header is what keeps today's
+  // items from visually merging into the overdue list.
+  const hasOverdue = sections.some((s) => s.overdue);
 
   const today = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -81,7 +85,7 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
 
           {sections.map((section) => (
             <section key={section.key}>
-              {section.key !== 'today' && (
+              {(section.key !== 'today' || hasOverdue) && (
                 <h2
                   className="mb-d2 mt-d3 font-bold uppercase"
                   style={sectionH(section.overdue ? 'var(--color-danger)' : 'var(--color-muted)')}
@@ -89,8 +93,8 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
                   {section.label}
                 </h2>
               )}
-              {/* keep spacing above today's block when a Priority section precedes it */}
-              {section.key === 'today' && flagged.length > 0 && <div className="mt-d3" />}
+              {/* keep spacing above today's headerless block when a Priority section precedes it */}
+              {section.key === 'today' && !hasOverdue && flagged.length > 0 && <div className="mt-d3" />}
               {section.tasks.map((t) => (
                 <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDelete} />
               ))}
