@@ -17,6 +17,9 @@ export type Priority = (typeof PRIORITIES)[number];
 export const LIST_ROLES = ['owner', 'member'] as const;
 export type ListRole = (typeof LIST_ROLES)[number];
 
+export const LIST_TYPES = ['tasks', 'checklist'] as const;
+export type ListType = (typeof LIST_TYPES)[number];
+
 export const REMINDER_CHANNELS = ['email', 'push', 'in_app'] as const;
 export type ReminderChannel = (typeof REMINDER_CHANNELS)[number];
 

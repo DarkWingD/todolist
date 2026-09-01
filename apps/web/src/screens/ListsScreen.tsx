@@ -15,6 +15,7 @@ export function ListsScreen({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
+  const [type, setType] = useState<'tasks' | 'checklist'>('tasks');
 
   // The floating + button (in AppShell) opens the create form via this signal.
   useEffect(() => {
@@ -27,6 +28,7 @@ export function ListsScreen({
       setCreating(false);
       setName('');
       setEmoji('📝');
+      setType('tasks');
     },
   });
 
@@ -51,6 +53,30 @@ export function ListsScreen({
             className="mb-3 w-full rounded-lg border border-border bg-bg px-3 py-2 outline-none"
             style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
           />
+          <div className="mb-3 flex rounded-lg p-0.5" style={{ background: 'var(--color-chip-bg)' }}>
+            {([
+              { v: 'tasks', label: '✓ Tasks' },
+              { v: 'checklist', label: '🛒 Shopping' },
+            ] as const).map((o) => (
+              <button
+                key={o.v}
+                onClick={() => {
+                  setType(o.v);
+                  // Give a sensible default icon for a shopping list.
+                  if (o.v === 'checklist' && emoji === '📝') setEmoji('🛒');
+                  if (o.v === 'tasks' && emoji === '🛒') setEmoji('📝');
+                }}
+                className="flex-1 rounded-md py-1.5 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: type === o.v ? 'var(--color-surface)' : 'transparent',
+                  color: type === o.v ? 'var(--color-text)' : 'var(--color-muted)',
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           <EmojiPicker value={emoji} onChange={setEmoji} />
           <div className="mt-3 flex justify-end gap-2">
             <button className="text-muted" style={{ fontSize: 'var(--fs-sm)' }} onClick={() => setCreating(false)}>
@@ -60,7 +86,7 @@ export function ListsScreen({
               disabled={!name.trim() || create.isPending}
               className="rounded-lg px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
               style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-              onClick={() => create.mutate({ name: name.trim(), emojiIcon: emoji })}
+              onClick={() => create.mutate({ name: name.trim(), emojiIcon: emoji, type })}
             >
               Create
             </button>
@@ -95,7 +121,8 @@ export function ListsScreen({
                 {l.name}
               </span>
               <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                {l.remaining} to do{l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''}
+                {l.remaining} {l.type === 'checklist' ? 'left' : 'to do'}
+                {l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''}
               </span>
             </span>
             <span className="text-muted" style={{ fontSize: 18 }}>

@@ -28,6 +28,7 @@ export const appearanceEnum = pgEnum('appearance', ['system', 'light', 'dark']);
 export const densityEnum = pgEnum('density', ['comfortable', 'cozy', 'compact']);
 export const priorityEnum = pgEnum('priority', ['none', 'low', 'medium', 'high']);
 export const listRoleEnum = pgEnum('list_role', ['owner', 'member']);
+export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist']);
 export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'declined', 'revoked']);
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'push', 'in_app']);
 
@@ -116,6 +117,7 @@ export const list = pgTable(
     name: text('name').notNull(),
     emojiIcon: text('emoji_icon').notNull().default('📝'),
     color: text('color'),
+    type: listTypeEnum('type').notNull().default('tasks'),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

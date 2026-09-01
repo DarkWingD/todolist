@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   APPEARANCES,
   DENSITIES,
+  LIST_TYPES,
   PRIORITIES,
   REMINDER_CHANNELS,
   TEXT_SCALE,
@@ -38,6 +39,7 @@ export const createListSchema = z.object({
   name: z.string().trim().min(1).max(120),
   emojiIcon: emojiSchema,
   color: hexColorSchema.optional(),
+  type: z.enum(LIST_TYPES).default('tasks'),
 });
 export type CreateListInput = z.infer<typeof createListSchema>;
 

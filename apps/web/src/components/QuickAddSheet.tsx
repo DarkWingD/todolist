@@ -27,7 +27,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const utils = trpc.useUtils();
   const [title, setTitle] = useState('');
   const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '');
-  const [due, setDue] = useState<DuePreset>('today');
+  const [due, setDue] = useState<DuePreset>('none');
   const [priority, setPriority] = useState<'none' | 'high'>('none');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
 

@@ -55,6 +55,7 @@ export const listsRouter = router({
         name: input.name,
         emojiIcon: input.emojiIcon,
         color: input.color,
+        type: input.type,
       })
       .returning();
     if (!created) throw new Error('Failed to create list');
