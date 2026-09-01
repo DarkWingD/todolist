@@ -31,6 +31,7 @@ export const listRoleEnum = pgEnum('list_role', ['owner', 'member']);
 export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist']);
 export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'declined', 'revoked']);
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'push', 'in_app']);
+export const calendarViewEnum = pgEnum('calendar_view', ['month', 'week', 'agenda', 'list']);
 
 // ─────────────────────────── auth ───────────────────────────
 export const user = pgTable('user', {
@@ -103,6 +104,7 @@ export const userPrefs = pgTable('user_prefs', {
   appearance: appearanceEnum('appearance').notNull().default('system'),
   density: densityEnum('density').notNull().default('cozy'),
   textScale: doublePrecision('text_scale').notNull().default(0.96),
+  calendarView: calendarViewEnum('calendar_view').notNull().default('month'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

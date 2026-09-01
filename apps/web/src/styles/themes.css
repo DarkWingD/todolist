@@ -27,6 +27,11 @@
   --fs-big: calc(28px * var(--text-scale));
 }
 
+/* Weekend column tint — derived from the active theme's accent. */
+[data-theme] {
+  --color-weekend: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
 /* ============ TENTO — Calm / Focus ============ */
 [data-theme='tento'] {
   --font-head: 'Fraunces', Georgia, serif;

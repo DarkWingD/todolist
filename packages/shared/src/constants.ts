@@ -23,6 +23,9 @@ export type ListType = (typeof LIST_TYPES)[number];
 export const REMINDER_CHANNELS = ['email', 'push', 'in_app'] as const;
 export type ReminderChannel = (typeof REMINDER_CHANNELS)[number];
 
+export const CALENDAR_VIEWS = ['month', 'week', 'agenda', 'list'] as const;
+export type CalendarView = (typeof CALENDAR_VIEWS)[number];
+
 export const DEFAULT_PREFS = {
   theme: 'nudge' as Theme,
   appearance: 'system' as Appearance,
