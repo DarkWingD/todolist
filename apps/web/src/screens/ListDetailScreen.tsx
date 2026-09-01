@@ -160,7 +160,7 @@ export function ListDetailScreen({
       </div>
 
       <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
-        {isChecklist ? 'Items' : 'To do'}
+        {isChecklist ? 'To buy' : 'To do'}
       </h2>
       {isLoading ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
@@ -177,7 +177,7 @@ export function ListDetailScreen({
       {done.length > 0 && (
         <>
           <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
-            Done
+            {isChecklist ? 'Bought' : 'Done'}
           </h2>
           {done.map((t) => (
             <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} onDelete={(id) => remove.mutate({ id })} />

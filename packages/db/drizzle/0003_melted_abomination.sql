@@ -1,0 +1,1 @@
+ALTER TABLE "list" ADD COLUMN "system_key" text;

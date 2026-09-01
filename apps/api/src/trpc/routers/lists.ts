@@ -26,7 +26,9 @@ export const listsRouter = router({
       })
       .from(list)
       .innerJoin(listMember, eq(listMember.listId, list.id))
-      .where(and(eq(listMember.userId, ctx.user.id), isNull(list.deletedAt)))
+      .where(
+        and(eq(listMember.userId, ctx.user.id), isNull(list.deletedAt), isNull(list.systemKey)),
+      )
       .orderBy(list.sortOrder);
   }),
 

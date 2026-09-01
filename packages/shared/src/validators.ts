@@ -112,7 +112,7 @@ export const updateEventSchema = createEventSchema
   });
 
 export const createBirthdaySchema = z.object({
-  listId: z.string().uuid(),
+  // No listId — birthdays go to the user's app-managed Birthdays list automatically.
   name: z.string().trim().min(1).max(120),
   day: z.number().int().min(1).max(31),
   month: z.number().int().min(1).max(12),

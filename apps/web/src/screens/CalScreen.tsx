@@ -462,15 +462,11 @@ function CalSheet({
                 {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
               </select>
             </div>
-            <label className={label} style={labelStyle}>List</label>
-            <select className={field} style={fieldStyle} value={listId} onChange={(e) => setListId(e.target.value)}>
-              {lists.map((l) => <option key={l.id} value={l.id}>{l.emojiIcon} {l.name}</option>)}
-            </select>
             <button
-              disabled={!bname.trim() || !listId || createBirthday.isPending}
+              disabled={!bname.trim() || createBirthday.isPending}
               className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
               style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-              onClick={() => createBirthday.mutate({ listId, name: bname.trim(), day: bday, month: bmonth })}
+              onClick={() => createBirthday.mutate({ name: bname.trim(), day: bday, month: bmonth })}
             >
               {createBirthday.isPending ? 'Adding…' : 'Add birthday'}
             </button>

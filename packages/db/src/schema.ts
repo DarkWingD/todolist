@@ -118,6 +118,8 @@ export const list = pgTable(
     emojiIcon: text('emoji_icon').notNull().default('📝'),
     color: text('color'),
     type: listTypeEnum('type').notNull().default('tasks'),
+    // Marks an app-managed list (e.g. 'birthdays'); hidden from the normal Lists view.
+    systemKey: text('system_key'),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
