@@ -313,7 +313,7 @@ export function CalScreen({
   const showNav = view === 'month' || view === 'agenda';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" style={{ marginTop: -14 }}>
+    <div className="flex min-h-0 flex-1 flex-col" style={{ marginTop: -28 }}>
       <div className="mb-1 flex items-center justify-between">
         <h1 className="font-head" style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}>
           {periodLabel}
