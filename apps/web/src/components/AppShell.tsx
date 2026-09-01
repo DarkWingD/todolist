@@ -24,7 +24,7 @@ interface AppShellProps {
 export function AppShell({ active, onNavigate, onAdd, showFab, children, overlay }: AppShellProps) {
   return (
     <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg">
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-8">{children}</main>
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3">{children}</main>
 
       {showFab && onAdd && (
         <button

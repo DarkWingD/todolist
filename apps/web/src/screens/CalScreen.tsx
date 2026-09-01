@@ -64,6 +64,15 @@ export function CalScreen({
   // Range covers the month grid AND ~45 days forward (for List), in one query.
   const gridStart = startOfWeekMon(cursor);
   const gridEnd = addDays(gridStart, 42);
+  // Only render the weeks this month needs (5 usually, sometimes 4 or 6) — no
+  // wasted trailing next-month row, so each day cell is taller.
+  const monthWeeks = (() => {
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const dim = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+    const lead = (first.getDay() + 6) % 7;
+    return Math.ceil((lead + dim) / 7);
+  })();
+  const monthCells = monthWeeks * 7;
   const startToday = startOfDay(new Date());
   const listEnd = addDays(startToday, 46);
   const from = gridStart < startToday ? gridStart : startToday;
@@ -155,7 +164,7 @@ export function CalScreen({
   // ─────────── MONTH ───────────
   function monthView() {
     const cells = [];
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < monthCells; i++) {
       const day = addDays(gridStart, i);
       const inMonth = day.getMonth() === cursor.getMonth();
       const items = itemsFor(day);
@@ -236,7 +245,7 @@ export function CalScreen({
   // ─────────── AGENDA (dot month + day detail) ───────────
   function agendaView() {
     const cells = [];
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < monthCells; i++) {
       const day = addDays(gridStart, i);
       const inMonth = day.getMonth() === cursor.getMonth();
       const items = itemsFor(day);
@@ -313,7 +322,7 @@ export function CalScreen({
   const showNav = view === 'month' || view === 'agenda';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" style={{ marginTop: -28 }}>
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-1 flex items-center justify-between">
         <h1 className="font-head" style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}>
           {periodLabel}
