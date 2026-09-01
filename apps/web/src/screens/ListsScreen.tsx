@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
@@ -17,9 +17,14 @@ export function ListsScreen({
   const [emoji, setEmoji] = useState('📝');
   const [type, setType] = useState<'tasks' | 'checklist'>('tasks');
 
-  // The floating + button (in AppShell) opens the create form via this signal.
+  // The floating + button opens the create form — but only when actually tapped
+  // (signal changes), not on mount when returning to the tab.
+  const lastCreateSignal = useRef(createSignal);
   useEffect(() => {
-    if (createSignal) setCreating(true);
+    if (createSignal !== lastCreateSignal.current) {
+      lastCreateSignal.current = createSignal;
+      setCreating(true);
+    }
   }, [createSignal]);
 
   const create = trpc.lists.create.useMutation({

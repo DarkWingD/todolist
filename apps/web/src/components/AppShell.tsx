@@ -65,9 +65,9 @@ export function AppShell({ active, onNavigate, onAdd, showFab, children, overlay
               'flex flex-col items-center gap-[3px]',
               active === t.id ? 'font-bold text-accent' : 'text-muted',
             )}
-            style={{ fontSize: 10 }}
+            style={{ fontSize: 11.5 }}
           >
-            <span style={{ fontSize: 19, lineHeight: 1 }}>{t.icon}</span>
+            <span style={{ fontSize: 24, lineHeight: 1 }}>{t.icon}</span>
             {t.label}
           </button>
         ))}

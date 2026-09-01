@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { addDays, sameDay, startOfDay, startOfWeekMon, WEEKDAY_INITIALS, WEEKDAY_SHORT } from '../lib/caldate';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
@@ -39,8 +39,14 @@ export function CalScreen({
     to: gridEnd.toISOString(),
   });
 
+  // Only open the add sheet when the + is actually tapped (signal changes),
+  // not on mount when navigating back to the tab.
+  const lastCreateSignal = useRef(createSignal);
   useEffect(() => {
-    if (createSignal) setSheet('choose');
+    if (createSignal !== lastCreateSignal.current) {
+      lastCreateSignal.current = createSignal;
+      setSheet('choose');
+    }
   }, [createSignal]);
 
   const colorFor = (id: string | null | undefined) =>
