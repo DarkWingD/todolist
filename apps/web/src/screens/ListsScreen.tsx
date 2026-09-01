@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ColorPicker } from '../components/ColorPicker';
+import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
@@ -26,8 +26,10 @@ export function ListsScreen({
     if (createSignal !== lastCreateSignal.current) {
       lastCreateSignal.current = createSignal;
       setCreating(true);
+      // Auto-assign the least-used colour; the picker still allows overriding.
+      setColor(pickUnusedColor(lists.map((l) => l.color)));
     }
-  }, [createSignal]);
+  }, [createSignal, lists]);
 
   const create = trpc.lists.create.useMutation({
     onSuccess: () => {
