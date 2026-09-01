@@ -27,7 +27,7 @@ const PALETTE = [
 export function pickUnusedColor(used: (string | null | undefined)[]): string {
   const counts = new Map<string, number>();
   for (const c of used) if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
-  let best = PALETTE[0];
+  let best: string = PALETTE[0] ?? '#3B82F6';
   let bestN = Infinity;
   for (const c of PALETTE) {
     const n = counts.get(c) ?? 0;
