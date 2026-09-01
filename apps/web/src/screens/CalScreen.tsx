@@ -181,8 +181,8 @@ export function CalScreen({
           </span>
           {items.map((it) =>
             it.kind === 'task' ? (
-              <div key={it.key} className="flex items-center gap-1" style={{ fontSize: 'calc(9.5px * var(--text-scale))', fontWeight: 700, overflow: 'hidden' }}>
-                <i style={{ width: 5, height: 5, borderRadius: 999, background: it.color, flex: 'none' }} />
+              <div key={it.key} className="flex items-start gap-1" style={{ fontSize: 'calc(9.5px * var(--text-scale))', fontWeight: 700, overflow: 'hidden' }}>
+                <i style={{ width: 5, height: 5, borderRadius: 999, background: it.color, flex: 'none', marginTop: 3 }} />
                 <span style={clamp2}>{it.title}</span>
               </div>
             ) : (
@@ -384,6 +384,7 @@ const clamp2: React.CSSProperties = {
   WebkitBoxOrient: 'vertical',
   overflow: 'hidden',
   overflowWrap: 'anywhere',
+  lineHeight: 1.1,
 };
 
 // ─────────────────────────── add / day sheet ───────────────────────────
