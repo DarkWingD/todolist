@@ -28,6 +28,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
   const [freq, setFreq] = useState<Freq | ''>('');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
+  const [showCustomReminder, setShowCustomReminder] = useState(false);
 
   // Seed local state once the task loads.
   useEffect(() => {
@@ -206,7 +207,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
                   color: assigneeId === m.id ? 'var(--color-accent)' : 'var(--color-text)',
                 }}
               >
-                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} size={22} />
+                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} image={m.image} size={22} />
                 {m.name.split(' ')[0]}
               </button>
             ))}
@@ -228,7 +229,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
       <h2 className={sectionH} style={sectionStyle}>Reminders</h2>
       {reminders.map((r) => (
         <div key={r.id} className="mb-d2 flex items-center gap-2 rounded-card bg-surface p-d3 shadow-card">
-          <span style={{ fontSize: 'var(--fs-base)' }}>⏰ {formatDateTime(r.sendAt as unknown as string)}</span>
+          <span style={{ fontSize: 'var(--fs-base)' }}>⏰ {reminderLabel(r.sendAt as unknown as string, fromLocalInput(due))}</span>
           <button
             className="ml-auto text-muted"
             style={{ fontSize: 'var(--fs-sm)' }}
@@ -238,26 +239,66 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
           </button>
         </div>
       ))}
-      <div className="mt-d2 flex items-center gap-2">
-        <input
-          type="datetime-local"
-          value={newReminder}
-          onChange={(e) => setNewReminder(e.target.value)}
-          className={fieldClass}
-          style={fieldStyle}
-        />
-        <button
-          disabled={!newReminder || addReminder.isPending}
-          className="rounded-lg px-3 py-2 font-bold text-accent-contrast disabled:opacity-50"
-          style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-          onClick={() => {
-            const iso = fromLocalInput(newReminder);
-            if (iso) addReminder.mutate({ taskId, sendAt: iso, channel: 'email' });
-          }}
-        >
-          Add
-        </button>
-      </div>
+      {due ? (
+        <div className="flex flex-wrap gap-2">
+          {REMINDER_OFFSETS.map((o) => {
+            const dueIso = fromLocalInput(due);
+            const at = dueIso ? new Date(new Date(dueIso).getTime() - o.mins * 60_000) : null;
+            const unusable =
+              !at ||
+              at.getTime() < Date.now() ||
+              reminders.some((r) => new Date(r.sendAt as unknown as string).getTime() === at.getTime());
+            return (
+              <button
+                key={o.mins}
+                disabled={unusable || addReminder.isPending}
+                onClick={() => at && addReminder.mutate({ taskId, sendAt: at.toISOString(), channel: 'email' })}
+                className="rounded-full px-3 py-1.5 font-semibold disabled:opacity-40"
+                style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-chip-bg)', color: 'var(--color-text)' }}
+              >
+                ＋ {o.label}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setShowCustomReminder((v) => !v)}
+            className="rounded-full px-3 py-1.5 font-semibold"
+            style={{
+              fontSize: 'var(--fs-sm)',
+              background: showCustomReminder ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+              color: showCustomReminder ? 'var(--color-accent)' : 'var(--color-text)',
+            }}
+          >
+            Custom…
+          </button>
+        </div>
+      ) : (
+        <p className="mb-d2 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Set a due date to use quick reminders, or pick an exact time below.
+        </p>
+      )}
+      {(showCustomReminder || !due) && (
+        <div className="mt-d2 flex items-center gap-2">
+          <input
+            type="datetime-local"
+            value={newReminder}
+            onChange={(e) => setNewReminder(e.target.value)}
+            className={fieldClass}
+            style={fieldStyle}
+          />
+          <button
+            disabled={!newReminder || addReminder.isPending}
+            className="rounded-lg px-3 py-2 font-bold text-accent-contrast disabled:opacity-50"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+            onClick={() => {
+              const iso = fromLocalInput(newReminder);
+              if (iso) addReminder.mutate({ taskId, sendAt: iso, channel: 'email' });
+            }}
+          >
+            Add
+          </button>
+        </div>
+      )}
 
       <button
         onClick={() => {
@@ -273,4 +314,30 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
       <div className="h-8" />
     </>
   );
+}
+
+const REMINDER_OFFSETS = [
+  { label: 'At due time', mins: 0 },
+  { label: '5 min', mins: 5 },
+  { label: '10 min', mins: 10 },
+  { label: '30 min', mins: 30 },
+  { label: '1 hour', mins: 60 },
+  { label: '1 day', mins: 1440 },
+];
+
+// "10 min before · Tue 3:50 pm" when the reminder aligns before the due date,
+// otherwise just the absolute time.
+function reminderLabel(sendAtIso: string, dueIso: string | null | undefined) {
+  const abs = formatDateTime(sendAtIso);
+  if (!dueIso) return abs;
+  const diffMins = Math.round((new Date(dueIso).getTime() - new Date(sendAtIso).getTime()) / 60_000);
+  if (diffMins < 0) return abs;
+  if (diffMins === 0) return `At due time · ${abs}`;
+  const rel =
+    diffMins % 1440 === 0
+      ? `${diffMins / 1440} day${diffMins / 1440 > 1 ? 's' : ''}`
+      : diffMins % 60 === 0
+        ? `${diffMins / 60} hr`
+        : `${diffMins} min`;
+  return `${rel} before · ${abs}`;
 }

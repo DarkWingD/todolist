@@ -45,6 +45,7 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
         : String(u.email ?? 'you').split('@')[0] || 'you',
     avatarEmoji: (u.avatarEmoji as string) ?? '🙂',
     avatarColor: (u.avatarColor as string) ?? '#8B5CF6',
+    image: typeof u.image === 'string' ? u.image : null,
   };
 }
 

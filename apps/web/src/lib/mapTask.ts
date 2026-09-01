@@ -11,6 +11,7 @@ export interface ServerTask {
   assigneeId: string | null;
   assigneeEmoji?: string | null;
   assigneeColor?: string | null;
+  assigneeImage?: string | null;
   listEmoji?: string;
 }
 
@@ -26,7 +27,7 @@ export function toTaskRow(t: ServerTask, opts: { withLeadEmoji?: boolean } = {})
     dueVariant: due?.variant,
     recurrence: recurrenceLabel(t.recurrenceRule) ?? undefined,
     assignee: t.assigneeId
-      ? { id: t.assigneeId, emoji: t.assigneeEmoji ?? '🙂', color: t.assigneeColor ?? '#888' }
+      ? { id: t.assigneeId, emoji: t.assigneeEmoji ?? '🙂', color: t.assigneeColor ?? '#888', image: t.assigneeImage }
       : undefined,
   };
 }

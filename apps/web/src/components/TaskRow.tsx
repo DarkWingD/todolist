@@ -15,7 +15,7 @@ export interface TaskRowData {
   dueVariant?: 'due' | 'over';
   recurrence?: string;
   tag?: string;
-  assignee?: { id: string; emoji: string; color: string };
+  assignee?: { id: string; emoji: string; color: string; image?: string | null };
 }
 
 interface TaskRowProps {
@@ -111,7 +111,7 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
               {task.tag && <Chip variant="tag">{task.tag}</Chip>}
               {task.assignee && (
                 <span className="ml-auto">
-                  <Avatar emoji={task.assignee.emoji} color={task.assignee.color} size={22} />
+                  <Avatar emoji={task.assignee.emoji} color={task.assignee.color} image={task.assignee.image} size={22} />
                 </span>
               )}
             </div>

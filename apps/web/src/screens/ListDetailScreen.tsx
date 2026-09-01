@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Avatar, AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
+import { EventEditSheet } from '../components/EventEditSheet';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { TaskRow } from '../components/TaskRow';
 import { toTaskRow } from '../lib/mapTask';
@@ -11,6 +12,16 @@ interface DetailList {
   name: string;
   emojiIcon: string;
   type?: 'tasks' | 'checklist';
+}
+
+function fmtEventDate(startIso: string, endIso: string, allDay: boolean) {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  const sameDay = s.toDateString() === e.toDateString();
+  const d = (x: Date) => x.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  const t = (x: Date) => x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (allDay) return sameDay ? d(s) : `${d(s)} – ${d(e)}`;
+  return sameDay ? `${d(s)} · ${t(s)}` : `${d(s)} ${t(s)} – ${d(e)} ${t(e)}`;
 }
 
 export function ListDetailScreen({
@@ -32,6 +43,7 @@ export function ListDetailScreen({
   const displayEmoji = live?.emojiIcon ?? list.emojiIcon;
   const isChecklist = (live?.type ?? list.type ?? 'tasks') === 'checklist';
   const [showSettings, setShowSettings] = useState(false);
+  const [editEventId, setEditEventId] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [newItem, setNewItem] = useState('');
@@ -57,6 +69,7 @@ export function ListDetailScreen({
   });
   // People you already share any list with can be added directly, no email needed.
   const { data: people = [] } = trpc.calendar.people.useQuery(undefined, { enabled: inviting });
+  const { data: listEvents = [] } = trpc.events.byList.useQuery({ listId: list.id });
   const addMember = trpc.lists.addMember.useMutation({
     onSuccess: () => utils.lists.members.invalidate({ listId: list.id }),
   });
@@ -108,7 +121,7 @@ export function ListDetailScreen({
 
       <div className="mt-d3 flex items-center gap-2">
         {members.length > 0 && (
-          <AvatarStack users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor }))} size={28} />
+          <AvatarStack users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor, image: m.image }))} size={28} />
         )}
         <button
           className="rounded-full px-3 py-1.5 font-bold text-accent"
@@ -131,7 +144,7 @@ export function ListDetailScreen({
                   className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold disabled:opacity-50"
                   style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
                 >
-                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} size={22} />
+                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={22} />
                   ＋ {p.name.split(' ')[0]}
                 </button>
               ))}
@@ -209,6 +222,30 @@ export function ListDetailScreen({
         </>
       )}
 
+      {listEvents.length > 0 && (
+        <>
+          <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+            Upcoming events
+          </h2>
+          {listEvents.map((ev) => (
+            <button
+              key={ev.id}
+              className="mb-d2 flex w-full items-center gap-3 rounded-card bg-surface p-d3 text-left shadow-card"
+              onClick={() => setEditEventId(ev.id)}
+            >
+              <span style={{ fontSize: 18 }}>📅</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>{ev.title}</span>
+                <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                  {fmtEventDate(ev.startAt as unknown as string, ev.endAt as unknown as string, ev.allDay)}
+                </span>
+              </span>
+              <span className="text-muted" style={{ fontSize: 18 }}>›</span>
+            </button>
+          ))}
+        </>
+      )}
+
       {/* Lightweight checklist item editor (rename / delete only). */}
       {editId && editItem && (
         <>
@@ -243,9 +280,36 @@ export function ListDetailScreen({
         </>
       )}
 
+      {editEventId && (() => {
+        const ev = listEvents.find((e) => e.id === editEventId);
+        if (!ev) return null;
+        return (
+          <EventEditSheet
+            event={{
+              id: ev.id,
+              listId: ev.listId,
+              title: ev.title,
+              notes: ev.notes,
+              startAt: ev.startAt as unknown as string,
+              endAt: ev.endAt as unknown as string,
+              allDay: ev.allDay,
+              assigneeId: ev.assigneeId,
+            }}
+            lists={allLists}
+            people={members}
+            onClose={() => setEditEventId(null)}
+            onDone={() => {
+              utils.events.byList.invalidate({ listId: list.id });
+              utils.calendar.range.invalidate();
+              setEditEventId(null);
+            }}
+          />
+        );
+      })()}
+
       {showSettings && (
         <ListSettingsSheet
-          list={{ id: list.id, name: displayName, emojiIcon: displayEmoji, type: live?.type ?? list.type ?? 'tasks' }}
+          list={{ id: list.id, name: displayName, emojiIcon: displayEmoji, color: live?.color ?? null, type: live?.type ?? list.type ?? 'tasks' }}
           onClose={() => setShowSettings(false)}
           onDeleted={onBack}
         />

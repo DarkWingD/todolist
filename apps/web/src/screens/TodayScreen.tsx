@@ -56,7 +56,7 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{today}</div>
         </div>
-        <Avatar emoji={me.avatarEmoji} color={me.avatarColor} size={36} />
+        <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
       </header>
 
       {isLoading ? (

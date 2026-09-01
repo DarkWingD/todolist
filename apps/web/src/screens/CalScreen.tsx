@@ -1,6 +1,7 @@
 import type { CalendarView } from '@todolist/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { EventEditSheet } from '../components/EventEditSheet';
 import { addDays, sameDay, startOfDay, startOfWeekMon, WEEKDAY_INITIALS } from '../lib/caldate';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
@@ -26,6 +27,7 @@ interface CalItem {
   time?: string;
   emoji?: string;
   id?: string;
+  eventId?: string;
 }
 
 export function CalScreen({
@@ -45,6 +47,7 @@ export function CalScreen({
   const [selDay, setSelDay] = useState<Date>(() => startOfDay(new Date()));
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState<SheetMode>(null);
+  const [editEventId, setEditEventId] = useState<string | null>(null);
 
   const { data: prefs } = trpc.prefs.get.useQuery();
   const setCalView = trpc.prefs.setCalendarView.useMutation();
@@ -114,11 +117,12 @@ export function CalScreen({
           key: 'e' + ev.id + day.getDate(),
           kind: 'event',
           title: ev.title,
-          color: colorFor(ev.assigneeId),
+          color: ev.listColor ?? NEUTRAL,
           time: ev.allDay
             ? undefined
             : new Date(ev.startAt as unknown as string).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
           emoji: ev.assigneeEmoji ?? undefined,
+          eventId: ev.id,
         });
       }
     }
@@ -134,7 +138,7 @@ export function CalScreen({
     }
     for (const t of tasks) {
       if (t.dueAt && sameDay(startOfDay(new Date(t.dueAt as unknown as string)), day) && !isHidden(t.assigneeId)) {
-        out.push({ key: 't' + t.id, kind: 'task', title: t.title, color: colorFor(t.assigneeId), id: t.id });
+        out.push({ key: 't' + t.id, kind: 'task', title: t.title, color: t.listColor ?? NEUTRAL, id: t.id });
       }
     }
     return out;
@@ -150,7 +154,10 @@ export function CalScreen({
         key={it.key}
         className="mb-d2 flex items-center gap-3 rounded-card bg-surface p-d3 shadow-card"
         style={{ fontSize: 'var(--fs-base)' }}
-        onClick={() => it.kind === 'task' && it.id && onOpenTask(it.id)}
+        onClick={() => {
+          if (it.kind === 'task' && it.id) onOpenTask(it.id);
+          else if (it.eventId) setEditEventId(it.eventId);
+        }}
       >
         <span className="self-stretch rounded-full" style={{ width: 4, background: it.color, minHeight: 28 }} />
         <span className="min-w-0 flex-1">
@@ -355,7 +362,7 @@ export function CalScreen({
             const on = !hidden.has(p.id);
             return (
               <button key={p.id} onClick={() => toggleHidden(p.id)} className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold" style={{ fontSize: 12, background: 'var(--color-chip-bg)', border: `1.5px solid ${on ? p.avatarColor : 'transparent'}`, opacity: on ? 1 : 0.45 }}>
-                <Avatar emoji={p.avatarEmoji} color={p.avatarColor} size={20} />
+                <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={20} />
                 {p.name.split(' ')[0]}
               </button>
             );
@@ -375,6 +382,10 @@ export function CalScreen({
           onClose={() => setSheet(null)}
           onPick={(m) => setSheet(m)}
           onOpenTask={onOpenTask}
+          onOpenEvent={(id) => {
+            setSheet(null);
+            setEditEventId(id);
+          }}
           onDone={() => {
             utils.calendar.range.invalidate();
             utils.birthdays.list.invalidate();
@@ -383,6 +394,32 @@ export function CalScreen({
           }}
         />
       )}
+
+      {editEventId && (() => {
+        const ev = events.find((e) => e.id === editEventId);
+        if (!ev) return null;
+        return (
+          <EventEditSheet
+            event={{
+              id: ev.id,
+              listId: ev.listId,
+              title: ev.title,
+              notes: ev.notes,
+              startAt: ev.startAt as unknown as string,
+              endAt: ev.endAt as unknown as string,
+              allDay: ev.allDay,
+              assigneeId: ev.assigneeId,
+            }}
+            lists={lists}
+            people={people}
+            onClose={() => setEditEventId(null)}
+            onDone={() => {
+              utils.calendar.range.invalidate();
+              setEditEventId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -398,16 +435,17 @@ const clamp2: React.CSSProperties = {
 
 // ─────────────────────────── add / day sheet ───────────────────────────
 function CalSheet({
-  mode, day, items, people, lists, onClose, onPick, onOpenTask, onDone,
+  mode, day, items, people, lists, onClose, onPick, onOpenTask, onOpenEvent, onDone,
 }: {
   mode: SheetMode;
   day: Date;
   items: CalItem[];
-  people: { id: string; name: string; avatarEmoji: string; avatarColor: string }[];
+  people: { id: string; name: string; avatarEmoji: string; avatarColor: string; image?: string | null }[];
   lists: { id: string; name: string; emojiIcon: string }[];
   onClose: () => void;
   onPick: (m: SheetMode) => void;
   onOpenTask: (id: string) => void;
+  onOpenEvent: (id: string) => void;
   onDone: () => void;
 }) {
   const createEvent = trpc.events.create.useMutation({ onSuccess: onDone });
@@ -440,7 +478,15 @@ function CalSheet({
           <>
             <h3 className="mb-3 font-head" style={{ fontSize: 18 }}>{day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
             {items.length ? items.map((it) => (
-              <div key={it.key} className="mb-2 flex items-center gap-2 rounded-card bg-surface p-3 shadow-card" style={{ fontSize: 'var(--fs-base)' }} onClick={() => it.id && onOpenTask(it.id)}>
+              <div
+                key={it.key}
+                className="mb-2 flex items-center gap-2 rounded-card bg-surface p-3 shadow-card"
+                style={{ fontSize: 'var(--fs-base)' }}
+                onClick={() => {
+                  if (it.kind === 'task' && it.id) onOpenTask(it.id);
+                  else if (it.eventId) onOpenEvent(it.eventId);
+                }}
+              >
                 <span className="self-stretch rounded-full" style={{ width: 4, background: it.color, minHeight: 24 }} />
                 <span className="flex-1">{it.kind === 'birthday' ? '🎂 ' : ''}{it.title}</span>
                 {it.time && <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{it.time}</span>}
@@ -479,7 +525,7 @@ function CalSheet({
                 <div className="flex flex-wrap gap-2">
                   {people.map((p) => (
                     <button key={p.id} onClick={() => setAssignee((a) => (a === p.id ? null : p.id))} className="rounded-full" style={{ padding: 2, borderRadius: '50%', boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none' }}>
-                      <Avatar emoji={p.avatarEmoji} color={p.avatarColor} size={30} />
+                      <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
                     </button>
                   ))}
                 </div>

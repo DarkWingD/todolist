@@ -47,6 +47,7 @@ export const updateListSchema = z.object({
   listId: z.string().uuid(),
   name: z.string().trim().min(1).max(120).optional(),
   emojiIcon: emojiSchema.optional(),
+  color: hexColorSchema.nullable().optional(),
   type: z.enum(LIST_TYPES).optional(),
 });
 
@@ -108,6 +109,8 @@ export const updateEventSchema = createEventSchema
   .omit({ listId: true })
   .extend({
     id: z.string().uuid(),
+    // Moving an event to another list is allowed; access to the target is checked server-side.
+    listId: z.string().uuid().optional(),
     assigneeId: z.string().min(1).nullable().optional(),
   });
 

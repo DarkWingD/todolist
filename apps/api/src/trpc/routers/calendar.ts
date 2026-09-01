@@ -8,6 +8,7 @@ const withAssignee = {
   assigneeName: user.name,
   assigneeEmoji: user.avatarEmoji,
   assigneeColor: user.avatarColor,
+  assigneeImage: user.image,
 };
 
 export const calendarRouter = router({
@@ -25,6 +26,7 @@ export const calendarRouter = router({
         completedAt: task.completedAt,
         recurrenceRule: task.recurrenceRule,
         listEmoji: list.emojiIcon,
+        listColor: list.color,
         ...withAssignee,
       })
       .from(task)
@@ -50,6 +52,7 @@ export const calendarRouter = router({
         startAt: event.startAt,
         endAt: event.endAt,
         allDay: event.allDay,
+        listColor: list.color,
         assigneeId: event.assigneeId,
         assigneeName: user.name,
         assigneeEmoji: user.avatarEmoji,
@@ -85,6 +88,7 @@ export const calendarRouter = router({
         name: user.name,
         avatarEmoji: user.avatarEmoji,
         avatarColor: user.avatarColor,
+        image: user.image,
       })
       .from(listMember)
       .innerJoin(user, eq(user.id, listMember.userId))

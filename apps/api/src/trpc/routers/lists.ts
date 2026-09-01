@@ -44,6 +44,7 @@ export const listsRouter = router({
           name: user.name,
           avatarEmoji: user.avatarEmoji,
           avatarColor: user.avatarColor,
+          image: user.image,
           role: listMember.role,
         })
         .from(listMember)

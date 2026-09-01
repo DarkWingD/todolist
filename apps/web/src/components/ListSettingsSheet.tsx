@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
+import { ColorPicker } from './ColorPicker';
 import { EmojiPicker } from './EmojiPicker';
 
 interface Props {
-  list: { id: string; name: string; emojiIcon: string; type?: 'tasks' | 'checklist' };
+  list: { id: string; name: string; emojiIcon: string; color?: string | null; type?: 'tasks' | 'checklist' };
   onClose: () => void;
   onDeleted: () => void;
 }
@@ -12,6 +13,7 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
   const utils = trpc.useUtils();
   const [name, setName] = useState(list.name);
   const [emoji, setEmoji] = useState(list.emojiIcon);
+  const [color, setColor] = useState<string | null>(list.color ?? null);
   const [type, setType] = useState<'tasks' | 'checklist'>(list.type ?? 'tasks');
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -65,9 +67,14 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
           <EmojiPicker value={emoji} onChange={setEmoji} />
         </div>
 
+        <div className="mb-1 mt-3 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Calendar colour
+        </div>
+        <ColorPicker value={color} onChange={setColor} />
+
         <button
           disabled={!name.trim() || update.isPending}
-          onClick={() => update.mutate({ listId: list.id, name: name.trim(), emojiIcon: emoji, type })}
+          onClick={() => update.mutate({ listId: list.id, name: name.trim(), emojiIcon: emoji, color, type })}
           className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
           style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
         >

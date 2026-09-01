@@ -159,7 +159,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
                 }}
                 title={m.name}
               >
-                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} size={30} />
+                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} image={m.image} size={30} />
               </button>
             ))}
           </div>

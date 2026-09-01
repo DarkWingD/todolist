@@ -5,6 +5,7 @@ export interface SessionUser {
   name: string;
   avatarEmoji: string;
   avatarColor: string;
+  image: string | null;
 }
 
 export type ListType = 'tasks' | 'checklist';

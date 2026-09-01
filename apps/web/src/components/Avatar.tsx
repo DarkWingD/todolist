@@ -1,16 +1,37 @@
 interface AvatarProps {
   emoji: string;
   color: string;
+  /** Optional photo (data URL); takes precedence over the emoji. */
+  image?: string | null;
   /** pixel diameter */
   size?: number;
   className?: string;
 }
 
 /**
- * A user's identity chip: emoji on a soft tint of their chosen color.
- * Readable across every theme + light/dark because the tint mixes with --color-surface.
+ * A user's identity chip: their photo if set, else emoji on a soft tint of
+ * their chosen color. Readable across every theme + light/dark because the
+ * tint mixes with --color-surface.
  */
-export function Avatar({ emoji, color, size = 24, className }: AvatarProps) {
+export function Avatar({ emoji, color, image, size = 24, className }: AvatarProps) {
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt=""
+        className={className}
+        style={{
+          width: size,
+          height: size,
+          flex: 'none',
+          borderRadius: '50%',
+          objectFit: 'cover',
+          boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${color} 48%, transparent)`,
+        }}
+        aria-hidden="true"
+      />
+    );
+  }
   return (
     <span
       className={className}
@@ -34,7 +55,7 @@ export function Avatar({ emoji, color, size = 24, className }: AvatarProps) {
 }
 
 interface AvatarStackProps {
-  users: { id: string; emoji: string; color: string }[];
+  users: { id: string; emoji: string; color: string; image?: string | null }[];
   size?: number;
   max?: number;
 }
@@ -53,7 +74,7 @@ export function AvatarStack({ users, size = 26, max = 4 }: AvatarStackProps) {
             boxShadow: '0 0 0 2px var(--color-surface)',
           }}
         >
-          <Avatar emoji={u.emoji} color={u.color} size={size} />
+          <Avatar emoji={u.emoji} color={u.color} image={u.image} size={size} />
         </span>
       ))}
       {extra > 0 && (

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull } from 'drizzle-orm';
 import { db, event } from '@todolist/db';
 import { createEventSchema, updateEventSchema } from '@todolist/shared';
 import { z } from 'zod';
@@ -29,10 +29,25 @@ export const eventsRouter = router({
     return created;
   }),
 
+  // Upcoming (and currently running) events for a list.
+  byList: protectedProcedure
+    .input(z.object({ listId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      // -24h so "today's" events show regardless of the user's timezone offset.
+      const cutoff = new Date(Date.now() - 86_400_000);
+      return db
+        .select()
+        .from(event)
+        .where(and(eq(event.listId, input.listId), isNull(event.deletedAt), gte(event.endAt, cutoff)))
+        .orderBy(asc(event.startAt));
+    }),
+
   update: protectedProcedure.input(updateEventSchema).mutation(async ({ ctx, input }) => {
     const listId = await eventListId(input.id);
     if (!listId) return { ok: false };
     await assertListAccess(ctx.user.id, listId);
+    if (input.listId && input.listId !== listId) await assertListAccess(ctx.user.id, input.listId);
     const { id, startAt, endAt, ...rest } = input;
     await db
       .update(event)

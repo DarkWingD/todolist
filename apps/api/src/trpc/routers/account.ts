@@ -1,8 +1,26 @@
 import { eq } from 'drizzle-orm';
 import { birthday, db, event, list, listMember, task, user, userPrefs } from '@todolist/db';
+import { z } from 'zod';
 import { protectedProcedure, router } from '../trpc.js';
 
+// Small square photo shipped as a data URL (~25KB after client-side resize).
+const photoSchema = z
+  .string()
+  .regex(/^data:image\/(jpeg|png|webp);base64,/, 'Must be an image data URL')
+  .max(300_000);
+
 export const accountRouter = router({
+  // Set or clear the user's profile photo (null clears back to emoji avatar).
+  setPhoto: protectedProcedure
+    .input(z.object({ image: photoSchema.nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .update(user)
+        .set({ image: input.image, updatedAt: new Date() })
+        .where(eq(user.id, ctx.user.id));
+      return { ok: true };
+    }),
+
   // A downloadable copy of everything this user owns/created.
   exportMe: protectedProcedure.query(async ({ ctx }) => {
     const uid = ctx.user.id;

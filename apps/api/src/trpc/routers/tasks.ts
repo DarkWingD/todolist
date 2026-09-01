@@ -21,6 +21,7 @@ const taskWithAssignee = {
   assigneeName: user.name,
   assigneeEmoji: user.avatarEmoji,
   assigneeColor: user.avatarColor,
+  assigneeImage: user.image,
 };
 
 export const tasksRouter = router({

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ColorPicker } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
@@ -15,6 +16,7 @@ export function ListsScreen({
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
+  const [color, setColor] = useState<string | null>(null);
   const [type, setType] = useState<'tasks' | 'checklist'>('tasks');
 
   // The floating + button opens the create form — but only when actually tapped
@@ -33,6 +35,7 @@ export function ListsScreen({
       setCreating(false);
       setName('');
       setEmoji('📝');
+      setColor(null);
       setType('tasks');
     },
   });
@@ -83,6 +86,10 @@ export function ListsScreen({
             ))}
           </div>
           <EmojiPicker value={emoji} onChange={setEmoji} />
+          <div className="mb-1 mt-3 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Calendar colour
+          </div>
+          <ColorPicker value={color} onChange={setColor} />
           <div className="mt-3 flex justify-end gap-2">
             <button className="text-muted" style={{ fontSize: 'var(--fs-sm)' }} onClick={() => setCreating(false)}>
               Cancel
@@ -91,7 +98,7 @@ export function ListsScreen({
               disabled={!name.trim() || create.isPending}
               className="rounded-lg px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
               style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-              onClick={() => create.mutate({ name: name.trim(), emojiIcon: emoji, type })}
+              onClick={() => create.mutate({ name: name.trim(), emojiIcon: emoji, color: color ?? undefined, type })}
             >
               Create
             </button>
@@ -117,7 +124,12 @@ export function ListsScreen({
           >
             <span
               className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl"
-              style={{ background: 'var(--color-emoji-bg)' }}
+              style={{
+                background: l.color
+                  ? `color-mix(in srgb, ${l.color} 22%, var(--color-surface))`
+                  : 'var(--color-emoji-bg)',
+                boxShadow: l.color ? `inset 0 0 0 1.5px color-mix(in srgb, ${l.color} 48%, transparent)` : 'none',
+              }}
             >
               {l.emojiIcon}
             </span>
