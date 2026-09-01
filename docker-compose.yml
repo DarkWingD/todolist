@@ -36,6 +36,7 @@ services:
       dockerfile: infra/Dockerfile.api
     restart: unless-stopped
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       API_PORT: 8787
       WEB_ORIGIN: ${WEB_ORIGIN}
@@ -54,6 +55,7 @@ services:
       dockerfile: infra/Dockerfile.worker
     restart: unless-stopped
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM}

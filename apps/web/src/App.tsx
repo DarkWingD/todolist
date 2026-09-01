@@ -3,9 +3,11 @@ import { AppShell, type TabId } from './components/AppShell';
 import { QuickAddSheet } from './components/QuickAddSheet';
 import { useSession } from './lib/auth';
 import { trpc } from './lib/trpc';
+import { AccountScreen } from './screens/AccountScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
 import { CalScreen } from './screens/CalScreen';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
+import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { SearchScreen } from './screens/SearchScreen';
@@ -53,7 +55,7 @@ export function App() {
   return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
 }
 
-type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail';
+type View = 'main' | 'listDetail' | 'appearance' | 'taskDetail' | 'account' | 'privacy';
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
@@ -114,7 +116,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
 
   const activeTab: TabId =
-    view === 'appearance'
+    view === 'appearance' || view === 'account' || view === 'privacy'
       ? 'you'
       : view === 'listDetail'
         ? 'lists'
@@ -133,6 +135,10 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <ListDetailScreen list={selectedList} onBack={() => navigate('lists')} onOpenTask={openTask} />;
   } else if (view === 'appearance') {
     content = <AppearanceScreen onBack={() => setView('main')} />;
+  } else if (view === 'account') {
+    content = <AccountScreen me={me} onBack={() => setView('main')} />;
+  } else if (view === 'privacy') {
+    content = <PrivacyScreen onBack={() => setView('main')} />;
   } else if (tab === 'today') {
     content = <TodayScreen me={me} onOpenTask={openTask} />;
   } else if (tab === 'lists') {
@@ -142,7 +148,15 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (tab === 'search') {
     content = <SearchScreen onOpenList={openList} />;
   } else {
-    content = <YouScreen me={me} themeName={theme} onOpenAppearance={() => setView('appearance')} />;
+    content = (
+      <YouScreen
+        me={me}
+        themeName={theme}
+        onOpenAppearance={() => setView('appearance')}
+        onOpenAccount={() => setView('account')}
+        onOpenPrivacy={() => setView('privacy')}
+      />
+    );
   }
 
   return (

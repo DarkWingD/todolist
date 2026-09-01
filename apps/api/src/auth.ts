@@ -47,13 +47,19 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: 60 * 15, // 15 minutes
       sendMagicLink: async ({ email, url }) => {
-        // Without Resend configured, print the link so you can still sign in.
-        if (!emailEnabled) {
-          console.log(`\n🔗 MAGIC LINK for ${email}:\n${url}\n`);
-          return;
+        try {
+          // Without Resend configured, print the link so you can still sign in.
+          if (!emailEnabled) {
+            console.log(`\n🔗 MAGIC LINK for ${email}:\n${url}\n`);
+            return;
+          }
+          const { subject, html, text } = magicLinkEmail(url);
+          await sendEmail({ to: email, subject, html, text });
+        } catch (err) {
+          // Swallow send errors so the response doesn't reveal whether an address
+          // is deliverable (prevents user enumeration) and never 500s.
+          console.error('Magic link send failed:', err);
         }
-        const { subject, html, text } = magicLinkEmail(url);
-        await sendEmail({ to: email, subject, html, text });
       },
     }),
   ],

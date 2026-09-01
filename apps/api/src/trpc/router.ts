@@ -1,4 +1,5 @@
 import { router } from './trpc.js';
+import { accountRouter } from './routers/account.js';
 import { birthdaysRouter } from './routers/birthdays.js';
 import { calendarRouter } from './routers/calendar.js';
 import { eventsRouter } from './routers/events.js';
@@ -19,6 +20,7 @@ export const appRouter = router({
   calendar: calendarRouter,
   events: eventsRouter,
   birthdays: birthdaysRouter,
+  account: accountRouter,
 });
 
 export type AppRouter = typeof appRouter;
