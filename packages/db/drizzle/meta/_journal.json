@@ -64,6 +64,13 @@
       "when": 1788318888729,
       "tag": "0008_smart_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788322223783,
+      "tag": "0009_acoustic_sharon_carter",
+      "breakpoints": true
     }
   ]
 }

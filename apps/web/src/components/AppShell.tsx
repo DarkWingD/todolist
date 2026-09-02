@@ -1,20 +1,21 @@
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
+import { NavIcon } from './NavIcon';
 
 export type TabId = 'today' | 'lists' | 'cal' | 'meals' | 'you';
 
 // Mostly geometric glyphs, but Meals gets a real plate: a fourth square sat
 // next to the calendar's grid said nothing about food. Emoji is in keeping —
 // lists and avatars use them throughout.
-// Emoji throughout, in keeping with the list icons and avatars. They sit at 20px
-// rather than the 24px the old geometric glyphs used, because emoji fill much
-// more of the em box and would otherwise crowd the labels.
-const TABS: { id: TabId; icon: string; label: string }[] = [
-  { id: 'today', icon: '📌', label: 'Today' },
-  { id: 'lists', icon: '📋', label: 'Lists' },
-  { id: 'cal', icon: '📅', label: 'Cal' },
-  { id: 'meals', icon: '🍽', label: 'Meals' },
-  { id: 'you', icon: '🙂', label: 'You' },
+// Marks live in NavIcon and inherit currentColor, so the active tab tints its
+// icon and label together. Emoji stay where they're content — list icons and
+// avatars — rather than chrome.
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'lists', label: 'Lists' },
+  { id: 'cal', label: 'Cal' },
+  { id: 'meals', label: 'Meals' },
+  { id: 'you', label: 'You' },
 ];
 
 interface AppShellProps {
@@ -92,20 +93,7 @@ export function AppShell({
             )}
             style={{ fontSize: 11.5 }}
           >
-            {/* Emoji keep their own colour, so the active tab is marked by a
-                tinted pill behind the icon rather than by tinting the icon. */}
-            <span
-              className="grid place-items-center rounded-full"
-              style={{
-                width: 34,
-                height: 26,
-                fontSize: 20,
-                lineHeight: 1,
-                background: active === t.id ? 'var(--color-accent-soft)' : 'transparent',
-              }}
-            >
-              {t.icon}
-            </span>
+            <NavIcon tab={t.id} />
             {t.label}
           </button>
         ))}

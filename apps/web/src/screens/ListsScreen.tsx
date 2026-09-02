@@ -282,7 +282,7 @@ export function ListsScreen({
             </div>
           )}
 
-          {remindersList && (
+          {remindersList && !remindersList.hidden && (
             <ListCard
               list={remindersList}
               subtitle={`${remindersList.remaining} upcoming`}
@@ -290,7 +290,7 @@ export function ListsScreen({
             />
           )}
 
-          {shoppingList && (
+          {shoppingList && !shoppingList.hidden && (
             <ListCard
               list={shoppingList}
               // Says which Shopping list this is: nothing else distinguishes it

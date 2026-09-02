@@ -253,16 +253,16 @@ export function ListDetailScreen({
             {done.length} done
           </div>
         </div>
-        {!isReminders && (
-          <button
-            aria-label="List settings"
-            className="grid h-9 w-9 flex-none place-items-center rounded-full text-muted"
-            style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
-            onClick={() => setShowSettings(true)}
-          >
-            ⋯
-          </button>
-        )}
+        {/* Shown for built-in lists too: the sheet offers Hide rather than
+            Delete, so there is something useful behind it. */}
+        <button
+          aria-label="List settings"
+          className="grid h-9 w-9 flex-none place-items-center rounded-full text-muted"
+          style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
+          onClick={() => setShowSettings(true)}
+        >
+          ⋯
+        </button>
       </header>
 
       {!isReminders && (
@@ -604,6 +604,10 @@ export function ListDetailScreen({
             emojiIcon: displayEmoji,
             color: live?.color ?? null,
             type: live?.type ?? list.type ?? 'tasks',
+            // Without this the sheet can't tell it's a built-in list and would
+            // offer Delete. `live` comes from lists.mine, which excludes system
+            // lists, so it has to come from the list we were handed.
+            systemKey: list.systemKey ?? null,
           }}
           onClose={() => setShowSettings(false)}
           onDeleted={onBack}

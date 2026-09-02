@@ -1,0 +1,2 @@
+ALTER TABLE "list" ADD COLUMN "hidden" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "list_owner_system_idx" ON "list" USING btree ("owner_id","system_key");

@@ -130,12 +130,24 @@ export const list = pgTable(
     type: listTypeEnum('type').notNull().default('tasks'),
     // Marks an app-managed list (e.g. 'birthdays'); hidden from the normal Lists view.
     systemKey: text('system_key'),
+    // Lets someone tuck a built-in list away without deleting it. Only ever set
+    // on system lists, which each user owns their own copy of — so it is
+    // effectively per-user. Ordinary lists are shared, where a single flag would
+    // hide the list for everyone.
+    hidden: boolean('hidden').notNull().default(false),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (t) => [index('list_owner_idx').on(t.ownerId)],
+  (t) => [
+    index('list_owner_idx').on(t.ownerId),
+    // One system list of each kind per user. The get-or-create helpers filter on
+    // `deletedAt`, so without this a deleted system list would be silently
+    // replaced by a duplicate and its tasks orphaned. Postgres treats NULLs as
+    // distinct, so ordinary lists are unaffected.
+    uniqueIndex('list_owner_system_idx').on(t.ownerId, t.systemKey),
+  ],
 );
 
 export const listMember = pgTable(
