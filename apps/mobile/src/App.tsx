@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MealWeek, ShoppingList } from '@todolist/kitchen-ui';
 import { useEffect, useState } from 'react';
 import { Settings } from './screens/Settings';
+import { Welcome } from './screens/Welcome';
 import { flush, initStore, mealAdapter, shoppingAdapter } from './store/memory';
-import { usePrefs } from './theme';
+import { hasSeenWelcome, markWelcomeSeen, usePrefs } from './theme';
 
 type Tab = 'meals' | 'shopping' | 'settings';
 
@@ -55,6 +56,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('meals');
   const { prefs, setPrefs } = usePrefs();
   const [ready, setReady] = useState(false);
+  const [welcomed, setWelcomed] = useState(hasSeenWelcome);
 
   // Nothing renders until the document is loaded, so the screens never briefly
   // show the seed and then swap it for real data.
@@ -78,6 +80,17 @@ export function App() {
 
   if (!ready) {
     return <div className="grid h-[100dvh] place-items-center bg-bg" aria-busy="true" />;
+  }
+
+  if (!welcomed) {
+    return (
+      <Welcome
+        onDone={() => {
+          markWelcomeSeen();
+          setWelcomed(true);
+        }}
+      />
+    );
   }
 
   return (

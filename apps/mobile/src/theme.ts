@@ -27,6 +27,28 @@ export const TEXT_SCALE = { min: 0.88, max: 1.14, step: 0.02 } as const;
 const DENSITY_VALUE: Record<Density, number> = { comfortable: 1, cozy: 0.9, compact: 0.8 };
 const DEFAULTS: Prefs = { theme: 'nudge', appearance: 'system', density: 'cozy', textScale: 0.96 };
 const STORAGE_KEY = 'kitchenboard.prefs';
+const SEEN_WELCOME_KEY = 'kitchenboard.seenWelcome';
+
+/**
+ * Kept apart from the document: the welcome screen is about this install, not
+ * about your data, so importing a backup shouldn't bring it back.
+ */
+export function hasSeenWelcome(): boolean {
+  try {
+    return localStorage.getItem(SEEN_WELCOME_KEY) === '1';
+  } catch {
+    // Storage blocked — better to show it again than to hide it wrongly.
+    return false;
+  }
+}
+
+export function markWelcomeSeen(): void {
+  try {
+    localStorage.setItem(SEEN_WELCOME_KEY, '1');
+  } catch {
+    // Nothing to do; it will simply appear again next launch.
+  }
+}
 
 function load(): Prefs {
   try {

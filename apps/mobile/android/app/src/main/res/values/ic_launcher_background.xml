@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Nudge's accent, the app's default theme. -->
+    <color name="ic_launcher_background">#FF6B5E</color>
 </resources>

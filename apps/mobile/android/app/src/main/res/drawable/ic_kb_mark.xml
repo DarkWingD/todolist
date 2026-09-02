@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Kitchen Board's mark: the same fork and knife as the Meals tab, so the icon
+    on the home screen and the icon in the app are recognisably one thing.
+
+    Adaptive icons are 108dp with only the middle 72dp guaranteed visible — the
+    rest is cropped to whatever mask the launcher uses. The group below centres
+    a 24-unit drawing at double scale, which lands it inside that safe zone.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="30"
+        android:translateY="30"
+        android:scaleX="2"
+        android:scaleY="2">
+        <path
+            android:pathData="M7,3.5v7a2.5,2.5 0 0 0 5,0v-7"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M9.5,3.5v17"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M17,3.5c1.5,1.5 1.8,4 1.4,6.2c-0.2,1 -0.9,1.6 -1.9,1.6H16v9.2"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
