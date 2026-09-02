@@ -44,14 +44,27 @@ function ListCard({
   );
 }
 
+/** Search hits carry only enough to open a list, so the prop takes that shape. */
+interface MinimalList {
+  id: string;
+  name: string;
+  emojiIcon: string;
+}
+
 export function ListsScreen({
   onOpenList,
   createSignal,
 }: {
-  onOpenList: (list: ListSummary) => void;
+  onOpenList: (list: MinimalList) => void;
   createSignal?: number;
 }) {
   const utils = trpc.useUtils();
+  const [q, setQ] = useState('');
+  const query = q.trim();
+  const { data: results, isFetching } = trpc.search.query.useQuery(
+    { q: query },
+    { enabled: query.length > 0 },
+  );
   const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
   const { data: remindersList } = trpc.lists.reminders.useQuery();
   const [creating, setCreating] = useState(false);
@@ -94,6 +107,100 @@ export function ListsScreen({
         </h1>
       </header>
 
+      {/* Search lives here rather than in its own tab — it is nearly always a
+          list or a task inside one that you are looking for. */}
+      <div className="mb-d3 flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card">
+        <span className="text-muted" style={{ fontSize: 16 }}>
+          ⌕
+        </span>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search tasks and lists…"
+          aria-label="Search tasks and lists"
+          className="flex-1 bg-transparent outline-none"
+          style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+        />
+        {query.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setQ('')}
+            aria-label="Clear search"
+            className="text-muted"
+            style={{ fontSize: 16 }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {query.length > 0 ? (
+        isFetching && !results ? (
+          <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+            Searching…
+          </p>
+        ) : (
+          <>
+            {(results?.lists.length ?? 0) > 0 && (
+              <>
+                <h2
+                  className="mb-d2 font-bold uppercase text-muted"
+                  style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+                >
+                  Lists
+                </h2>
+                {results!.lists.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => onOpenList(l)}
+                    className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+                  >
+                    <span
+                      className="grid h-9 w-9 flex-none place-items-center rounded-emoji text-lg"
+                      style={{ background: 'var(--color-emoji-bg)' }}
+                    >
+                      {l.emojiIcon}
+                    </span>
+                    <span className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                      {l.name}
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
+            {(results?.tasks.length ?? 0) > 0 && (
+              <>
+                <h2
+                  className="mb-d2 mt-d3 font-bold uppercase text-muted"
+                  style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+                >
+                  Tasks
+                </h2>
+                {results!.tasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className="mb-d2 flex items-center gap-d3 rounded-card bg-surface p-d3 shadow-card"
+                  >
+                    <span>{t.listEmoji}</span>
+                    <span
+                      className={t.completed ? 'text-muted line-through' : ''}
+                      style={{ fontSize: 'var(--fs-base)' }}
+                    >
+                      {t.title}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+            {results && results.lists.length === 0 && results.tasks.length === 0 && (
+              <p className="mt-6 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+                No matches for “{query}”.
+              </p>
+            )}
+          </>
+        )
+      ) : (
+        <>
       {creating && (
         <div className="mb-d3 rounded-card bg-surface p-4 shadow-card">
           <input
@@ -177,6 +284,8 @@ export function ListsScreen({
             onOpen={onOpenList}
           />
         ))
+      )}
+        </>
       )}
     </>
   );

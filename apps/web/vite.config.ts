@@ -20,7 +20,7 @@ export default defineConfig({
       manifest: {
         name: 'ToDoList',
         short_name: 'ToDoList',
-        description: 'A calm, collaborative to-do app.',
+        description: 'A calm, collaborative to-do app and weekly meal planner.',
         theme_color: '#FF6B5E',
         background_color: '#FFF9F5',
         display: 'standalone',

@@ -11,8 +11,8 @@ import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
 import { ListsScreen } from './screens/ListsScreen';
 import { ManageListsScreen } from './screens/ManageListsScreen';
+import { MealsScreen } from './screens/MealsScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
-import { SearchScreen } from './screens/SearchScreen';
 import { SignInScreen } from './screens/SignInScreen';
 import { TaskDetailScreen } from './screens/TaskDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
@@ -87,12 +87,15 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [createListSignal, setCreateListSignal] = useState(0);
   const [calCreateSignal, setCalCreateSignal] = useState(0);
   const [focusAddSignal, setFocusAddSignal] = useState(0);
+  const [mealCreateSignal, setMealCreateSignal] = useState(0);
 
   // The floating + adds whatever the current screen is about: a list on Lists,
-  // an event/birthday on Cal, a reminder in the Reminders list, otherwise a task.
+  // an event/birthday on Cal, a dinner on Meals, a reminder in the Reminders
+  // list, otherwise a task.
   function onAdd() {
     if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
     else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
+    else if (view === 'main' && tab === 'meals') setMealCreateSignal((n) => n + 1);
     else if (view === 'listDetail' && selectedList?.systemKey === 'reminders')
       setFocusAddSignal((n) => n + 1);
     else setSheetOpen(true);
@@ -146,7 +149,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
             : taskReturn.tab
           : tab;
   const showFab =
-    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) || view === 'listDetail';
+    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal' || tab === 'meals')) ||
+    view === 'listDetail';
 
   let content;
   if (view === 'taskDetail' && selectedTaskId) {
@@ -176,8 +180,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
   } else if (tab === 'cal') {
     content = <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} />;
-  } else if (tab === 'search') {
-    content = <SearchScreen onOpenList={openList} />;
+  } else if (tab === 'meals') {
+    content = <MealsScreen createSignal={mealCreateSignal} />;
   } else {
     content = (
       <YouScreen
@@ -198,6 +202,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
       onNavigate={navigate}
       showFab={showFab}
       onAdd={onAdd}
+      wide={view === 'main' && tab === 'meals'}
       overlay={
         <QuickAddSheet
           open={sheetOpen}
