@@ -300,11 +300,25 @@ export function MealsScreen() {
           {toShopping.isPending ? 'Adding…' : '🛒 Send week to shopping list'}
         </button>
       </div>
-      {toShopping.data && (
-        <p className="pb-2 text-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          {toShopping.data.headings > 0
-            ? `Added ${toShopping.data.headings} ${
-                toShopping.data.headings === 1 ? 'meal' : 'meals'
+      {toShopping.error && (
+        <p
+          className="pb-2 text-center"
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--fs-sm)' }}
+        >
+          {toShopping.error.message}
+        </p>
+      )}
+      {toShopping.data && !toShopping.error && (
+        <p
+          className="pb-2 text-center"
+          style={{
+            fontSize: 'var(--fs-sm)',
+            color: toShopping.data.added > 0 ? 'var(--color-accent)' : 'var(--color-muted)',
+          }}
+        >
+          {toShopping.data.added > 0
+            ? `Added ${toShopping.data.added} ${
+                toShopping.data.added === 1 ? 'item' : 'items'
               } to Shopping.`
             : 'Everything from this week is already on the list.'}
         </p>

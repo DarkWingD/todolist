@@ -6,14 +6,15 @@ export type TabId = 'today' | 'lists' | 'cal' | 'meals' | 'you';
 // Mostly geometric glyphs, but Meals gets a real plate: a fourth square sat
 // next to the calendar's grid said nothing about food. Emoji is in keeping —
 // lists and avatars use them throughout.
-// `size` trims the emoji: it fills far more of the em box than the geometric
-// glyphs, so at a shared 24px it would sit noticeably larger than its neighbours.
-const TABS: { id: TabId; icon: string; label: string; size?: number }[] = [
-  { id: 'today', icon: '◎', label: 'Today' },
-  { id: 'lists', icon: '☰', label: 'Lists' },
-  { id: 'cal', icon: '▦', label: 'Cal' },
-  { id: 'meals', icon: '🍽', label: 'Meals', size: 20 },
-  { id: 'you', icon: '◔', label: 'You' },
+// Emoji throughout, in keeping with the list icons and avatars. They sit at 20px
+// rather than the 24px the old geometric glyphs used, because emoji fill much
+// more of the em box and would otherwise crowd the labels.
+const TABS: { id: TabId; icon: string; label: string }[] = [
+  { id: 'today', icon: '📌', label: 'Today' },
+  { id: 'lists', icon: '📋', label: 'Lists' },
+  { id: 'cal', icon: '📅', label: 'Cal' },
+  { id: 'meals', icon: '🍽', label: 'Meals' },
+  { id: 'you', icon: '🙂', label: 'You' },
 ];
 
 interface AppShellProps {
@@ -91,7 +92,20 @@ export function AppShell({
             )}
             style={{ fontSize: 11.5 }}
           >
-            <span style={{ fontSize: t.size ?? 24, lineHeight: 1 }}>{t.icon}</span>
+            {/* Emoji keep their own colour, so the active tab is marked by a
+                tinted pill behind the icon rather than by tinting the icon. */}
+            <span
+              className="grid place-items-center rounded-full"
+              style={{
+                width: 34,
+                height: 26,
+                fontSize: 20,
+                lineHeight: 1,
+                background: active === t.id ? 'var(--color-accent-soft)' : 'transparent',
+              }}
+            >
+              {t.icon}
+            </span>
             {t.label}
           </button>
         ))}

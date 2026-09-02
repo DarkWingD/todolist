@@ -496,61 +496,68 @@ export const mealPlanRouter = router({
         .orderBy(asc(mealPlanDay.date));
 
       const listId = await groceriesListId(ctx.user.id);
-      const open = await db
-        .select({ title: task.title })
+      // Everything still to buy. A meal already on the list is topped up with
+      // whatever it is missing rather than skipped: otherwise adding ingredients
+      // to a meal you had already sent would never reach the list.
+      const existing = await db
+        .select({ id: task.id, title: task.title, parentTaskId: task.parentTaskId })
         .from(task)
-        .where(
-          and(
-            eq(task.listId, listId),
-            isNull(task.parentTaskId),
-            isNull(task.completedAt),
-            isNull(task.deletedAt),
-          ),
-        );
-      // Dedupe is per meal heading, not per line: two meals both needing onions
-      // each keep their own line under their own heading.
-      const already = new Set(open.map((t) => t.title.trim().toLowerCase()));
+        .where(and(eq(task.listId, listId), isNull(task.completedAt), isNull(task.deletedAt)));
 
-      const meals: { name: string; ingredients: string[] }[] = [];
+      const key = (s: string) => s.trim().toLowerCase();
+      const headingByName = new Map<string, string>();
+      for (const t of existing) if (!t.parentTaskId) headingByName.set(key(t.title), t.id);
+      const childrenOf = new Map<string, Set<string>>();
+      for (const t of existing) {
+        if (!t.parentTaskId) continue;
+        const have = childrenOf.get(t.parentTaskId) ?? new Set<string>();
+        have.add(key(t.title));
+        childrenOf.set(t.parentTaskId, have);
+      }
+
+      const wanted: { name: string; ingredients: string[] }[] = [];
       const seen = new Set<string>();
       for (const r of rows) {
         // A cook feeding several nights appears once per night; its ingredients
         // are only wanted once.
         if (seen.has(r.mealId)) continue;
         seen.add(r.mealId);
-        const name = r.name.trim();
-        if (already.has(name.toLowerCase())) continue;
-        already.add(name.toLowerCase());
-        meals.push({
-          name,
+        wanted.push({
+          name: r.name.trim(),
           ingredients: (r.ingredients ?? '')
             .split('\n')
             .map((s) => s.trim())
             .filter(Boolean),
         });
       }
-      if (meals.length === 0) return { listId, added: 0, headings: 0 };
 
-      // Headings first, in one statement, so each ingredient has a parent id to
+      // Headings first, in one statement, so each ingredient has a parent to
       // point at. Ingredients then follow in a second batch.
-      const headings = await db
-        .insert(task)
-        .values(meals.map((m) => ({ listId, title: m.name, createdBy: ctx.user.id })))
-        .returning({ id: task.id, title: task.title });
+      const missing = wanted.filter((m) => !headingByName.has(key(m.name)));
+      let created: { id: string; title: string }[] = [];
+      if (missing.length > 0) {
+        created = await db
+          .insert(task)
+          .values(missing.map((m) => ({ listId, title: m.name, createdBy: ctx.user.id })))
+          .returning({ id: task.id, title: task.title });
+        for (const h of created) headingByName.set(key(h.title), h.id);
+      }
 
-      const byName = new Map(headings.map((h) => [h.title, h.id]));
-      const children = meals.flatMap((m) => {
-        const parentTaskId = byName.get(m.name);
-        if (!parentTaskId) return [];
-        return m.ingredients.map((title) => ({
-          listId,
-          title,
-          parentTaskId,
-          createdBy: ctx.user.id,
-        }));
-      });
-      if (children.length > 0) await db.insert(task).values(children);
+      const toAdd: { listId: string; title: string; parentTaskId: string; createdBy: string }[] =
+        [];
+      for (const m of wanted) {
+        const parentTaskId = headingByName.get(key(m.name));
+        if (!parentTaskId) continue;
+        const have = childrenOf.get(parentTaskId) ?? new Set<string>();
+        for (const ingredient of m.ingredients) {
+          if (have.has(key(ingredient))) continue;
+          have.add(key(ingredient));
+          toAdd.push({ listId, title: ingredient, parentTaskId, createdBy: ctx.user.id });
+        }
+        childrenOf.set(parentTaskId, have);
+      }
+      if (toAdd.length > 0) await db.insert(task).values(toAdd);
 
-      return { listId, added: headings.length + children.length, headings: headings.length };
+      return { listId, added: created.length + toAdd.length, headings: created.length };
     }),
 });
