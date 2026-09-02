@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_kb_mark"/>
-    <!-- Android 13+ themed icons: the launcher recolours this to match the
-         wallpaper, so it must be the shape alone. -->
-    <monochrome android:drawable="@drawable/ic_kb_mark"/>
+    <background>
+        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="16.7%" />
+    </background>
+    <foreground>
+        <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />
+    </foreground>
+    <!-- Android 13+ themed icons: recoloured to the wallpaper, so it must be
+         the bare shape. The generated foreground carries the coral with it. -->
+    <monochrome android:drawable="@drawable/ic_kb_mark" />
 </adaptive-icon>
