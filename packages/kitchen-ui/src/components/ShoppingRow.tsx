@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { motion, type PanInfo } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Checkbox } from './Checkbox';
 
 const SWIPE_THRESHOLD = 90;
@@ -23,6 +23,8 @@ export function ShoppingRow({
   canIndent,
   canOutdent,
   leaving,
+  animateOut = true,
+  flash,
   onToggle,
   onOpen,
   onIndent,
@@ -36,6 +38,14 @@ export function ShoppingRow({
   canOutdent?: boolean;
   /** Animate out because the heading above is being ticked. */
   leaving?: boolean;
+  /**
+   * Whether ticking this row makes it leave. True for a top-level row, which
+   * moves to Bought; false for an ingredient, which stays under its meal struck
+   * through so you can watch the meal fill up.
+   */
+  animateOut?: boolean;
+  /** Just added: scroll it into view and wash it once, so it isn't lost. */
+  flash?: boolean;
   onToggle: (id: string, completed: boolean) => void;
   onOpen: (id: string) => void;
   onIndent?: (id: string) => void;
@@ -43,16 +53,37 @@ export function ShoppingRow({
   onCompleteStart?: (id: string) => void;
 }) {
   const [completing, setCompleting] = useState(false);
-  const going = completing || Boolean(leaving);
-  const showChecked = completed || going;
+  // A row only fades when it is actually going somewhere. An ingredient ticked
+  // on its own stays put, so it must not be left at opacity 0 — it keeps the
+  // same React instance in the same parent, and `completing` would never clear.
+  const going = (completing && animateOut) || Boolean(leaving);
+  const showChecked = completed || completing || Boolean(leaving);
+
+  // Once the store confirms the tick, the transient animation state is spent.
+  useEffect(() => {
+    if (completed) setCompleting(false);
+  }, [completed]);
+
+  // A new item keeps its place in the outline, which on a long list means it
+  // lands off-screen. Bring it into view rather than reordering around it.
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // 'nearest' moves as little as possible — enough to reveal the row, without
+    // yanking the whole list around mid-flow.
+    if (flash) rowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [flash]);
 
   function startComplete() {
     if (completed) {
       onToggle(id, false); // un-complete immediately, no animation
-    } else {
-      onCompleteStart?.(id);
-      setCompleting(true);
+      return;
     }
+    onCompleteStart?.(id);
+    // Strike through at once either way. A row that fades writes when the
+    // animation ends; one that stays put has no animation to wait for, and
+    // waiting would mean the tick was never written at all.
+    setCompleting(true);
+    if (!animateOut) onToggle(id, true);
   }
 
   function onDragEnd(_e: unknown, info: PanInfo) {
@@ -62,7 +93,10 @@ export function ShoppingRow({
 
   return (
     <motion.div
-      className="relative mb-d2"
+      ref={rowRef}
+      // Tighter than a task row's gap: shorter rows made the old spacing read
+      // as gappy. Still on the density scale rather than a fixed pixel value.
+      className="relative mb-d1"
       style={{ overflow: 'hidden' }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: going ? 0 : 1, y: 0 }}
@@ -87,9 +121,13 @@ export function ShoppingRow({
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={{ left: canOutdent ? 0.7 : 0, right: canIndent ? 0.7 : 0 }}
         onDragEnd={onDragEnd}
-        className="relative flex cursor-pointer items-start gap-d3 rounded-card bg-surface shadow-card"
-        style={{ padding: 'var(--space-3)' }}
-        onClick={() => onOpen(id)}
+        className="relative flex cursor-pointer items-center gap-d3 rounded-card bg-surface shadow-card"
+        // Tighter vertically than a task row — a shopping list is scanned in
+        // bulk, and the whole row is the tap target so it needn't be tall.
+        style={{ padding: 'var(--space-2) var(--space-3)' }}
+        // Ticking is what you do constantly in a shop, so it gets the whole row
+        // rather than a 22px box; editing is rare and gets its own button.
+        onClick={startComplete}
       >
         <div onClick={(e) => e.stopPropagation()} onPointerDownCapture={(e) => e.stopPropagation()}>
           <Checkbox
@@ -117,6 +155,46 @@ export function ShoppingRow({
             </span>
           </div>
         </div>
+
+        {/* A bare pencil rather than a circled ⋯: the button's own box was
+            setting the row height, and editing is rare enough not to earn it. */}
+        <button
+          type="button"
+          aria-label={`Edit "${title}"`}
+          className="grid h-8 w-8 flex-none place-items-center text-muted"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(id);
+          }}
+          onPointerDownCapture={(e) => e.stopPropagation()}
+        >
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4.5 19.5h3.2L19 8.2a2.1 2.1 0 0 0-3-3L4.5 16.3v3.2z" />
+            <path d="M14.8 6.4l2.8 2.8" />
+          </svg>
+        </button>
+
+        {/* A wash that fades out, rather than a colour interpolation — the
+            theme's values are CSS variables and can't be tweened. */}
+        {flash && (
+          <motion.span
+            className="pointer-events-none absolute inset-0 rounded-card"
+            style={{ background: 'var(--color-accent-soft)' }}
+            initial={{ opacity: 0.95 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 1.4, ease: 'easeOut' }}
+          />
+        )}
       </motion.div>
     </motion.div>
   );

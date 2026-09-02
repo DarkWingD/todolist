@@ -153,7 +153,12 @@ export function ListDetailScreen({
         }));
       },
       addItem: async (title) => {
-        await utils.client.tasks.create.mutate({ listId: list.id, title, priority: 'none' });
+        const created = await utils.client.tasks.create.mutate({
+          listId: list.id,
+          title,
+          priority: 'none',
+        });
+        return created!.id;
       },
       toggleItem: async (id, completed) => {
         await utils.client.tasks.toggle.mutate({ id, completed });

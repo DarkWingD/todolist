@@ -58,7 +58,8 @@ export interface ShoppingItem {
 
 export interface ShoppingAdapter {
   getItems(): Promise<ShoppingItem[]>;
-  addItem(title: string): Promise<void>;
+  /** Returns the new item's id, so the list can scroll to what you just added. */
+  addItem(title: string): Promise<string>;
   toggleItem(id: string, completed: boolean): Promise<void>;
   renameItem(id: string, title: string): Promise<void>;
   removeItem(id: string): Promise<void>;

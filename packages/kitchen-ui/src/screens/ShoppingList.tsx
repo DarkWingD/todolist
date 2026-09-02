@@ -18,6 +18,7 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
   const [editTitle, setEditTitle] = useState('');
   // Set while a heading animates out, so its ingredients leave with it.
   const [completingHeadingId, setCompletingHeadingId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['shopping'],
@@ -27,7 +28,17 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
     qc.invalidateQueries({ queryKey: ['shopping'] });
     setCompletingHeadingId(null);
   };
-  const add = useMutation({ mutationFn: (t: string) => adapter.addItem(t), onSuccess: invalidate });
+  // A new item keeps its place in the outline rather than jumping to the top,
+  // so it can land off-screen on a long list. Flag it and let the row bring
+  // itself into view.
+  const add = useMutation({
+    mutationFn: (t: string) => adapter.addItem(t),
+    onSuccess: (id) => {
+      invalidate();
+      setFlashId(id);
+      window.setTimeout(() => setFlashId((cur) => (cur === id ? null : cur)), 1600);
+    },
+  });
   const toggle = useMutation({
     mutationFn: (v: { id: string; completed: boolean }) => adapter.toggleItem(v.id, v.completed),
     onSuccess: invalidate,
@@ -92,6 +103,7 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
         <ShoppingRow
           id={t.id}
           title={t.title}
+          flash={flashId === t.id}
           completed={t.completed}
           canIndent={!t.completed && kids.length === 0 && i > 0}
           onIndent={indent}
@@ -109,10 +121,14 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
                 key={c.id}
                 id={c.id}
                 title={c.title}
+                flash={flashId === c.id}
                 completed={c.completed}
                 canOutdent
                 onOutdent={(id) => reparent.mutate({ id, parentId: null })}
                 leaving={completingHeadingId === t.id && !c.completed}
+                // An ingredient ticked on its own stays under its meal, struck
+                // through, so you can watch the meal fill up as you shop.
+                animateOut={false}
                 onToggle={(id, completed) => toggle.mutate({ id, completed })}
                 onOpen={(id) => {
                   setEditId(id);
@@ -128,34 +144,39 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
 
   return (
     <>
-      <div className="mb-d3 flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card">
-        <input
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newItem.trim()) {
-              addOne(newItem);
-              setNewItem('');
-            }
-          }}
-          onPaste={(e) => {
-            // Pasting a block of lines adds one item per line, which is how
-            // people bring a list over from a message or a recipe.
-            const text = e.clipboardData.getData('text');
-            if (text.includes('\n')) {
-              e.preventDefault();
-              text
-                .split('\n')
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .forEach(addOne);
-              setNewItem('');
-            }
-          }}
-          placeholder="Add an item…"
-          className="flex-1 bg-transparent outline-none"
-          style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-        />
+      {/* Pinned, so rapid entry works: the list scrolls underneath while the box
+          and the keyboard focus stay put. Without this, scrolling to a newly
+          added item scrolled the box itself out of reach. */}
+      <div className="sticky top-0 z-10 -mx-d4 bg-bg px-d4 pb-d2 pt-1">
+        <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card">
+          <input
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newItem.trim()) {
+                addOne(newItem);
+                setNewItem('');
+              }
+            }}
+            onPaste={(e) => {
+              // Pasting a block of lines adds one item per line, which is how
+              // people bring a list over from a message or a recipe.
+              const text = e.clipboardData.getData('text');
+              if (text.includes('\n')) {
+                e.preventDefault();
+                text
+                  .split('\n')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .forEach(addOne);
+                setNewItem('');
+              }
+            }}
+            placeholder="Add an item…"
+            className="flex-1 bg-transparent outline-none"
+            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+          />
+        </div>
       </div>
 
       <h2
