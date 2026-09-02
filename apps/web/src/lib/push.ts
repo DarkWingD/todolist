@@ -72,18 +72,38 @@ function isInstalled(): boolean {
   return window.matchMedia?.('(display-mode: standalone)').matches ?? false;
 }
 
-export type PushBlocker = 'none' | 'ios-needs-install' | 'unsupported';
+/**
+ * Whether this is Safari, given we already know it's an iPhone or iPad.
+ *
+ * Every iOS browser renders with WebKit, but only Safari can add a site to the
+ * Home Screen — so Chrome and Firefox users need a different first step, not
+ * the same instructions with a footnote they'll skip.
+ *
+ * Detected by exclusion rather than by looking for "Safari", because every one
+ * of these carries the Safari token too. The second test catches in-app
+ * browsers (Facebook, Instagram, Gmail), which drop the token entirely and
+ * can't install anything either.
+ */
+function isIosSafari(): boolean {
+  const ua = navigator.userAgent;
+  if (/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|DuckDuckGo|YaBrowser|Coast|mercury/i.test(ua)) return false;
+  return /Safari\//.test(ua);
+}
+
+export type PushBlocker = 'none' | 'ios-needs-install' | 'ios-needs-safari' | 'unsupported';
 
 /**
  * Why push can't be offered, when it can't.
  *
- * Worth the extra case: iOS *does* support web push, but only once the site is
- * on the Home Screen — in an ordinary Safari tab `PushManager` doesn't exist at
- * all. Reporting that as "this browser doesn't support notifications" is true
- * and useless, because the fix is three taps away and that wording hides it.
+ * Worth the extra cases: iOS *does* support web push, but only once the site is
+ * on the Home Screen — in an ordinary tab `PushManager` doesn't exist at all.
+ * Reporting that as "this browser doesn't support notifications" is true and
+ * useless, because the fix is a few taps away and that wording hides it.
  */
 export function pushBlocker(): PushBlocker {
   if (pushSupported()) return 'none';
-  if (isApplePhoneOrTablet() && !isInstalled()) return 'ios-needs-install';
+  if (isApplePhoneOrTablet() && !isInstalled()) {
+    return isIosSafari() ? 'ios-needs-install' : 'ios-needs-safari';
+  }
   return 'unsupported';
 }

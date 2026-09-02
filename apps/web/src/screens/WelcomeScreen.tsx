@@ -41,7 +41,8 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
   const blocker = pushBlocker();
   const configured = Boolean(vapidKey);
   const canAsk = blocker === 'none' && configured;
-  const needsInstall = blocker === 'ios-needs-install' && configured;
+  const needsInstall =
+    configured && (blocker === 'ios-needs-install' || blocker === 'ios-needs-safari');
 
   async function enable() {
     if (!vapidKey) return;
@@ -128,7 +129,7 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {needsInstall && <AddToHomeScreen compact />}
+        {needsInstall && <AddToHomeScreen needsSafari={blocker === 'ios-needs-safari'} />}
       </div>
 
       <button

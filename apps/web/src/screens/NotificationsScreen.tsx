@@ -117,8 +117,8 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
         Push on this device
       </h2>
 
-      {blocker === 'ios-needs-install' ? (
-        <AddToHomeScreen />
+      {blocker === 'ios-needs-install' || blocker === 'ios-needs-safari' ? (
+        <AddToHomeScreen needsSafari={blocker === 'ios-needs-safari'} />
       ) : !supported ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           This browser doesn’t support push notifications.
