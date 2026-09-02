@@ -92,7 +92,9 @@ export function MealDayCard({
   const matches =
     q.length === 0
       ? meals.slice(0, 8)
-      : meals.filter((m) => m.name.toLowerCase().includes(q) && m.name.toLowerCase() !== q).slice(0, 8);
+      : meals
+          .filter((m) => m.name.toLowerCase().includes(q) && m.name.toLowerCase() !== q)
+          .slice(0, 8);
   const showList = expanded && (!entry || draft !== entry.name) && matches.length > 0;
 
   // Only a planned, collapsed day can be dragged to another day.
@@ -214,7 +216,10 @@ export function MealDayCard({
               {entry ? (
                 <>
                   <span
-                    className={clsx('block', entry.isLeftover ? 'text-muted font-semibold' : 'font-bold')}
+                    className={clsx(
+                      'block',
+                      entry.isLeftover ? 'text-muted font-semibold' : 'font-bold',
+                    )}
                     style={{ fontSize: 'var(--fs-base)' }}
                   >
                     {entry.name}
@@ -325,7 +330,8 @@ export function MealDayCard({
                     className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left last:border-b-0"
                     style={{
                       fontSize: 'var(--fs-sm)',
-                      background: i === highlight ? 'var(--color-accent-soft)' : 'var(--color-surface)',
+                      background:
+                        i === highlight ? 'var(--color-accent-soft)' : 'var(--color-surface)',
                       color: i === highlight ? 'var(--color-accent)' : 'var(--color-text)',
                       fontWeight: i === highlight ? 700 : 400,
                     }}
@@ -383,7 +389,11 @@ export function MealDayCard({
                     </button>
                     <span
                       className="text-center font-bold"
-                      style={{ fontSize: 'var(--fs-base)', minWidth: 16, fontVariantNumeric: 'tabular-nums' }}
+                      style={{
+                        fontSize: 'var(--fs-base)',
+                        minWidth: 16,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
                     >
                       {cookSpan}
                     </span>

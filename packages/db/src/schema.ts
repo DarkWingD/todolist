@@ -30,7 +30,12 @@ export const densityEnum = pgEnum('density', ['comfortable', 'cozy', 'compact'])
 export const priorityEnum = pgEnum('priority', ['none', 'low', 'medium', 'high']);
 export const listRoleEnum = pgEnum('list_role', ['owner', 'member']);
 export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist']);
-export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'declined', 'revoked']);
+export const inviteStatusEnum = pgEnum('invite_status', [
+  'pending',
+  'accepted',
+  'declined',
+  'revoked',
+]);
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'push', 'in_app']);
 export const calendarViewEnum = pgEnum('calendar_view', ['month', 'week', 'agenda', 'list']);
 
@@ -145,7 +150,10 @@ export const listMember = pgTable(
     role: listRoleEnum('role').notNull().default('member'),
     addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.listId, t.userId] }), index('list_member_user_idx').on(t.userId)],
+  (t) => [
+    primaryKey({ columns: [t.listId, t.userId] }),
+    index('list_member_user_idx').on(t.userId),
+  ],
 );
 
 export const listInvite = pgTable(
@@ -411,7 +419,10 @@ export const meal = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
-  (t) => [index('meal_plan_idx').on(t.planId), uniqueIndex('meal_plan_name_idx').on(t.planId, t.name)],
+  (t) => [
+    index('meal_plan_idx').on(t.planId),
+    uniqueIndex('meal_plan_name_idx').on(t.planId, t.name),
+  ],
 );
 
 /**

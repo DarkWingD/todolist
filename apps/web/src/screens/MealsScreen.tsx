@@ -74,7 +74,11 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
     },
   });
   const busy =
-    setDay.isPending || clearDay.isPending || moveDay.isPending || editMeal.isPending || favourite.isPending;
+    setDay.isPending ||
+    clearDay.isPending ||
+    moveDay.isPending ||
+    editMeal.isPending ||
+    favourite.isPending;
 
   const byDate = useMemo(() => {
     const m = new Map<string, MealEntry>();

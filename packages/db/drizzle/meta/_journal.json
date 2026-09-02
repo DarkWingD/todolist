@@ -50,6 +50,13 @@
       "when": 1788309779725,
       "tag": "0006_curly_miek",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788316329440,
+      "tag": "0007_heavy_daredevil",
+      "breakpoints": true
     }
   ]
 }

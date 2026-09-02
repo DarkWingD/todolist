@@ -30,7 +30,10 @@ interface MinList {
 
 function Splash() {
   return (
-    <div className="grid h-[100dvh] place-items-center bg-bg text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+    <div
+      className="grid h-[100dvh] place-items-center bg-bg text-muted"
+      style={{ fontSize: 'var(--fs-base)' }}
+    >
       <div className="animate-pulse text-3xl">✓</div>
     </div>
   );
@@ -123,7 +126,9 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
   function openTask(id: string) {
     setSelectedTaskId(id);
-    setTaskReturn(view === 'listDetail' ? { view: 'listDetail', tab: 'lists' } : { view: 'main', tab });
+    setTaskReturn(
+      view === 'listDetail' ? { view: 'listDetail', tab: 'lists' } : { view: 'main', tab },
+    );
     setView('taskDetail');
   }
   function closeTask() {

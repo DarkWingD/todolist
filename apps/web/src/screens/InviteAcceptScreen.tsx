@@ -13,12 +13,16 @@ export function InviteAcceptScreen({ token }: { token: string }) {
   return (
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col items-center justify-center gap-5 px-8 text-center">
       {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading invite…</p>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Loading invite…
+        </p>
       ) : error || !info ? (
         <>
           <div className="text-4xl">🔗</div>
           <p style={{ fontSize: 'var(--fs-base)' }}>This invite link isn’t valid.</p>
-          <button className="font-semibold text-accent" onClick={goHome}>Go to ToDoList</button>
+          <button className="font-semibold text-accent" onClick={goHome}>
+            Go to ToDoList
+          </button>
         </>
       ) : info.expired || info.status !== 'pending' ? (
         <>
@@ -26,7 +30,9 @@ export function InviteAcceptScreen({ token }: { token: string }) {
           <p style={{ fontSize: 'var(--fs-base)' }}>
             This invite has {info.status !== 'pending' ? 'already been used' : 'expired'}.
           </p>
-          <button className="font-semibold text-accent" onClick={goHome}>Go to ToDoList</button>
+          <button className="font-semibold text-accent" onClick={goHome}>
+            Go to ToDoList
+          </button>
         </>
       ) : (
         <>
@@ -39,7 +45,11 @@ export function InviteAcceptScreen({ token }: { token: string }) {
           <div>
             <h1
               className="font-head"
-              style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+              style={{
+                fontSize: 'var(--fs-big)',
+                fontWeight: 'var(--title-weight)',
+                letterSpacing: 'var(--title-tracking)',
+              }}
             >
               {info.name}
             </h1>

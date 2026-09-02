@@ -93,7 +93,10 @@ export const invitesRouter = router({
       .insert(mealPlanMember)
       .values({ planId: inv.targetId, userId: ctx.user.id, role: 'member' })
       .onConflictDoNothing();
-    await db.update(mealPlanInvite).set({ status: 'accepted' }).where(eq(mealPlanInvite.id, inv.id));
+    await db
+      .update(mealPlanInvite)
+      .set({ status: 'accepted' })
+      .where(eq(mealPlanInvite.id, inv.id));
     return { kind: 'mealPlan' as const, id: inv.targetId };
   }),
 });
