@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BackButton } from '../components/BackButton';
-import { Checkbox } from '../components/Checkbox';
+import { Checkbox } from '@todolist/kitchen-ui';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';

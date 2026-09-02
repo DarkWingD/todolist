@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { motion, type PanInfo } from 'framer-motion';
 import { useState } from 'react';
 import { Avatar } from './Avatar';
-import { Checkbox } from './Checkbox';
+import { Checkbox } from '@todolist/kitchen-ui';
 import { Chip } from './Chip';
 
 export interface TaskRowData {

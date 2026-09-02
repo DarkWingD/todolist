@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { ShoppingList, type ShoppingAdapter } from '@todolist/kitchen-ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
 import { EventEditSheet } from '../components/EventEditSheet';
@@ -137,6 +138,41 @@ export function ListDetailScreen({
     onSuccess: () => utils.lists.members.invalidate({ listId: list.id }),
   });
   const addable = people.filter((p) => !members.some((m) => m.id === p.id));
+
+  // A checklist's body is the shared ShoppingList, so the meal planner and the
+  // Android app render the identical thing. This is the tRPC half of its port.
+  const shoppingAdapter = useMemo<ShoppingAdapter>(
+    () => ({
+      getItems: async () => {
+        const rows = await utils.client.tasks.byList.query({ listId: list.id });
+        return rows.map((t) => ({
+          id: t.id,
+          title: t.title,
+          completed: Boolean(t.completedAt),
+          parentId: t.parentTaskId ?? null,
+        }));
+      },
+      addItem: async (title) => {
+        await utils.client.tasks.create.mutate({ listId: list.id, title, priority: 'none' });
+      },
+      toggleItem: async (id, completed) => {
+        await utils.client.tasks.toggle.mutate({ id, completed });
+      },
+      renameItem: async (id, title) => {
+        await utils.client.tasks.update.mutate({ id, title });
+      },
+      removeItem: async (id) => {
+        await utils.client.tasks.remove.mutate({ id });
+      },
+      setParent: async (id, parentId) => {
+        await utils.client.tasks.update.mutate({ id, parentTaskId: parentId });
+      },
+      clearCompleted: async () => {
+        await utils.client.tasks.clearCompleted.mutate({ listId: list.id });
+      },
+    }),
+    [utils, list.id],
+  );
 
   const addOne = (title: string) => {
     const t = title.trim();
@@ -332,151 +368,157 @@ export function ListDetailScreen({
         </div>
       )}
 
-      {/* Rapid add — Enter to add and keep typing; paste multiple lines = multiple items. */}
-      <div className="mt-d3 rounded-card bg-surface p-d3 shadow-card">
-        <div className="flex items-center gap-2">
-          <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>
-            ＋
-          </span>
-          <input
-            ref={addInputRef}
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addOne(newItem);
-                setNewItem('');
-              }
-            }}
-            onPaste={(e) => {
-              const text = e.clipboardData.getData('text');
-              if (text.includes('\n')) {
-                e.preventDefault();
-                text
-                  .split('\n')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-                  .forEach(addOne);
-                setNewItem('');
-              }
-            }}
-            placeholder={
-              isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'
-            }
-            className="flex-1 bg-transparent outline-none"
-            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-          />
-        </div>
-        {isReminders && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            {REMIND_PRESETS.map((p) => (
-              <button
-                key={p.v}
-                onClick={() => setRemindPreset(p.v)}
-                className="rounded-full px-3 py-1.5 font-semibold"
-                style={{
-                  fontSize: 'var(--fs-sm)',
-                  background:
-                    remindPreset === p.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
-                  color: remindPreset === p.v ? 'var(--color-accent)' : 'var(--color-text)',
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-            {remindPreset === 'custom' && (
-              <input
-                type="datetime-local"
-                value={customRemindAt}
-                onChange={(e) => setCustomRemindAt(e.target.value)}
-                className="rounded-lg border border-border bg-bg px-2 py-1.5 outline-none"
-                style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-              />
-            )}
-            <button
-              disabled={
-                !newItem.trim() ||
-                !remindAtFrom(remindPreset, customRemindAt) ||
-                quickAddReminder.isPending
-              }
-              onClick={() => {
-                addOne(newItem);
-                setNewItem('');
-              }}
-              className="ml-auto rounded-full px-4 py-1.5 font-bold text-accent-contrast disabled:opacity-50"
-              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-            >
-              Add
-            </button>
-          </div>
-        )}
-      </div>
-
-      <h2
-        className="mb-d2 mt-d4 font-bold uppercase text-muted"
-        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-      >
-        {isReminders ? 'Upcoming' : isChecklist ? 'To buy' : 'To do'}
-      </h2>
-      {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          Loading…
-        </p>
-      ) : open.length === 0 ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          {isReminders
-            ? 'Nothing coming up — add a reminder above.'
-            : isChecklist
-              ? 'Empty — add an item above.'
-              : 'All done — nice. 🎉'}
-        </p>
-      ) : isChecklist ? (
-        toBuy.map(renderGroup)
+      {isChecklist ? (
+        <ShoppingList adapter={shoppingAdapter} />
       ) : (
-        open.map((t) => (
-          <TaskRow
-            key={t.id}
-            task={toTaskRow(t)}
-            onToggle={(id, completed) => toggle.mutate({ id, completed })}
-            onOpen={openItem}
-            onDelete={(id) => remove.mutate({ id })}
-          />
-        ))
-      )}
-
-      {(isChecklist ? bought.length > 0 : done.length > 0) && (
         <>
-          <div className="mb-d2 mt-d4 flex items-baseline justify-between gap-d3">
-            <h2
-              className="font-bold uppercase text-muted"
-              style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-            >
-              {isChecklist ? 'Bought' : 'Done'}
-            </h2>
-            {isChecklist && (
-              <button
-                type="button"
-                disabled={clearBought.isPending}
-                onClick={() => clearBought.mutate({ listId: list.id })}
-                className="font-semibold text-accent disabled:opacity-50"
-                style={{ fontSize: 'var(--fs-xs)' }}
-              >
-                {clearBought.isPending ? 'Clearing…' : 'Clear bought'}
-              </button>
+          {/* Rapid add — Enter to add and keep typing; paste multiple lines = multiple items. */}
+          <div className="mt-d3 rounded-card bg-surface p-d3 shadow-card">
+            <div className="flex items-center gap-2">
+              <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>
+                ＋
+              </span>
+              <input
+                ref={addInputRef}
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addOne(newItem);
+                    setNewItem('');
+                  }
+                }}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData('text');
+                  if (text.includes('\n')) {
+                    e.preventDefault();
+                    text
+                      .split('\n')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                      .forEach(addOne);
+                    setNewItem('');
+                  }
+                }}
+                placeholder={
+                  isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'
+                }
+                className="flex-1 bg-transparent outline-none"
+                style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+              />
+            </div>
+            {isReminders && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                {REMIND_PRESETS.map((p) => (
+                  <button
+                    key={p.v}
+                    onClick={() => setRemindPreset(p.v)}
+                    className="rounded-full px-3 py-1.5 font-semibold"
+                    style={{
+                      fontSize: 'var(--fs-sm)',
+                      background:
+                        remindPreset === p.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                      color: remindPreset === p.v ? 'var(--color-accent)' : 'var(--color-text)',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {remindPreset === 'custom' && (
+                  <input
+                    type="datetime-local"
+                    value={customRemindAt}
+                    onChange={(e) => setCustomRemindAt(e.target.value)}
+                    className="rounded-lg border border-border bg-bg px-2 py-1.5 outline-none"
+                    style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+                  />
+                )}
+                <button
+                  disabled={
+                    !newItem.trim() ||
+                    !remindAtFrom(remindPreset, customRemindAt) ||
+                    quickAddReminder.isPending
+                  }
+                  onClick={() => {
+                    addOne(newItem);
+                    setNewItem('');
+                  }}
+                  className="ml-auto rounded-full px-4 py-1.5 font-bold text-accent-contrast disabled:opacity-50"
+                  style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+                >
+                  Add
+                </button>
+              </div>
             )}
           </div>
-          {isChecklist
-            ? bought.map(renderGroup)
-            : done.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={toTaskRow(t)}
-                  onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                  onOpen={openItem}
-                  onDelete={(id) => remove.mutate({ id })}
-                />
-              ))}
+
+          <h2
+            className="mb-d2 mt-d4 font-bold uppercase text-muted"
+            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+          >
+            {isReminders ? 'Upcoming' : isChecklist ? 'To buy' : 'To do'}
+          </h2>
+          {isLoading ? (
+            <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+              Loading…
+            </p>
+          ) : open.length === 0 ? (
+            <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+              {isReminders
+                ? 'Nothing coming up — add a reminder above.'
+                : isChecklist
+                  ? 'Empty — add an item above.'
+                  : 'All done — nice. 🎉'}
+            </p>
+          ) : isChecklist ? (
+            toBuy.map(renderGroup)
+          ) : (
+            open.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={toTaskRow(t)}
+                onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                onOpen={openItem}
+                onDelete={(id) => remove.mutate({ id })}
+              />
+            ))
+          )}
+
+          {(isChecklist ? bought.length > 0 : done.length > 0) && (
+            <>
+              <div className="mb-d2 mt-d4 flex items-baseline justify-between gap-d3">
+                <h2
+                  className="font-bold uppercase text-muted"
+                  style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+                >
+                  {isChecklist ? 'Bought' : 'Done'}
+                </h2>
+                {isChecklist && (
+                  <button
+                    type="button"
+                    disabled={clearBought.isPending}
+                    onClick={() => clearBought.mutate({ listId: list.id })}
+                    className="font-semibold text-accent disabled:opacity-50"
+                    style={{ fontSize: 'var(--fs-xs)' }}
+                  >
+                    {clearBought.isPending ? 'Clearing…' : 'Clear bought'}
+                  </button>
+                )}
+              </div>
+              {isChecklist
+                ? bought.map(renderGroup)
+                : done.map((t) => (
+                    <TaskRow
+                      key={t.id}
+                      task={toTaskRow(t)}
+                      onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                      onOpen={openItem}
+                      onDelete={(id) => remove.mutate({ id })}
+                    />
+                  ))}
+            </>
+          )}
         </>
       )}
 

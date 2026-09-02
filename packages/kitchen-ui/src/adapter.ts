@@ -47,3 +47,22 @@ export interface MealPlannerAdapter {
    */
   invite?: (planId: string, email: string) => Promise<void>;
 }
+
+/** One line on the shopping list. A heading is simply an item with children. */
+export interface ShoppingItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  parentId: string | null;
+}
+
+export interface ShoppingAdapter {
+  getItems(): Promise<ShoppingItem[]>;
+  addItem(title: string): Promise<void>;
+  toggleItem(id: string, completed: boolean): Promise<void>;
+  renameItem(id: string, title: string): Promise<void>;
+  removeItem(id: string): Promise<void>;
+  /** Indent under a heading, or `null` to promote back to one. */
+  setParent(id: string, parentId: string | null): Promise<void>;
+  clearCompleted(): Promise<void>;
+}
