@@ -8,6 +8,7 @@ export interface MealEntry {
   name: string;
   recipeUrl: string | null;
   notes: string | null;
+  ingredients: string | null;
   isFavourite: boolean;
   cookSpan: number;
   isLeftover: boolean;
@@ -20,6 +21,7 @@ export interface MealOption {
   name: string;
   recipeUrl: string | null;
   notes: string | null;
+  ingredients: string | null;
   isFavourite: boolean;
 }
 
@@ -47,7 +49,12 @@ interface Props {
   onPick: (v: { mealId?: string; name?: string; cookSpan: number }) => void;
   onClear: () => void;
   onPushNextWeek: () => void;
-  onEditMeal: (v: { id: string; recipeUrl?: string | null; notes?: string | null }) => void;
+  onEditMeal: (v: {
+    id: string;
+    recipeUrl?: string | null;
+    notes?: string | null;
+    ingredients?: string | null;
+  }) => void;
   onToggleFavourite: (id: string, next: boolean) => void;
   /** How far the card was dragged vertically; the screen maps that to a day. */
   onDragEndY: (offsetY: number) => void;
@@ -76,6 +83,7 @@ export function MealDayCard({
   const [highlight, setHighlight] = useState(0);
   const [recipe, setRecipe] = useState('');
   const [notes, setNotes] = useState('');
+  const [ingredients, setIngredients] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Re-seed the editor whenever it opens or the underlying meal changes.
@@ -84,6 +92,7 @@ export function MealDayCard({
     setDraft(entry?.name ?? '');
     setRecipe(entry?.recipeUrl ?? '');
     setNotes(entry?.notes ?? '');
+    setIngredients(entry?.ingredients ?? '');
     setHighlight(0);
     if (!entry) inputRef.current?.focus();
   }, [expanded, entry]);
@@ -418,6 +427,31 @@ export function MealDayCard({
                     className="font-bold uppercase text-muted"
                     style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.04em' }}
                   >
+                    Ingredients
+                  </span>
+                  <textarea
+                    value={ingredients}
+                    onChange={(e) => setIngredients(e.target.value)}
+                    onBlur={() => {
+                      const next = ingredients.trim();
+                      if (next !== (entry.ingredients ?? ''))
+                        onEditMeal({ id: entry.mealId, ingredients: next || null });
+                    }}
+                    rows={3}
+                    placeholder={'One per line\nchicken thighs\ncoconut milk'}
+                    className="resize-none rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
+                    style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+                  />
+                  <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                    These become the shopping list under this meal.
+                  </span>
+                </label>
+
+                <label className="flex flex-col gap-1">
+                  <span
+                    className="font-bold uppercase text-muted"
+                    style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.04em' }}
+                  >
                     Notes
                   </span>
                   <textarea
@@ -436,7 +470,7 @@ export function MealDayCard({
                 </label>
 
                 <p className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                  The recipe and notes belong to {entry.name} everywhere it appears.
+                  The recipe, ingredients and notes belong to {entry.name} everywhere it appears.
                 </p>
 
                 <div className="flex flex-wrap gap-d2">

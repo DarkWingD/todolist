@@ -130,6 +130,7 @@ export interface MealPlanEntry {
   name: string;
   recipeUrl: string | null;
   notes: string | null;
+  ingredients: string | null;
   isFavourite: boolean;
   /** Nights this cook feeds, on the cook's own day. */
   cookSpan: number;
@@ -197,6 +198,7 @@ export const mealPlanRouter = router({
         name: meal.name,
         recipeUrl: meal.recipeUrl,
         notes: meal.notes,
+        ingredients: meal.ingredients,
         isFavourite: meal.isFavourite,
       })
       .from(mealPlanDay)
@@ -234,6 +236,7 @@ export const mealPlanRouter = router({
         name: cook.name,
         recipeUrl: cook.recipeUrl,
         notes: cook.notes,
+        ingredients: cook.ingredients,
         isFavourite: cook.isFavourite,
         cookSpan: cook.cookSpan,
         isLeftover: night > 1,
@@ -339,6 +342,7 @@ export const mealPlanRouter = router({
           name: meal.name,
           recipeUrl: meal.recipeUrl,
           notes: meal.notes,
+          ingredients: meal.ingredients,
           isFavourite: meal.isFavourite,
           lastCooked: sql<string | null>`(
             select max(mpd.date) from ${mealPlanDay} mpd where mpd.meal_id = ${meal.id}
@@ -358,6 +362,7 @@ export const mealPlanRouter = router({
         name: input.name,
         recipeUrl: sanitizeRecipeUrl(input.recipeUrl),
         notes: input.notes,
+        ingredients: input.ingredients,
         isFavourite: input.isFavourite ?? false,
         createdBy: ctx.user.id,
       })
@@ -478,7 +483,7 @@ export const mealPlanRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertMealPlanAccess(ctx.user.id, input.planId);
       const rows = await db
-        .select({ name: meal.name })
+        .select({ mealId: meal.id, name: meal.name, ingredients: meal.ingredients })
         .from(mealPlanDay)
         .innerJoin(meal, eq(meal.id, mealPlanDay.mealId))
         .where(
@@ -494,23 +499,58 @@ export const mealPlanRouter = router({
       const open = await db
         .select({ title: task.title })
         .from(task)
-        .where(and(eq(task.listId, listId), isNull(task.completedAt), isNull(task.deletedAt)));
+        .where(
+          and(
+            eq(task.listId, listId),
+            isNull(task.parentTaskId),
+            isNull(task.completedAt),
+            isNull(task.deletedAt),
+          ),
+        );
+      // Dedupe is per meal heading, not per line: two meals both needing onions
+      // each keep their own line under their own heading.
       const already = new Set(open.map((t) => t.title.trim().toLowerCase()));
 
-      const titles: string[] = [];
+      const meals: { name: string; ingredients: string[] }[] = [];
+      const seen = new Set<string>();
       for (const r of rows) {
-        const key = r.name.trim().toLowerCase();
-        if (already.has(key)) continue;
-        already.add(key);
-        titles.push(r.name.trim());
+        // A cook feeding several nights appears once per night; its ingredients
+        // are only wanted once.
+        if (seen.has(r.mealId)) continue;
+        seen.add(r.mealId);
+        const name = r.name.trim();
+        if (already.has(name.toLowerCase())) continue;
+        already.add(name.toLowerCase());
+        meals.push({
+          name,
+          ingredients: (r.ingredients ?? '')
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        });
       }
-      if (titles.length === 0) return { listId, added: 0 };
+      if (meals.length === 0) return { listId, added: 0, headings: 0 };
 
-      // A single multi-row insert. The repo inserts one row at a time elsewhere,
-      // but a whole week at once is worth the one statement.
-      await db
+      // Headings first, in one statement, so each ingredient has a parent id to
+      // point at. Ingredients then follow in a second batch.
+      const headings = await db
         .insert(task)
-        .values(titles.map((title) => ({ listId, title, createdBy: ctx.user.id })));
-      return { listId, added: titles.length };
+        .values(meals.map((m) => ({ listId, title: m.name, createdBy: ctx.user.id })))
+        .returning({ id: task.id, title: task.title });
+
+      const byName = new Map(headings.map((h) => [h.title, h.id]));
+      const children = meals.flatMap((m) => {
+        const parentTaskId = byName.get(m.name);
+        if (!parentTaskId) return [];
+        return m.ingredients.map((title) => ({
+          listId,
+          title,
+          parentTaskId,
+          createdBy: ctx.user.id,
+        }));
+      });
+      if (children.length > 0) await db.insert(task).values(children);
+
+      return { listId, added: headings.length + children.length, headings: headings.length };
     }),
 });

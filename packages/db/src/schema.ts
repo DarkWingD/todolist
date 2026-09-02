@@ -411,6 +411,10 @@ export const meal = pgTable(
     name: text('name').notNull(),
     recipeUrl: text('recipe_url'),
     notes: text('notes'),
+    // One ingredient per line. Kept as text rather than its own table: they are
+    // plain strings at this scale, and a textarea of lines is a far simpler
+    // editor than a repeating row form. Each line becomes a shopping-list child.
+    ingredients: text('ingredients'),
     isFavourite: boolean('is_favourite').notNull().default(false),
     createdBy: text('created_by')
       .notNull()

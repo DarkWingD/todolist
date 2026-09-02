@@ -69,6 +69,9 @@ export const createTaskSchema = z.object({
   assigneeId: z.string().min(1).optional(),
   recurrenceRule: recurrenceSchema.optional(),
   tagIds: z.array(z.string().uuid()).max(20).optional(),
+  // Groups an item under another, e.g. an ingredient under its meal on a
+  // shopping list.
+  parentTaskId: z.string().uuid().optional(),
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
@@ -152,6 +155,8 @@ export const createMealSchema = z.object({
   // Stored as given; the API rejects anything that isn't http(s).
   recipeUrl: z.string().trim().url().max(2048).optional(),
   notes: z.string().max(10_000).optional(),
+  // One ingredient per line; each becomes a shopping-list item under this meal.
+  ingredients: z.string().max(10_000).optional(),
   isFavourite: z.boolean().optional(),
 });
 export type CreateMealInput = z.infer<typeof createMealSchema>;
@@ -164,6 +169,7 @@ export const updateMealSchema = createMealSchema
     // Nullable so the UI can clear these fields.
     recipeUrl: z.string().trim().url().max(2048).nullable().optional(),
     notes: z.string().max(10_000).nullable().optional(),
+    ingredients: z.string().max(10_000).nullable().optional(),
   });
 export type UpdateMealInput = z.infer<typeof updateMealSchema>;
 

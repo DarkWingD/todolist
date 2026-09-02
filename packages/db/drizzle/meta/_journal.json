@@ -57,6 +57,13 @@
       "when": 1788316329440,
       "tag": "0007_heavy_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788318888729,
+      "tag": "0008_smart_xorn",
+      "breakpoints": true
     }
   ]
 }

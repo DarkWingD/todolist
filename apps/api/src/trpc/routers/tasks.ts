@@ -16,6 +16,8 @@ const taskWithAssignee = {
   priority: task.priority,
   completedAt: task.completedAt,
   recurrenceRule: task.recurrenceRule,
+  // Lets a checklist nest ingredients under the meal they belong to.
+  parentTaskId: task.parentTaskId,
   sortOrder: task.sortOrder,
   assigneeId: task.assigneeId,
   assigneeName: user.name,
@@ -107,6 +109,7 @@ export const tasksRouter = router({
         priority: input.priority,
         assigneeId: input.assigneeId,
         recurrenceRule: input.recurrenceRule,
+        parentTaskId: input.parentTaskId,
         createdBy: ctx.user.id,
       })
       .returning();
@@ -116,19 +119,38 @@ export const tasksRouter = router({
   toggle: protectedProcedure
     .input(z.object({ id: z.string().uuid(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const rows = await db.select({ listId: task.listId }).from(task).where(eq(task.id, input.id)).limit(1);
+      const rows = await db
+        .select({ listId: task.listId, listType: list.type })
+        .from(task)
+        .innerJoin(list, eq(list.id, task.listId))
+        .where(eq(task.id, input.id))
+        .limit(1);
       const found = rows[0];
       if (!found) return { ok: false };
       await assertListAccess(ctx.user.id, found.listId);
+      const completedAt = input.completed ? new Date() : null;
       await db
         .update(task)
-        .set({ completedAt: input.completed ? new Date() : null, updatedAt: new Date() })
+        .set({ completedAt, updatedAt: new Date() })
         .where(eq(task.id, input.id));
+      // On a checklist, ticking a meal ticks the ingredients under it. Guarded
+      // on the list type because `parentTaskId` doubles as the recurrence series
+      // root — cascading there would complete every past instance of a repeat.
+      if (found.listType === 'checklist') {
+        await db
+          .update(task)
+          .set({ completedAt, updatedAt: new Date() })
+          .where(and(eq(task.parentTaskId, input.id), isNull(task.deletedAt)));
+      }
       return { ok: true };
     }),
 
   update: protectedProcedure.input(updateTaskSchema).mutation(async ({ ctx, input }) => {
-    const rows = await db.select({ listId: task.listId }).from(task).where(eq(task.id, input.id)).limit(1);
+    const rows = await db
+      .select({ listId: task.listId })
+      .from(task)
+      .where(eq(task.id, input.id))
+      .limit(1);
     const found = rows[0];
     if (!found) return { ok: false };
     await assertListAccess(ctx.user.id, found.listId);
@@ -149,14 +171,23 @@ export const tasksRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const rows = await db
-        .select({ listId: task.listId })
+        .select({ listId: task.listId, listType: list.type })
         .from(task)
+        .innerJoin(list, eq(list.id, task.listId))
         .where(eq(task.id, input.id))
         .limit(1);
       const found = rows[0];
       if (!found) return { ok: false };
       await assertListAccess(ctx.user.id, found.listId);
       await db.update(task).set({ deletedAt: new Date() }).where(eq(task.id, input.id));
+      // Deleting a meal heading takes its ingredients with it, rather than
+      // stranding them at the top level. Same recurrence guard as `toggle`.
+      if (found.listType === 'checklist') {
+        await db
+          .update(task)
+          .set({ deletedAt: new Date() })
+          .where(and(eq(task.parentTaskId, input.id), isNull(task.deletedAt)));
+      }
       return { ok: true };
     }),
 });

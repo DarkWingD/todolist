@@ -69,6 +69,7 @@ export function ListsScreen({
   );
   const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
   const { data: remindersList } = trpc.lists.reminders.useQuery();
+  const { data: shoppingList } = trpc.lists.shopping.useQuery();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
@@ -285,6 +286,14 @@ export function ListsScreen({
             <ListCard
               list={remindersList}
               subtitle={`${remindersList.remaining} upcoming`}
+              onOpen={onOpenList}
+            />
+          )}
+
+          {shoppingList && (
+            <ListCard
+              list={shoppingList}
+              subtitle={`${shoppingList.remaining} left`}
               onOpen={onOpenList}
             />
           )}

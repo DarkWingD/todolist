@@ -46,7 +46,8 @@ function fmtEventDate(startIso: string, endIso: string, allDay: boolean) {
   const s = new Date(startIso);
   const e = new Date(endIso);
   const sameDay = s.toDateString() === e.toDateString();
-  const d = (x: Date) => x.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  const d = (x: Date) =>
+    x.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
   const t = (x: Date) => x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (allDay) return sameDay ? d(s) : `${d(s)} – ${d(e)}`;
   return sameDay ? `${d(s)} · ${t(s)}` : `${d(s)} ${t(s)} – ${d(e)} ${t(e)}`;
@@ -101,12 +102,23 @@ export function ListDetailScreen({
     utils.tasks.highPriority.invalidate();
     utils.lists.mine.invalidate();
     utils.lists.reminders.invalidate();
+    utils.lists.shopping.invalidate();
   };
   const toggle = trpc.tasks.toggle.useMutation({ onSuccess: invalidate });
   const create = trpc.tasks.create.useMutation({ onSuccess: invalidate });
   const quickAddReminder = trpc.reminders.quickAdd.useMutation({ onSuccess: invalidate });
-  const update = trpc.tasks.update.useMutation({ onSuccess: () => { invalidate(); setEditId(null); } });
-  const remove = trpc.tasks.remove.useMutation({ onSuccess: () => { invalidate(); setEditId(null); } });
+  const update = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      invalidate();
+      setEditId(null);
+    },
+  });
+  const remove = trpc.tasks.remove.useMutation({
+    onSuccess: () => {
+      invalidate();
+      setEditId(null);
+    },
+  });
   const invite = trpc.lists.invite.useMutation({
     onSuccess: () => {
       setInviting(false);
@@ -137,6 +149,22 @@ export function ListDetailScreen({
   const done = tasks.filter((t) => t.completedAt);
   const editItem = tasks.find((t) => t.id === editId);
 
+  // A shopping list nests one level: a meal heading with its ingredients under
+  // it. Whether something is a heading is decided from every item, not just the
+  // open ones, so a meal whose ingredients are all bought stays a heading rather
+  // than dropping down among the loose items.
+  const openChildrenOf = new Map<string, typeof open>();
+  for (const t of open) {
+    if (!t.parentTaskId) continue;
+    const kids = openChildrenOf.get(t.parentTaskId) ?? [];
+    kids.push(t);
+    openChildrenOf.set(t.parentTaskId, kids);
+  }
+  const isHeading = (id: string) => tasks.some((t) => t.parentTaskId === id);
+  const openTop = open.filter((t) => !t.parentTaskId);
+  const headings = openTop.filter((t) => isHeading(t.id));
+  const loose = openTop.filter((t) => !isHeading(t.id));
+
   function openItem(id: string) {
     if (isChecklist) {
       setEditId(id);
@@ -151,15 +179,26 @@ export function ListDetailScreen({
       <BackButton label="Lists" onClick={onBack} />
 
       <header className="flex items-center gap-d3">
-        <span className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl" style={{ background: 'var(--color-emoji-bg)' }}>
+        <span
+          className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl"
+          style={{ background: 'var(--color-emoji-bg)' }}
+        >
           {displayEmoji}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="font-head" style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}>
+          <h1
+            className="font-head"
+            style={{
+              fontSize: 'var(--fs-title)',
+              fontWeight: 'var(--title-weight)',
+              letterSpacing: 'var(--title-tracking)',
+            }}
+          >
             {displayName}
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            {open.length} {isReminders ? 'upcoming' : isChecklist ? 'left' : 'to do'} · {done.length} done
+            {open.length} {isReminders ? 'upcoming' : isChecklist ? 'left' : 'to do'} ·{' '}
+            {done.length} done
           </div>
         </div>
         {!isReminders && (
@@ -177,7 +216,15 @@ export function ListDetailScreen({
       {!isReminders && (
         <div className="mt-d3 flex items-center gap-2">
           {members.length > 0 && (
-            <AvatarStack users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor, image: m.image }))} size={28} />
+            <AvatarStack
+              users={members.map((m) => ({
+                id: m.id,
+                emoji: m.avatarEmoji,
+                color: m.avatarColor,
+                image: m.image,
+              }))}
+              size={28}
+            />
           )}
           <button
             className="rounded-full px-3 py-1.5 font-bold text-accent"
@@ -199,17 +246,24 @@ export function ListDetailScreen({
                   disabled={addMember.isPending}
                   onClick={() => addMember.mutate({ listId: list.id, userId: p.id })}
                   className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold disabled:opacity-50"
-                  style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
+                  style={{
+                    fontSize: 'var(--fs-sm)',
+                    background: 'var(--color-accent-soft)',
+                    color: 'var(--color-accent)',
+                  }}
                 >
-                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={22} />
-                  ＋ {p.name.split(' ')[0]}
+                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={22} />＋{' '}
+                  {p.name.split(' ')[0]}
                 </button>
               ))}
             </div>
           )}
           <div className="flex gap-2">
             <input
-              autoFocus={addable.length === 0} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              autoFocus={addable.length === 0}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder={addable.length ? 'or invite someone new by email' : 'email to invite'}
               className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 outline-none"
               style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
@@ -229,7 +283,9 @@ export function ListDetailScreen({
       {/* Rapid add — Enter to add and keep typing; paste multiple lines = multiple items. */}
       <div className="mt-d3 rounded-card bg-surface p-d3 shadow-card">
         <div className="flex items-center gap-2">
-          <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
+          <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>
+            ＋
+          </span>
           <input
             ref={addInputRef}
             value={newItem}
@@ -245,11 +301,17 @@ export function ListDetailScreen({
               const text = e.clipboardData.getData('text');
               if (text.includes('\n')) {
                 e.preventDefault();
-                text.split('\n').map((s) => s.trim()).filter(Boolean).forEach(addOne);
+                text
+                  .split('\n')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+                  .forEach(addOne);
                 setNewItem('');
               }
             }}
-            placeholder={isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'}
+            placeholder={
+              isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'
+            }
             className="flex-1 bg-transparent outline-none"
             style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
           />
@@ -263,7 +325,8 @@ export function ListDetailScreen({
                 className="rounded-full px-3 py-1.5 font-semibold"
                 style={{
                   fontSize: 'var(--fs-sm)',
-                  background: remindPreset === p.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                  background:
+                    remindPreset === p.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
                   color: remindPreset === p.v ? 'var(--color-accent)' : 'var(--color-text)',
                 }}
               >
@@ -298,11 +361,16 @@ export function ListDetailScreen({
         )}
       </div>
 
-      <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+      <h2
+        className="mb-d2 mt-d4 font-bold uppercase text-muted"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+      >
         {isReminders ? 'Upcoming' : isChecklist ? 'To buy' : 'To do'}
       </h2>
       {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Loading…
+        </p>
       ) : open.length === 0 ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           {isReminders
@@ -311,26 +379,87 @@ export function ListDetailScreen({
               ? 'Empty — add an item above.'
               : 'All done — nice. 🎉'}
         </p>
+      ) : isChecklist && headings.length > 0 ? (
+        <>
+          {headings.map((h) => (
+            <div key={h.id} className="mb-d3">
+              <TaskRow
+                task={toTaskRow(h)}
+                onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                onOpen={openItem}
+                onDelete={(id) => remove.mutate({ id })}
+              />
+              <div className="ml-d4 border-l border-border pl-d2">
+                {(openChildrenOf.get(h.id) ?? []).map((c) => (
+                  <TaskRow
+                    key={c.id}
+                    task={toTaskRow(c)}
+                    onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                    onOpen={openItem}
+                    onDelete={(id) => remove.mutate({ id })}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {loose.length > 0 && (
+            <>
+              <h2
+                className="mb-d2 mt-d4 font-bold uppercase text-muted"
+                style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+              >
+                Other
+              </h2>
+              {loose.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={toTaskRow(t)}
+                  onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                  onOpen={openItem}
+                  onDelete={(id) => remove.mutate({ id })}
+                />
+              ))}
+            </>
+          )}
+        </>
       ) : (
         open.map((t) => (
-          <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} onDelete={(id) => remove.mutate({ id })} />
+          <TaskRow
+            key={t.id}
+            task={toTaskRow(t)}
+            onToggle={(id, completed) => toggle.mutate({ id, completed })}
+            onOpen={openItem}
+            onDelete={(id) => remove.mutate({ id })}
+          />
         ))
       )}
 
       {done.length > 0 && (
         <>
-          <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+          <h2
+            className="mb-d2 mt-d4 font-bold uppercase text-muted"
+            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+          >
             {isChecklist ? 'Bought' : 'Done'}
           </h2>
           {done.map((t) => (
-            <TaskRow key={t.id} task={toTaskRow(t)} onToggle={(id, completed) => toggle.mutate({ id, completed })} onOpen={openItem} onDelete={(id) => remove.mutate({ id })} />
+            <TaskRow
+              key={t.id}
+              task={toTaskRow(t)}
+              onToggle={(id, completed) => toggle.mutate({ id, completed })}
+              onOpen={openItem}
+              onDelete={(id) => remove.mutate({ id })}
+            />
           ))}
         </>
       )}
 
       {listEvents.length > 0 && (
         <>
-          <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+          <h2
+            className="mb-d2 mt-d4 font-bold uppercase text-muted"
+            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+          >
             Upcoming events
           </h2>
           {listEvents.map((ev) => (
@@ -341,12 +470,20 @@ export function ListDetailScreen({
             >
               <span style={{ fontSize: 18 }}>📅</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>{ev.title}</span>
+                <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                  {ev.title}
+                </span>
                 <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                  {fmtEventDate(ev.startAt as unknown as string, ev.endAt as unknown as string, ev.allDay)}
+                  {fmtEventDate(
+                    ev.startAt as unknown as string,
+                    ev.endAt as unknown as string,
+                    ev.allDay,
+                  )}
                 </span>
               </span>
-              <span className="text-muted" style={{ fontSize: 18 }}>›</span>
+              <span className="text-muted" style={{ fontSize: 18 }}>
+                ›
+              </span>
             </button>
           ))}
         </>
@@ -355,22 +492,41 @@ export function ListDetailScreen({
       {/* Lightweight checklist item editor (rename / delete only). */}
       {editId && editItem && (
         <>
-          <div className="fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,.4)' }} onClick={() => setEditId(null)} />
+          <div
+            className="fixed inset-0 z-30"
+            style={{ background: 'rgba(0,0,0,.4)' }}
+            onClick={() => setEditId(null)}
+          />
           <div
             className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md p-4"
-            style={{ background: 'var(--color-bg)', borderRadius: '22px 22px 0 0', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}
+            style={{
+              background: 'var(--color-bg)',
+              borderRadius: '22px 22px 0 0',
+              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+            }}
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'var(--color-check-border)' }} />
+            <div
+              className="mx-auto mb-3 h-1.5 w-10 rounded-full"
+              style={{ background: 'var(--color-check-border)' }}
+            />
             <input
               autoFocus
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && editTitle.trim() && update.mutate({ id: editId, title: editTitle.trim() })}
+              onKeyDown={(e) =>
+                e.key === 'Enter' &&
+                editTitle.trim() &&
+                update.mutate({ id: editId, title: editTitle.trim() })
+              }
               className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 outline-none"
               style={{ fontSize: 'var(--fs-lg)', color: 'var(--color-text)' }}
             />
             <div className="mt-3 flex items-center gap-2">
-              <button className="font-semibold text-danger" style={{ fontSize: 'var(--fs-sm)' }} onClick={() => remove.mutate({ id: editId })}>
+              <button
+                className="font-semibold text-danger"
+                style={{ fontSize: 'var(--fs-sm)' }}
+                onClick={() => remove.mutate({ id: editId })}
+              >
                 Delete
               </button>
               <button
@@ -386,36 +542,43 @@ export function ListDetailScreen({
         </>
       )}
 
-      {editEventId && (() => {
-        const ev = listEvents.find((e) => e.id === editEventId);
-        if (!ev) return null;
-        return (
-          <EventEditSheet
-            event={{
-              id: ev.id,
-              listId: ev.listId,
-              title: ev.title,
-              notes: ev.notes,
-              startAt: ev.startAt as unknown as string,
-              endAt: ev.endAt as unknown as string,
-              allDay: ev.allDay,
-              assigneeId: ev.assigneeId,
-            }}
-            lists={allLists}
-            people={members}
-            onClose={() => setEditEventId(null)}
-            onDone={() => {
-              utils.events.byList.invalidate({ listId: list.id });
-              utils.calendar.range.invalidate();
-              setEditEventId(null);
-            }}
-          />
-        );
-      })()}
+      {editEventId &&
+        (() => {
+          const ev = listEvents.find((e) => e.id === editEventId);
+          if (!ev) return null;
+          return (
+            <EventEditSheet
+              event={{
+                id: ev.id,
+                listId: ev.listId,
+                title: ev.title,
+                notes: ev.notes,
+                startAt: ev.startAt as unknown as string,
+                endAt: ev.endAt as unknown as string,
+                allDay: ev.allDay,
+                assigneeId: ev.assigneeId,
+              }}
+              lists={allLists}
+              people={members}
+              onClose={() => setEditEventId(null)}
+              onDone={() => {
+                utils.events.byList.invalidate({ listId: list.id });
+                utils.calendar.range.invalidate();
+                setEditEventId(null);
+              }}
+            />
+          );
+        })()}
 
       {showSettings && (
         <ListSettingsSheet
-          list={{ id: list.id, name: displayName, emojiIcon: displayEmoji, color: live?.color ?? null, type: live?.type ?? list.type ?? 'tasks' }}
+          list={{
+            id: list.id,
+            name: displayName,
+            emojiIcon: displayEmoji,
+            color: live?.color ?? null,
+            type: live?.type ?? list.type ?? 'tasks',
+          }}
           onClose={() => setShowSettings(false)}
           onDeleted={onBack}
         />

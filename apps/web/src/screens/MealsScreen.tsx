@@ -69,6 +69,7 @@ export function MealsScreen() {
   const toShopping = trpc.mealPlan.sendToShoppingList.useMutation({
     onSuccess: () => {
       utils.lists.mine.invalidate();
+      utils.lists.shopping.invalidate();
       utils.tasks.agenda.invalidate();
     },
   });
@@ -301,8 +302,10 @@ export function MealsScreen() {
       </div>
       {toShopping.data && (
         <p className="pb-2 text-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          {toShopping.data.added > 0
-            ? `Added ${toShopping.data.added} to Shopping.`
+          {toShopping.data.headings > 0
+            ? `Added ${toShopping.data.headings} ${
+                toShopping.data.headings === 1 ? 'meal' : 'meals'
+              } to Shopping.`
             : 'Everything from this week is already on the list.'}
         </p>
       )}

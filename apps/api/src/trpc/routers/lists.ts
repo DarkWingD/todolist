@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertListAccess } from '../access.js';
+import { groceriesListId } from './mealPlan.js';
 import { remindersListId } from './reminders.js';
 import { protectedProcedure, router } from '../trpc.js';
 
@@ -39,6 +40,30 @@ export const listsRouter = router({
   // the same computed counts as `mine` so it can render as a pinned list card.
   reminders: protectedProcedure.query(async ({ ctx }) => {
     const id = await remindersListId(ctx.user.id);
+    const rows = await db
+      .select({
+        ...getTableColumns(list),
+        remaining: sql<number>`(
+          select count(*)::int from ${task}
+          where ${task.listId} = ${list.id}
+            and ${task.completedAt} is null
+            and ${task.deletedAt} is null
+        )`,
+        memberCount: sql<number>`(
+          select count(*)::int from ${listMember} lm where lm.list_id = ${list.id}
+        )`,
+      })
+      .from(list)
+      .where(eq(list.id, id))
+      .limit(1);
+    return rows[0]!;
+  }),
+
+  // The app-managed Shopping list, resolved exactly as Reminders is. Without
+  // this it is unreachable: `mine` hides every list carrying a systemKey, so the
+  // list "Send week to shopping list" writes into appeared nowhere in the UI.
+  shopping: protectedProcedure.query(async ({ ctx }) => {
+    const id = await groceriesListId(ctx.user.id);
     const rows = await db
       .select({
         ...getTableColumns(list),
@@ -95,7 +120,10 @@ export const listsRouter = router({
   update: protectedProcedure.input(updateListSchema).mutation(async ({ ctx, input }) => {
     await assertListAccess(ctx.user.id, input.listId);
     const { listId, ...rest } = input;
-    await db.update(list).set({ ...rest, updatedAt: new Date() }).where(eq(list.id, listId));
+    await db
+      .update(list)
+      .set({ ...rest, updatedAt: new Date() })
+      .where(eq(list.id, listId));
     return { ok: true };
   }),
 
