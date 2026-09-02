@@ -13,7 +13,7 @@ function toKey(d: Date): string {
 
 const fmtDay = (d: Date) => d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 
-export function MealsScreen({ createSignal }: { createSignal?: number }) {
+export function MealsScreen() {
   const utils = trpc.useUtils();
   const [weekStart, setWeekStart] = useState(() => startOfWeekMon(new Date()));
   const [openDate, setOpenDate] = useState<string | null>(null);
@@ -27,7 +27,6 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
   const from = toKey(days[0]!);
   const to = toKey(days[6]!);
   const today = new Date();
-  const todayKey = toKey(today);
 
   // Everyone lands on a plan with no setup: the first one they belong to, or a
   // new one. Someone who accepted an invite gets the shared plan, not a second.
@@ -85,16 +84,6 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
     for (const e of entries) m.set(e.date, e);
     return m;
   }, [entries]);
-
-  // The floating + opens today if it's on screen, otherwise the first day shown.
-  const lastSignal = useRef(createSignal);
-  useEffect(() => {
-    if (createSignal !== lastSignal.current) {
-      lastSignal.current = createSignal;
-      const inView = days.some((d) => sameDay(d, today));
-      setOpenDate(inView ? todayKey : from);
-    }
-  }, [createSignal, days, from, today, todayKey]);
 
   const showingThisWeek = sameDay(weekStart, startOfWeekMon(today));
 

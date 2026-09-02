@@ -90,15 +90,13 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [createListSignal, setCreateListSignal] = useState(0);
   const [calCreateSignal, setCalCreateSignal] = useState(0);
   const [focusAddSignal, setFocusAddSignal] = useState(0);
-  const [mealCreateSignal, setMealCreateSignal] = useState(0);
 
   // The floating + adds whatever the current screen is about: a list on Lists,
-  // an event/birthday on Cal, a dinner on Meals, a reminder in the Reminders
-  // list, otherwise a task.
+  // an event/birthday on Cal, a reminder in the Reminders list, otherwise a
+  // task. Meals has no +: you plan a dinner by tapping the day you want it on.
   function onAdd() {
     if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
     else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
-    else if (view === 'main' && tab === 'meals') setMealCreateSignal((n) => n + 1);
     else if (view === 'listDetail' && selectedList?.systemKey === 'reminders')
       setFocusAddSignal((n) => n + 1);
     else setSheetOpen(true);
@@ -154,7 +152,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
             : taskReturn.tab
           : tab;
   const showFab =
-    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal' || tab === 'meals')) ||
+    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
     view === 'listDetail';
 
   let content;
@@ -186,7 +184,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (tab === 'cal') {
     content = <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} />;
   } else if (tab === 'meals') {
-    content = <MealsScreen createSignal={mealCreateSignal} />;
+    content = <MealsScreen />;
   } else {
     content = (
       <YouScreen
