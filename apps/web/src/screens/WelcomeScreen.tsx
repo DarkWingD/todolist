@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { pushSupported, subscribePush } from '../lib/push';
+import { AddToHomeScreen } from '../components/AddToHomeScreen';
+import { pushBlocker, subscribePush } from '../lib/push';
 import { trpc } from '../lib/trpc';
 
 /**
@@ -33,9 +34,14 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
   const subscribe = trpc.push.subscribe.useMutation();
   const [state, setState] = useState<'idle' | 'asking' | 'on' | 'denied'>('idle');
 
-  // Hidden entirely rather than shown broken when push isn't configured on the
-  // server or the browser can't do it.
-  const canAsk = pushSupported() && Boolean(vapidKey);
+  // Three outcomes, not two. Push unconfigured on the server, or a browser that
+  // genuinely can't: say nothing, since there is nothing to do about it. But an
+  // iPhone or iPad in a Safari tab *can* do this once the app is on the Home
+  // Screen, so that case gets instructions rather than silence.
+  const blocker = pushBlocker();
+  const configured = Boolean(vapidKey);
+  const canAsk = blocker === 'none' && configured;
+  const needsInstall = blocker === 'ios-needs-install' && configured;
 
   async function enable() {
     if (!vapidKey) return;
@@ -121,6 +127,8 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
             )}
           </div>
         )}
+
+        {needsInstall && <AddToHomeScreen compact />}
       </div>
 
       <button
