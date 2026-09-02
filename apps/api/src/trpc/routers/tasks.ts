@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, isNull, lt } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
 import { db, list, listMember, task, user } from '@todolist/db';
 import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
@@ -187,6 +187,47 @@ export const tasksRouter = router({
           .update(task)
           .set({ deletedAt: new Date() })
           .where(and(eq(task.parentTaskId, input.id), isNull(task.deletedAt)));
+      }
+      return { ok: true };
+    }),
+
+  // Clear the bought pile: every completed row, plus any heading left with
+  // nothing under it, so a meal you finished shopping doesn't linger as an
+  // empty title. A half-shopped meal keeps its heading and what's still to buy.
+  clearCompleted: protectedProcedure
+    .input(z.object({ listId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      const now = new Date();
+      await db
+        .update(task)
+        .set({ deletedAt: now })
+        .where(
+          and(eq(task.listId, input.listId), isNotNull(task.completedAt), isNull(task.deletedAt)),
+        );
+
+      // Re-read what survived, then drop headings whose children have all gone.
+      const left = await db
+        .select({ id: task.id, parentTaskId: task.parentTaskId })
+        .from(task)
+        .where(and(eq(task.listId, input.listId), isNull(task.deletedAt)));
+      const stillParented = new Set(
+        left.map((t) => t.parentTaskId).filter((id): id is string => id !== null),
+      );
+      // Only headings that had children are cleared — an item that never had any
+      // is just a normal item and stays put.
+      const hadChildren = await db
+        .select({ parentTaskId: task.parentTaskId })
+        .from(task)
+        .where(and(eq(task.listId, input.listId), isNotNull(task.parentTaskId)));
+      const everParent = new Set(
+        hadChildren.map((t) => t.parentTaskId).filter((id): id is string => id !== null),
+      );
+      const empty = left
+        .filter((t) => !t.parentTaskId && everParent.has(t.id) && !stillParented.has(t.id))
+        .map((t) => t.id);
+      if (empty.length > 0) {
+        await db.update(task).set({ deletedAt: now }).where(inArray(task.id, empty));
       }
       return { ok: true };
     }),

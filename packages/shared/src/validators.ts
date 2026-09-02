@@ -85,6 +85,8 @@ export const updateTaskSchema = createTaskSchema
     dueAt: z.string().datetime().nullable().optional(),
     assigneeId: z.string().min(1).nullable().optional(),
     recurrenceRule: recurrenceSchema.nullable().optional(),
+    // Null promotes a checklist item back to a heading of its own.
+    parentTaskId: z.string().uuid().nullable().optional(),
   });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 

@@ -23,25 +23,58 @@ interface TaskRowProps {
   onToggle: (id: string, completed: boolean) => void;
   onOpen?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** 'checklist' swaps swipe from complete/delete to indent/outdent. */
+  variant?: 'task' | 'checklist';
+  canIndent?: boolean;
+  canOutdent?: boolean;
+  onIndent?: (id: string) => void;
+  onOutdent?: (id: string) => void;
+  /** Animate out because the heading above is being ticked. */
+  forceCompleting?: boolean;
+  onCompleteStart?: (id: string) => void;
 }
 
 const SWIPE_THRESHOLD = 90;
 
-export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
+export function TaskRow({
+  task,
+  onToggle,
+  onOpen,
+  onDelete,
+  variant = 'task',
+  canIndent,
+  canOutdent,
+  onIndent,
+  onOutdent,
+  forceCompleting,
+  onCompleteStart,
+}: TaskRowProps) {
   const [completing, setCompleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const hasMeta = task.due || task.recurrence || task.tag || task.assignee;
-  const showChecked = task.completed || completing;
+  // A heading being ticked carries its ingredients out with it, so a row can be
+  // told to animate even though it wasn't the one touched.
+  const leaving = completing || Boolean(forceCompleting);
+  const showChecked = task.completed || leaving;
+  const isChecklist = variant === 'checklist';
 
   function startComplete() {
     if (task.completed) {
       onToggle(task.id, false); // un-complete immediately, no animation
     } else {
+      onCompleteStart?.(task.id);
       setCompleting(true); // animate, then the outer onAnimationComplete fires onToggle
     }
   }
 
   function onDragEnd(_e: unknown, info: PanInfo) {
+    // On a shopping list the gesture reshapes the outline instead of completing
+    // or deleting: ticking is the checkbox's job, deleting lives in the sheet.
+    if (isChecklist) {
+      if (info.offset.x > SWIPE_THRESHOLD && canIndent) onIndent?.(task.id);
+      else if (info.offset.x < -SWIPE_THRESHOLD && canOutdent) onOutdent?.(task.id);
+      return;
+    }
     if (info.offset.x > SWIPE_THRESHOLD) startComplete();
     else if (onDelete && info.offset.x < -SWIPE_THRESHOLD) setConfirmingDelete(true);
   }
@@ -51,23 +84,43 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
       className="relative mb-d2"
       style={{ overflow: 'hidden' }}
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: completing ? 0 : 1, y: 0 }}
-      transition={completing ? { opacity: { delay: 0.3, duration: 0.3 } } : { duration: 0.2 }}
+      animate={{ opacity: leaving ? 0 : 1, y: 0 }}
+      transition={leaving ? { opacity: { delay: 0.3, duration: 0.3 } } : { duration: 0.2 }}
       onAnimationComplete={() => {
+        // Only the row the user actually ticked writes; a row carried out by its
+        // heading is already handled by the server's cascade.
         if (completing) onToggle(task.id, true);
       }}
     >
       {/* Revealed behind the card while swiping. */}
-      <div className="absolute inset-0 flex items-center justify-between rounded-card px-4 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
-        <span className="text-accent">✓ {task.completed ? 'Reopen' : 'Complete'}</span>
-        {onDelete && <span className="text-danger">Delete 🗑</span>}
+      <div
+        className="absolute inset-0 flex items-center justify-between rounded-card px-4 font-semibold"
+        style={{ fontSize: 'var(--fs-sm)' }}
+      >
+        {isChecklist ? (
+          <>
+            <span className="text-accent">{canIndent ? '→ Under above' : ''}</span>
+            <span className="text-accent">{canOutdent ? 'Own heading ←' : ''}</span>
+          </>
+        ) : (
+          <>
+            <span className="text-accent">✓ {task.completed ? 'Reopen' : 'Complete'}</span>
+            {onDelete && <span className="text-danger">Delete 🗑</span>}
+          </>
+        )}
       </div>
 
       <motion.div
         drag="x"
         dragSnapToOrigin
         dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={onDelete ? 0.7 : { left: 0, right: 0.7 }}
+        dragElastic={
+          isChecklist
+            ? { left: canOutdent ? 0.7 : 0, right: canIndent ? 0.7 : 0 }
+            : onDelete
+              ? 0.7
+              : { left: 0, right: 0.7 }
+        }
         onDragEnd={onDragEnd}
         className="relative flex cursor-pointer items-start gap-d3 rounded-card bg-surface shadow-card"
         style={{ padding: 'var(--space-3)' }}
@@ -87,7 +140,11 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
           >
             <span className="relative inline-block">
               {task.leadEmoji && <span className="mr-1">{task.leadEmoji}</span>}
-              {task.flagged && !showChecked && <span className="mr-1" style={{ color: 'var(--color-danger)' }}>⚑</span>}
+              {task.flagged && !showChecked && (
+                <span className="mr-1" style={{ color: 'var(--color-danger)' }}>
+                  ⚑
+                </span>
+              )}
               {task.title}
               {(showChecked || task.completed) && (
                 <motion.span
@@ -112,7 +169,12 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
               {task.tag && <Chip variant="tag">{task.tag}</Chip>}
               {task.assignee && (
                 <span className="ml-auto">
-                  <Avatar emoji={task.assignee.emoji} color={task.assignee.color} image={task.assignee.image} size={22} />
+                  <Avatar
+                    emoji={task.assignee.emoji}
+                    color={task.assignee.color}
+                    image={task.assignee.image}
+                    size={22}
+                  />
                 </span>
               )}
             </div>
@@ -126,12 +188,19 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
           className="absolute inset-0 z-10 flex items-center gap-2 rounded-card px-3 shadow-card"
           style={{ background: 'var(--color-surface)' }}
         >
-          <span className="min-w-0 flex-1 truncate font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+          <span
+            className="min-w-0 flex-1 truncate font-semibold"
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
             Delete “{task.title}”?
           </span>
           <button
             className="rounded-full px-3 py-1.5 font-semibold"
-            style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-chip-bg)', color: 'var(--color-text)' }}
+            style={{
+              fontSize: 'var(--fs-sm)',
+              background: 'var(--color-chip-bg)',
+              color: 'var(--color-text)',
+            }}
             onClick={() => setConfirmingDelete(false)}
           >
             Cancel
