@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertListAccess } from '../access.js';
+import { remindersListId } from './reminders.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -32,6 +33,29 @@ export const listsRouter = router({
         and(eq(listMember.userId, ctx.user.id), isNull(list.deletedAt), isNull(list.systemKey)),
       )
       .orderBy(list.sortOrder);
+  }),
+
+  // The user's always-there Reminders system list (created on first read), with
+  // the same computed counts as `mine` so it can render as a pinned list card.
+  reminders: protectedProcedure.query(async ({ ctx }) => {
+    const id = await remindersListId(ctx.user.id);
+    const rows = await db
+      .select({
+        ...getTableColumns(list),
+        remaining: sql<number>`(
+          select count(*)::int from ${task}
+          where ${task.listId} = ${list.id}
+            and ${task.completedAt} is null
+            and ${task.deletedAt} is null
+        )`,
+        memberCount: sql<number>`(
+          select count(*)::int from ${listMember} lm where lm.list_id = ${list.id}
+        )`,
+      })
+      .from(list)
+      .where(eq(list.id, id))
+      .limit(1);
+    return rows[0]!;
   }),
 
   members: protectedProcedure

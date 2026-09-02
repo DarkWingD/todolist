@@ -12,6 +12,34 @@ interface DetailList {
   name: string;
   emojiIcon: string;
   type?: 'tasks' | 'checklist';
+  systemKey?: string | null;
+}
+
+type RemindPreset = 'hour' | 'evening' | 'tomorrow' | 'custom';
+
+const REMIND_PRESETS: { v: RemindPreset; label: string }[] = [
+  { v: 'hour', label: 'In 1 hour' },
+  { v: 'evening', label: 'Evening 6pm' },
+  { v: 'tomorrow', label: 'Tomorrow 9am' },
+  { v: 'custom', label: 'Custom…' },
+];
+
+function remindAtFrom(p: RemindPreset, custom: string): Date | null {
+  const d = new Date();
+  if (p === 'hour') return new Date(Date.now() + 60 * 60 * 1000);
+  if (p === 'evening') {
+    d.setHours(18, 0, 0, 0);
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); // already evening → tomorrow 6pm
+    return d;
+  }
+  if (p === 'tomorrow') {
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  }
+  if (!custom) return null;
+  const at = new Date(custom);
+  return Number.isNaN(at.getTime()) ? null : at;
 }
 
 function fmtEventDate(startIso: string, endIso: string, allDay: boolean) {
@@ -42,11 +70,14 @@ export function ListDetailScreen({
   const displayName = live?.name ?? list.name;
   const displayEmoji = live?.emojiIcon ?? list.emojiIcon;
   const isChecklist = (live?.type ?? list.type ?? 'tasks') === 'checklist';
+  const isReminders = list.systemKey === 'reminders';
   const [showSettings, setShowSettings] = useState(false);
   const [editEventId, setEditEventId] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [newItem, setNewItem] = useState('');
+  const [remindPreset, setRemindPreset] = useState<RemindPreset>('hour');
+  const [customRemindAt, setCustomRemindAt] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
@@ -55,9 +86,11 @@ export function ListDetailScreen({
     utils.tasks.agenda.invalidate();
     utils.tasks.highPriority.invalidate();
     utils.lists.mine.invalidate();
+    utils.lists.reminders.invalidate();
   };
   const toggle = trpc.tasks.toggle.useMutation({ onSuccess: invalidate });
   const create = trpc.tasks.create.useMutation({ onSuccess: invalidate });
+  const quickAddReminder = trpc.reminders.quickAdd.useMutation({ onSuccess: invalidate });
   const update = trpc.tasks.update.useMutation({ onSuccess: () => { invalidate(); setEditId(null); } });
   const remove = trpc.tasks.remove.useMutation({ onSuccess: () => { invalidate(); setEditId(null); } });
   const invite = trpc.lists.invite.useMutation({
@@ -77,7 +110,13 @@ export function ListDetailScreen({
 
   const addOne = (title: string) => {
     const t = title.trim();
-    if (t) create.mutate({ listId: list.id, title: t, priority: 'none' });
+    if (!t) return;
+    if (isReminders) {
+      const at = remindAtFrom(remindPreset, customRemindAt);
+      if (at) quickAddReminder.mutate({ title: t, remindAt: at.toISOString() });
+    } else {
+      create.mutate({ listId: list.id, title: t, priority: 'none' });
+    }
   };
 
   const open = tasks.filter((t) => !t.completedAt);
@@ -106,31 +145,35 @@ export function ListDetailScreen({
             {displayName}
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            {open.length} {isChecklist ? 'left' : 'to do'} · {done.length} done
+            {open.length} {isReminders ? 'upcoming' : isChecklist ? 'left' : 'to do'} · {done.length} done
           </div>
         </div>
-        <button
-          aria-label="List settings"
-          className="grid h-9 w-9 flex-none place-items-center rounded-full text-muted"
-          style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
-          onClick={() => setShowSettings(true)}
-        >
-          ⋯
-        </button>
+        {!isReminders && (
+          <button
+            aria-label="List settings"
+            className="grid h-9 w-9 flex-none place-items-center rounded-full text-muted"
+            style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
+            onClick={() => setShowSettings(true)}
+          >
+            ⋯
+          </button>
+        )}
       </header>
 
-      <div className="mt-d3 flex items-center gap-2">
-        {members.length > 0 && (
-          <AvatarStack users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor, image: m.image }))} size={28} />
-        )}
-        <button
-          className="rounded-full px-3 py-1.5 font-bold text-accent"
-          style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
-          onClick={() => setInviting((v) => !v)}
-        >
-          ＋ Invite
-        </button>
-      </div>
+      {!isReminders && (
+        <div className="mt-d3 flex items-center gap-2">
+          {members.length > 0 && (
+            <AvatarStack users={members.map((m) => ({ id: m.id, emoji: m.avatarEmoji, color: m.avatarColor, image: m.image }))} size={28} />
+          )}
+          <button
+            className="rounded-full px-3 py-1.5 font-bold text-accent"
+            style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+            onClick={() => setInviting((v) => !v)}
+          >
+            ＋ Invite
+          </button>
+        </div>
+      )}
 
       {inviting && (
         <div className="mt-d2">
@@ -170,40 +213,73 @@ export function ListDetailScreen({
       )}
 
       {/* Rapid add — Enter to add and keep typing; paste multiple lines = multiple items. */}
-      <div className="mt-d3 flex items-center gap-2 rounded-card bg-surface p-d3 shadow-card">
-        <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
-        <input
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addOne(newItem);
-              setNewItem('');
-            }
-          }}
-          onPaste={(e) => {
-            const text = e.clipboardData.getData('text');
-            if (text.includes('\n')) {
-              e.preventDefault();
-              text.split('\n').map((s) => s.trim()).filter(Boolean).forEach(addOne);
-              setNewItem('');
-            }
-          }}
-          placeholder={isChecklist ? 'Add an item…' : 'Add a task…'}
-          className="flex-1 bg-transparent outline-none"
-          style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-        />
+      <div className="mt-d3 rounded-card bg-surface p-d3 shadow-card">
+        <div className="flex items-center gap-2">
+          <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
+          <input
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addOne(newItem);
+                setNewItem('');
+              }
+            }}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData('text');
+              if (text.includes('\n')) {
+                e.preventDefault();
+                text.split('\n').map((s) => s.trim()).filter(Boolean).forEach(addOne);
+                setNewItem('');
+              }
+            }}
+            placeholder={isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'}
+            className="flex-1 bg-transparent outline-none"
+            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+          />
+        </div>
+        {isReminders && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {REMIND_PRESETS.map((p) => (
+              <button
+                key={p.v}
+                onClick={() => setRemindPreset(p.v)}
+                className="rounded-full px-3 py-1.5 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: remindPreset === p.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                  color: remindPreset === p.v ? 'var(--color-accent)' : 'var(--color-text)',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+            {remindPreset === 'custom' && (
+              <input
+                type="datetime-local"
+                value={customRemindAt}
+                onChange={(e) => setCustomRemindAt(e.target.value)}
+                className="rounded-lg border border-border bg-bg px-2 py-1.5 outline-none"
+                style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
-        {isChecklist ? 'To buy' : 'To do'}
+        {isReminders ? 'Upcoming' : isChecklist ? 'To buy' : 'To do'}
       </h2>
       {isLoading ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
       ) : open.length === 0 ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          {isChecklist ? 'Empty — add an item above.' : 'All done — nice. 🎉'}
+          {isReminders
+            ? 'Nothing coming up — add a reminder above.'
+            : isChecklist
+              ? 'Empty — add an item above.'
+              : 'All done — nice. 🎉'}
         </p>
       ) : (
         open.map((t) => (

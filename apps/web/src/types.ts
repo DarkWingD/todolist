@@ -10,7 +10,7 @@ export interface SessionUser {
 
 export type ListType = 'tasks' | 'checklist';
 
-// A list row from lists.mine (includes computed counts).
+// A list row from lists.mine / lists.reminders (includes computed counts).
 export interface ListSummary {
   id: string;
   name: string;
@@ -19,4 +19,6 @@ export interface ListSummary {
   type: ListType;
   remaining: number;
   memberCount: number;
+  // Set for app-managed lists (e.g. 'reminders'); null/absent for user lists.
+  systemKey?: string | null;
 }

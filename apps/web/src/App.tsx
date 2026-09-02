@@ -25,6 +25,7 @@ interface MinList {
   name: string;
   emojiIcon: string;
   type?: 'tasks' | 'checklist';
+  systemKey?: string | null;
 }
 
 function Splash() {

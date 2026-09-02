@@ -4,6 +4,46 @@ import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 import type { ListSummary } from '../types';
 
+function ListCard({
+  list: l,
+  subtitle,
+  onOpen,
+}: {
+  list: ListSummary;
+  subtitle: string;
+  onOpen: (list: ListSummary) => void;
+}) {
+  return (
+    <button
+      onClick={() => onOpen(l)}
+      className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+    >
+      <span
+        className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl"
+        style={{
+          background: l.color
+            ? `color-mix(in srgb, ${l.color} 22%, var(--color-surface))`
+            : 'var(--color-emoji-bg)',
+          boxShadow: l.color ? `inset 0 0 0 1.5px color-mix(in srgb, ${l.color} 48%, transparent)` : 'none',
+        }}
+      >
+        {l.emojiIcon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold" style={{ fontSize: 'var(--fs-lg)' }}>
+          {l.name}
+        </span>
+        <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {subtitle}
+        </span>
+      </span>
+      <span className="text-muted" style={{ fontSize: 18 }}>
+        ›
+      </span>
+    </button>
+  );
+}
+
 export function ListsScreen({
   onOpenList,
   createSignal,
@@ -13,6 +53,7 @@ export function ListsScreen({
 }) {
   const utils = trpc.useUtils();
   const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
+  const { data: remindersList } = trpc.lists.reminders.useQuery();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
@@ -108,6 +149,14 @@ export function ListsScreen({
         </div>
       )}
 
+      {remindersList && (
+        <ListCard
+          list={remindersList}
+          subtitle={`${remindersList.remaining} upcoming`}
+          onOpen={onOpenList}
+        />
+      )}
+
       {isLoading ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Loading…
@@ -119,35 +168,14 @@ export function ListsScreen({
         </div>
       ) : (
         lists.map((l) => (
-          <button
+          <ListCard
             key={l.id}
-            onClick={() => onOpenList(l)}
-            className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
-          >
-            <span
-              className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl"
-              style={{
-                background: l.color
-                  ? `color-mix(in srgb, ${l.color} 22%, var(--color-surface))`
-                  : 'var(--color-emoji-bg)',
-                boxShadow: l.color ? `inset 0 0 0 1.5px color-mix(in srgb, ${l.color} 48%, transparent)` : 'none',
-              }}
-            >
-              {l.emojiIcon}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold" style={{ fontSize: 'var(--fs-lg)' }}>
-                {l.name}
-              </span>
-              <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                {l.remaining} {l.type === 'checklist' ? 'left' : 'to do'}
-                {l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''}
-              </span>
-            </span>
-            <span className="text-muted" style={{ fontSize: 18 }}>
-              ›
-            </span>
-          </button>
+            list={l}
+            subtitle={`${l.remaining} ${l.type === 'checklist' ? 'left' : 'to do'}${
+              l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''
+            }`}
+            onOpen={onOpenList}
+          />
         ))
       )}
     </>

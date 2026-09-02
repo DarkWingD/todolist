@@ -130,6 +130,13 @@ export const createReminderSchema = z.object({
   channel: z.enum(REMINDER_CHANNELS).default('email'),
 });
 
+export const quickAddReminderSchema = z.object({
+  // No listId — items go to the user's app-managed Reminders list automatically.
+  title: z.string().trim().min(1).max(500),
+  remindAt: z.string().datetime(),
+});
+export type QuickAddReminderInput = z.infer<typeof quickAddReminderSchema>;
+
 export const requestMagicLinkSchema = z.object({
   email: emailSchema,
 });
