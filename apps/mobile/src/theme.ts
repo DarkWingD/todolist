@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { syncStatusBar } from './statusBar';
 
 /**
  * Theming for Kitchen Board.
@@ -67,6 +68,10 @@ export function usePrefs() {
     } catch {
       // Not being able to remember the choice shouldn't stop it applying now.
     }
+
+    // The status bar is a native surface — it doesn't follow data-mode, so it
+    // has to be told, or a dark theme leaves black icons on a black bar.
+    void syncStatusBar(mode);
   }, [prefs, mode]);
 
   const setPrefs = (patch: Partial<Prefs>) => setPrefsState((p) => ({ ...p, ...patch }));

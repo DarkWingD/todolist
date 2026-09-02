@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MealWeek, ShoppingList } from '@todolist/kitchen-ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings } from './screens/Settings';
-import { mealAdapter, shoppingAdapter } from './store/memory';
+import { flush, initStore, mealAdapter, shoppingAdapter } from './store/memory';
 import { usePrefs } from './theme';
 
 type Tab = 'meals' | 'shopping' | 'settings';
@@ -54,6 +54,31 @@ export function App() {
   const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 0 } } }));
   const [tab, setTab] = useState<Tab>('meals');
   const { prefs, setPrefs } = usePrefs();
+  const [ready, setReady] = useState(false);
+
+  // Nothing renders until the document is loaded, so the screens never briefly
+  // show the seed and then swap it for real data.
+  useEffect(() => {
+    void initStore().then(() => setReady(true));
+  }, []);
+
+  // A debounced write would be lost if the app is backgrounded or closed mid-
+  // timer, which on a phone is most of the time.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') void flush();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, []);
+
+  if (!ready) {
+    return <div className="grid h-[100dvh] place-items-center bg-bg" aria-busy="true" />;
+  }
 
   return (
     <QueryClientProvider client={qc}>

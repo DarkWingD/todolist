@@ -1,3 +1,4 @@
+import { webStorage, type StoragePort } from './persistence';
 import type {
   MealEntry,
   MealOption,
@@ -92,9 +93,76 @@ function seed(): Store {
 
 let store: Store = seed();
 
+// ─────────────────────────── persistence ───────────────────────────
+
+let storage: StoragePort = webStorage;
+
+/** Swap in the device's file storage once the native layer exists. */
+export function setStorage(port: StoragePort) {
+  storage = port;
+}
+
 /**
- * Export is simply the persisted document — the same shape that will be written
- * to the device, so a backup and the live store can never drift apart.
+ * Writes are debounced: ticking half a dozen things off in a supermarket
+ * shouldn't mean half a dozen writes. The trailing edge is what matters — the
+ * last state always lands.
+ */
+let saveTimer: number | undefined;
+function persist() {
+  if (saveTimer !== undefined) window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    void storage.save(JSON.stringify(store));
+  }, 300);
+}
+
+/** Write now — for backgrounding the app, where a pending timer would be lost. */
+export async function flush(): Promise<void> {
+  if (saveTimer !== undefined) window.clearTimeout(saveTimer);
+  await storage.save(JSON.stringify(store));
+}
+
+function parse(json: string): Store | null {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      (parsed as Store).version !== 1 ||
+      !Array.isArray((parsed as Store).meals) ||
+      !Array.isArray((parsed as Store).days) ||
+      !Array.isArray((parsed as Store).shopping)
+    ) {
+      return null;
+    }
+    return parsed as Store;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Load what's on the device, or seed a first run.
+ *
+ * A stored document always wins, even an empty one — someone who cleared their
+ * meals shouldn't find the samples back the next morning. The seed is only for
+ * a device that has never held anything.
+ */
+export async function initStore(): Promise<void> {
+  const raw = await storage.load();
+  const loaded = raw === null ? null : parse(raw);
+  if (loaded) {
+    store = loaded;
+    return;
+  }
+  // Nothing stored, or bytes we can't read — keep the seed and write it, so the
+  // next launch is an ordinary load rather than another first run.
+  store = seed();
+  await storage.save(JSON.stringify(store));
+}
+
+/**
+ * Export is simply the persisted document — the same bytes that sit on the
+ * device, so a backup and the live store can never drift apart.
  */
 export function exportStore(): string {
   return JSON.stringify(store, null, 2);
@@ -102,18 +170,10 @@ export function exportStore(): string {
 
 /** Replaces everything. Rejects anything that is not a document we understand. */
 export function importStore(json: string): void {
-  const parsed: unknown = JSON.parse(json);
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    (parsed as Store).version !== 1 ||
-    !Array.isArray((parsed as Store).meals) ||
-    !Array.isArray((parsed as Store).days) ||
-    !Array.isArray((parsed as Store).shopping)
-  ) {
-    throw new Error('That file is not a Kitchen Board backup.');
-  }
-  store = parsed as Store;
+  const parsed = parse(json);
+  if (!parsed) throw new Error('That file is not a Kitchen Board backup.');
+  store = parsed;
+  persist();
 }
 
 /**
@@ -172,7 +232,7 @@ function truncateOverlapping(date: string) {
   if (prev.cookSpan > gap) prev.cookSpan = gap;
 }
 
-export const mealAdapter: MealPlannerAdapter = {
+const rawMeals: MealPlannerAdapter = {
   // No accounts here, so there is exactly one plan and nothing to ensure.
   ensurePlan: async () => ({ id: 'local', memberCount: 1 }),
   getWeek: async (_planId, from, to) => expand(from, to),
@@ -281,7 +341,7 @@ export const mealAdapter: MealPlannerAdapter = {
   // No `invite`: nothing to share with when the data never leaves the phone.
 };
 
-export const shoppingAdapter: ShoppingAdapter = {
+const rawShopping: ShoppingAdapter = {
   getItems: async () => store.shopping.map((i) => ({ ...i })),
   addItem: async (title) => {
     const id = uid();
@@ -315,5 +375,68 @@ export const shoppingAdapter: ShoppingAdapter = {
     store.shopping = store.shopping.filter(
       (i) => i.parentId || !everParent.has(i.id) || stillParented.has(i.id),
     );
+  },
+};
+
+// ─────────────────────────── saving ───────────────────────────
+/**
+ * Every operation that changes the document is listed here, so a write can't be
+ * added without deciding whether it persists. Reads pass through untouched.
+ */
+export const mealAdapter: MealPlannerAdapter = {
+  ...rawMeals,
+  setDay: async (i) => {
+    await rawMeals.setDay(i);
+    persist();
+  },
+  clearDay: async (p, d) => {
+    await rawMeals.clearDay(p, d);
+    persist();
+  },
+  moveDay: async (p, f, t) => {
+    await rawMeals.moveDay(p, f, t);
+    persist();
+  },
+  updateMeal: async (i) => {
+    await rawMeals.updateMeal(i);
+    persist();
+  },
+  toggleFavourite: async (id, fav) => {
+    await rawMeals.toggleFavourite(id, fav);
+    persist();
+  },
+  sendToShoppingList: async (p, f, t) => {
+    const result = await rawMeals.sendToShoppingList(p, f, t);
+    persist();
+    return result;
+  },
+};
+
+export const shoppingAdapter: ShoppingAdapter = {
+  ...rawShopping,
+  addItem: async (title) => {
+    const id = await rawShopping.addItem(title);
+    persist();
+    return id;
+  },
+  toggleItem: async (id, done) => {
+    await rawShopping.toggleItem(id, done);
+    persist();
+  },
+  renameItem: async (id, title) => {
+    await rawShopping.renameItem(id, title);
+    persist();
+  },
+  removeItem: async (id) => {
+    await rawShopping.removeItem(id);
+    persist();
+  },
+  setParent: async (id, parentId) => {
+    await rawShopping.setParent(id, parentId);
+    persist();
+  },
+  clearCompleted: async () => {
+    await rawShopping.clearCompleted();
+    persist();
   },
 };

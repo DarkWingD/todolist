@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { formatShoppingText } from '@todolist/kitchen-ui';
-import { webShare as share } from '../share';
+import { share } from '../platform';
 import { exportStore, importStore, shoppingAdapter } from '../store/memory';
 import {
   APPEARANCES,
