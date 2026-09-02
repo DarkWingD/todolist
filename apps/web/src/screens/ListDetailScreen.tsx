@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
 import { EventEditSheet } from '../components/EventEditSheet';
@@ -56,10 +56,12 @@ export function ListDetailScreen({
   list,
   onBack,
   onOpenTask,
+  focusAddSignal,
 }: {
   list: DetailList;
   onBack: () => void;
   onOpenTask: (id: string) => void;
+  focusAddSignal?: number;
 }) {
   const utils = trpc.useUtils();
   const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery({ listId: list.id });
@@ -80,6 +82,18 @@ export function ListDetailScreen({
   const [customRemindAt, setCustomRemindAt] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+
+  // The floating + focuses the quick-add box (only fired for the Reminders
+  // list) — but not on mount, when returning to an already-open screen.
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const lastFocusSignal = useRef(focusAddSignal);
+  useEffect(() => {
+    if (focusAddSignal !== lastFocusSignal.current) {
+      lastFocusSignal.current = focusAddSignal;
+      addInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      addInputRef.current?.focus();
+    }
+  }, [focusAddSignal]);
 
   const invalidate = () => {
     utils.tasks.byList.invalidate({ listId: list.id });
@@ -217,6 +231,7 @@ export function ListDetailScreen({
         <div className="flex items-center gap-2">
           <span className="text-accent" style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
           <input
+            ref={addInputRef}
             value={newItem}
             onChange={(e) => setNewItem(e.target.value)}
             onKeyDown={(e) => {

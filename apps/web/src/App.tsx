@@ -86,12 +86,15 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createListSignal, setCreateListSignal] = useState(0);
   const [calCreateSignal, setCalCreateSignal] = useState(0);
+  const [focusAddSignal, setFocusAddSignal] = useState(0);
 
-  // The floating + adds whatever the current screen is about:
-  // a list on Lists, an event/birthday on Cal, otherwise a task.
+  // The floating + adds whatever the current screen is about: a list on Lists,
+  // an event/birthday on Cal, a reminder in the Reminders list, otherwise a task.
   function onAdd() {
     if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
     else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
+    else if (view === 'listDetail' && selectedList?.systemKey === 'reminders')
+      setFocusAddSignal((n) => n + 1);
     else setSheetOpen(true);
   }
 
@@ -149,7 +152,14 @@ function AuthedApp({ me }: { me: SessionUser }) {
   if (view === 'taskDetail' && selectedTaskId) {
     content = <TaskDetailScreen taskId={selectedTaskId} onBack={closeTask} />;
   } else if (view === 'listDetail' && selectedList) {
-    content = <ListDetailScreen list={selectedList} onBack={() => navigate('lists')} onOpenTask={openTask} />;
+    content = (
+      <ListDetailScreen
+        list={selectedList}
+        onBack={() => navigate('lists')}
+        onOpenTask={openTask}
+        focusAddSignal={focusAddSignal}
+      />
+    );
   } else if (view === 'appearance') {
     content = <AppearanceScreen onBack={() => setView('main')} />;
   } else if (view === 'account') {
