@@ -1,0 +1,13 @@
+// Capacitor's plugins pin a Java 21 toolchain, but the only JDK on a machine
+// with Android Studio is its bundled 25. Rather than require a second JDK be
+// installed by hand, let Gradle resolve and download one itself — that is what
+// "Toolchain download repositories have not been configured" is asking for.
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+include ':app'
+include ':capacitor-cordova-android-plugins'
+project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
+
+apply from: 'capacitor.settings.gradle'
