@@ -3,14 +3,16 @@ import type { ReactNode } from 'react';
 
 export type TabId = 'today' | 'lists' | 'cal' | 'meals' | 'you';
 
-// Icons are text glyphs rather than an icon set. '▤' reads as stacked rows,
-// which is what the meal week actually looks like, and stays clear of the
-// calendar's grid square.
-const TABS: { id: TabId; icon: string; label: string }[] = [
+// Mostly geometric glyphs, but Meals gets a real plate: a fourth square sat
+// next to the calendar's grid said nothing about food. Emoji is in keeping —
+// lists and avatars use them throughout.
+// `size` trims the emoji: it fills far more of the em box than the geometric
+// glyphs, so at a shared 24px it would sit noticeably larger than its neighbours.
+const TABS: { id: TabId; icon: string; label: string; size?: number }[] = [
   { id: 'today', icon: '◎', label: 'Today' },
   { id: 'lists', icon: '☰', label: 'Lists' },
   { id: 'cal', icon: '▦', label: 'Cal' },
-  { id: 'meals', icon: '▤', label: 'Meals' },
+  { id: 'meals', icon: '🍽', label: 'Meals', size: 20 },
   { id: 'you', icon: '◔', label: 'You' },
 ];
 
@@ -89,7 +91,7 @@ export function AppShell({
             )}
             style={{ fontSize: 11.5 }}
           >
-            <span style={{ fontSize: 24, lineHeight: 1 }}>{t.icon}</span>
+            <span style={{ fontSize: t.size ?? 24, lineHeight: 1 }}>{t.icon}</span>
             {t.label}
           </button>
         ))}
