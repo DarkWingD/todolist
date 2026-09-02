@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BackButton } from '../components/BackButton';
 import { Checkbox } from '@todolist/kitchen-ui';
-import { AddToHomeScreen } from '../components/AddToHomeScreen';
+import { PushSetupHelp } from '../components/PushSetupHelp';
 import {
   getSubscription,
   pushBlocker,
@@ -117,8 +117,8 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
         Push on this device
       </h2>
 
-      {blocker === 'ios-needs-install' || blocker === 'ios-needs-safari' ? (
-        <AddToHomeScreen needsSafari={blocker === 'ios-needs-safari'} />
+      {blocker !== 'none' && blocker !== 'unsupported' ? (
+        <PushSetupHelp blocker={blocker} />
       ) : !supported ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           This browser doesn’t support push notifications.

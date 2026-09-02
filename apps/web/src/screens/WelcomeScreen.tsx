@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AddToHomeScreen } from '../components/AddToHomeScreen';
+import { PushSetupHelp } from '../components/PushSetupHelp';
 import { pushBlocker, subscribePush } from '../lib/push';
 import { trpc } from '../lib/trpc';
 
@@ -41,8 +41,7 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
   const blocker = pushBlocker();
   const configured = Boolean(vapidKey);
   const canAsk = blocker === 'none' && configured;
-  const needsInstall =
-    configured && (blocker === 'ios-needs-install' || blocker === 'ios-needs-safari');
+  const needsSetup = configured && blocker !== 'none' && blocker !== 'unsupported';
 
   async function enable() {
     if (!vapidKey) return;
@@ -129,7 +128,7 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {needsInstall && <AddToHomeScreen needsSafari={blocker === 'ios-needs-safari'} />}
+        {needsSetup && <PushSetupHelp blocker={blocker} />}
       </div>
 
       <button

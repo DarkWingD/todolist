@@ -90,20 +90,36 @@ function isIosSafari(): boolean {
   return /Safari\//.test(ua);
 }
 
-export type PushBlocker = 'none' | 'ios-needs-install' | 'ios-needs-safari' | 'unsupported';
+/**
+ * An Android in-app browser — the WebView you land in when you open a link
+ * from Facebook, Instagram, WhatsApp or a mail app.
+ *
+ * It supports no service workers at all, so push is genuinely absent, but the
+ * fix is one menu tap: open the page in Chrome. `wv` is the WebView's own
+ * marker; the app tokens catch the ones that omit it.
+ */
+function isAndroidInAppBrowser(): boolean {
+  const ua = navigator.userAgent;
+  if (!/Android/.test(ua)) return false;
+  return /; wv\)|FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|MicroMessenger|GSA\//i.test(ua);
+}
+
+export type PushBlocker =
+  'none' | 'ios-needs-install' | 'ios-needs-safari' | 'android-needs-chrome' | 'unsupported';
 
 /**
  * Why push can't be offered, when it can't.
  *
- * Worth the extra cases: iOS *does* support web push, but only once the site is
- * on the Home Screen — in an ordinary tab `PushManager` doesn't exist at all.
- * Reporting that as "this browser doesn't support notifications" is true and
- * useless, because the fix is a few taps away and that wording hides it.
+ * The point of the extra cases is that "this browser doesn't support
+ * notifications" is usually true and useless. iOS *does* support web push, but
+ * only once the site is on the Home Screen; an Android in-app browser doesn't,
+ * but Chrome one tap away does. Only what's left is a real dead end.
  */
 export function pushBlocker(): PushBlocker {
   if (pushSupported()) return 'none';
   if (isApplePhoneOrTablet() && !isInstalled()) {
     return isIosSafari() ? 'ios-needs-install' : 'ios-needs-safari';
   }
+  if (isAndroidInAppBrowser()) return 'android-needs-chrome';
   return 'unsupported';
 }
