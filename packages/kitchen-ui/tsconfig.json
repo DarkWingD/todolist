@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The base targets ES2022 with no DOM and no JSX — fine for the server-side
+    // packages, but this one renders React.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["src", "tailwind-preset.ts"]
+}

@@ -1,58 +1,18 @@
 import type { Config } from 'tailwindcss';
+import { kitchenPreset } from '@todolist/kitchen-ui/tailwind-preset';
 
 /**
- * Colors, radii, and fonts all resolve to the CSS variables defined in
- * styles/themes.css, so utilities like `bg-surface` or `text-accent`
- * automatically reflect the active theme + light/dark.
+ * Tokens come from the shared kitchenPreset so both apps map Tailwind names
+ * onto the same CSS variables. A drifted copy would purge silently.
  */
 export default {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
-  theme: {
-    extend: {
-      colors: {
-        bg: 'var(--color-bg)',
-        surface: 'var(--color-surface)',
-        text: 'var(--color-text)',
-        muted: 'var(--color-muted)',
-        accent: 'var(--color-accent)',
-        'accent-contrast': 'var(--color-accent-contrast)',
-        'accent-soft': 'var(--color-accent-soft)',
-        border: 'var(--color-border)',
-        track: 'var(--color-track)',
-        'chip-bg': 'var(--color-chip-bg)',
-        'emoji-bg': 'var(--color-emoji-bg)',
-        danger: 'var(--color-danger)',
-        'danger-soft': 'var(--color-danger-soft)',
-      },
-      borderRadius: {
-        card: 'var(--radius-card)',
-        check: 'var(--radius-check)',
-        emoji: 'var(--radius-emoji)',
-        fab: 'var(--radius-fab)',
-      },
-      fontFamily: {
-        head: 'var(--font-head)',
-        body: 'var(--font-body)',
-      },
-      fontSize: {
-        xs: 'var(--fs-xs)',
-        sm: 'var(--fs-sm)',
-        base: 'var(--fs-base)',
-        lg: 'var(--fs-lg)',
-        title: 'var(--fs-title)',
-        big: 'var(--fs-big)',
-      },
-      boxShadow: {
-        card: 'var(--shadow-card)',
-      },
-      spacing: {
-        d1: 'var(--space-1)',
-        d2: 'var(--space-2)',
-        d3: 'var(--space-3)',
-        d4: 'var(--space-4)',
-        d5: 'var(--space-5)',
-      },
-    },
-  },
+  content: [
+    './index.html',
+    './src/**/*.{ts,tsx}',
+    // The shared package lives outside this app, and Tailwind will not scan it
+    // otherwise — every gap-d3 and rounded-card would purge with no error.
+    '../../packages/kitchen-ui/src/**/*.{ts,tsx}',
+  ],
+  presets: [kitchenPreset],
   plugins: [],
 } satisfies Config;
