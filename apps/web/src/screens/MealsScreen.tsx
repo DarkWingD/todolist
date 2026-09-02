@@ -17,6 +17,8 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
   const utils = trpc.useUtils();
   const [weekStart, setWeekStart] = useState(() => startOfWeekMon(new Date()));
   const [openDate, setOpenDate] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -59,6 +61,12 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
   const moveDay = trpc.mealPlan.moveDay.useMutation({ onSuccess: invalidate });
   const editMeal = trpc.mealPlan.updateMeal.useMutation({ onSuccess: invalidate });
   const favourite = trpc.mealPlan.toggleFavourite.useMutation({ onSuccess: invalidate });
+  const invite = trpc.mealPlan.invite.useMutation({
+    onSuccess: () => {
+      setInviteEmail('');
+      setSharing(false);
+    },
+  });
   const toShopping = trpc.mealPlan.sendToShoppingList.useMutation({
     onSuccess: () => {
       utils.lists.mine.invalidate();
@@ -86,6 +94,32 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
 
   const showingThisWeek = sameDay(weekStart, startOfWeekMon(today));
 
+  // Cards vary in height, so a drop lands on whichever day's box centre is
+  // nearest — which stays correct however tall the neighbours happen to be.
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  function onDropFrom(index: number, offsetY: number) {
+    if (!planId) return;
+    const source = slotRefs.current[index];
+    if (!source) return;
+    const sourceBox = source.getBoundingClientRect();
+    const droppedAt = sourceBox.top + sourceBox.height / 2 + offsetY;
+    let best = index;
+    let bestGap = Number.POSITIVE_INFINITY;
+    slotRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const box = el.getBoundingClientRect();
+      const gap = Math.abs(box.top + box.height / 2 - droppedAt);
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = i;
+      }
+    });
+    if (best === index) return;
+    const entry = byDate.get(toKey(days[index]!));
+    const anchor = entry?.isLeftover ? entry.cookDate : toKey(days[index]!);
+    moveDay.mutate({ planId, from: anchor, to: toKey(days[best]!) });
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="mb-d3 flex flex-col gap-d3">
@@ -100,12 +134,54 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
           >
             Meals
           </h1>
-          {plans && plans.length > 0 && plans[0]!.memberCount > 1 && (
-            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-              Shared with {plans[0]!.memberCount}
-            </span>
+          {planId && (
+            <button
+              type="button"
+              onClick={() => setSharing((s) => !s)}
+              aria-expanded={sharing}
+              className="flex-none rounded-full px-3 py-1 font-semibold text-muted"
+              style={{ background: 'var(--color-chip-bg)', fontSize: 'var(--fs-xs)' }}
+            >
+              {plans && plans[0]!.memberCount > 1
+                ? `Shared with ${plans[0]!.memberCount}`
+                : 'Share'}
+            </button>
           )}
         </div>
+
+        {sharing && planId && (
+          <div className="flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card">
+            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+              Invite someone to plan meals with you. They'll get a link by email.
+            </span>
+            <div className="flex gap-d2">
+              <input
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="their@email.com"
+                type="email"
+                autoComplete="email"
+                aria-label="Email address to invite"
+                className="min-w-0 flex-1 rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
+                style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+              />
+              <button
+                type="button"
+                disabled={!inviteEmail.trim() || invite.isPending}
+                onClick={() => invite.mutate({ planId, email: inviteEmail.trim() })}
+                className="flex-none rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
+                style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+              >
+                {invite.isPending ? 'Sending…' : 'Invite'}
+              </button>
+            </div>
+            {invite.error && (
+              <span style={{ color: 'var(--color-danger)', fontSize: 'var(--fs-sm)' }}>
+                {invite.error.message}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-d2">
           <button
@@ -160,7 +236,13 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
             // applied to the day the meal was actually cooked.
             const anchor = entry?.isLeftover ? entry.cookDate : key;
             return (
-              <div key={key} className={clsx(expanded && 'md:col-span-7')}>
+              <div
+                key={key}
+                ref={(el) => {
+                  slotRefs.current[i] = el;
+                }}
+                className={clsx(expanded && 'md:col-span-7')}
+              >
                 <MealDayCard
                   weekday={WEEKDAY_SHORT[i]!}
                   dayNum={d.getDate()}
@@ -205,6 +287,7 @@ export function MealsScreen({ createSignal }: { createSignal?: number }) {
                   }}
                   onEditMeal={(v) => editMeal.mutate(v)}
                   onToggleFavourite={(id, next) => favourite.mutate({ id, isFavourite: next })}
+                  onDragEndY={(offsetY) => onDropFrom(i, offsetY)}
                 />
               </div>
             );

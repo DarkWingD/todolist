@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { motion, useDragControls, type PanInfo } from 'framer-motion';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 export interface MealEntry {
@@ -48,6 +49,8 @@ interface Props {
   onPushNextWeek: () => void;
   onEditMeal: (v: { id: string; recipeUrl?: string | null; notes?: string | null }) => void;
   onToggleFavourite: (id: string, next: boolean) => void;
+  /** How far the card was dragged vertically; the screen maps that to a day. */
+  onDragEndY: (offsetY: number) => void;
 }
 
 export function MealDayCard({
@@ -65,7 +68,10 @@ export function MealDayCard({
   onPushNextWeek,
   onEditMeal,
   onToggleFavourite,
+  onDragEndY,
 }: Props) {
+  const dragControls = useDragControls();
+  const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState('');
   const [highlight, setHighlight] = useState(0);
   const [recipe, setRecipe] = useState('');
@@ -89,6 +95,8 @@ export function MealDayCard({
       : meals.filter((m) => m.name.toLowerCase().includes(q) && m.name.toLowerCase() !== q).slice(0, 8);
   const showList = expanded && (!entry || draft !== entry.name) && matches.length > 0;
 
+  // Only a planned, collapsed day can be dragged to another day.
+  const draggableNow = Boolean(entry) && !expanded;
   const cookSpan = entry?.cookSpan ?? 1;
   const railUp = Boolean(entry?.isLeftover);
   const railDown = Boolean(entry && entry.night < entry.cookSpan);
@@ -138,12 +146,27 @@ export function MealDayCard({
         />
       )}
 
-      <div
+      <motion.div
+        // Dragging is started only by the grip, so a normal touch anywhere on
+        // the card still scrolls the page.
+        drag={draggableNow ? 'y' : false}
+        dragListener={false}
+        dragControls={dragControls}
+        dragSnapToOrigin
+        dragElastic={0.4}
+        onDragStart={() => setDragging(true)}
+        onDragEnd={(_e: unknown, info: PanInfo) => {
+          setDragging(false);
+          onDragEndY(info.offset.y);
+        }}
         className={clsx(
           'flex gap-d3 rounded-card p-d3',
           expanded ? 'flex-col shadow-lg' : 'items-start shadow-card',
         )}
         style={{
+          position: 'relative',
+          zIndex: dragging ? 5 : undefined,
+          boxShadow: dragging ? '0 12px 26px rgba(0,0,0,.24)' : undefined,
           background:
             entry?.isLeftover && !expanded
               ? 'color-mix(in srgb, var(--color-surface) 62%, transparent)'
@@ -239,6 +262,21 @@ export function MealDayCard({
           {!expanded && entry?.isFavourite && (
             <span className="flex-none text-accent" style={{ fontSize: 14 }}>
               ★
+            </span>
+          )}
+
+          {draggableNow && (
+            <span
+              role="button"
+              tabIndex={-1}
+              aria-label="Drag to another day"
+              onPointerDown={(e) => dragControls.start(e)}
+              className="flex-none cursor-grab select-none px-1 text-muted"
+              // touch-action:none is what lets a touch drag here beat the
+              // page's own vertical scroll.
+              style={{ touchAction: 'none', fontSize: 16, lineHeight: 1 }}
+            >
+              ⠿
             </span>
           )}
         </div>
@@ -428,7 +466,7 @@ export function MealDayCard({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
