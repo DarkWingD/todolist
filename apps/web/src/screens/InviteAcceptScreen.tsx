@@ -34,17 +34,18 @@ export function InviteAcceptScreen({ token }: { token: string }) {
             className="grid h-20 w-20 place-items-center rounded-emoji text-4xl"
             style={{ background: 'var(--color-emoji-bg)' }}
           >
-            {info.listEmoji}
+            {info.emoji}
           </div>
           <div>
             <h1
               className="font-head"
               style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
             >
-              {info.listName}
+              {info.name}
             </h1>
             <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-              {info.inviterName || 'Someone'} invited you to collaborate on this list.
+              {info.inviterName || 'Someone'} invited you to{' '}
+              {info.kind === 'mealPlan' ? 'share this meal plan.' : 'collaborate on this list.'}
             </p>
           </div>
           <button

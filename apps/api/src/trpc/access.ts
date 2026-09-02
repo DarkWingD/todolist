@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { db, listMember } from '@todolist/db';
+import { db, listMember, mealPlanMember } from '@todolist/db';
 import { TRPCError } from '@trpc/server';
 
 /** Throws FORBIDDEN unless the user is a member (or owner) of the list. */
@@ -11,5 +11,18 @@ export async function assertListAccess(userId: string, listId: string) {
     .limit(1);
   const membership = rows[0];
   if (!membership) throw new TRPCError({ code: 'FORBIDDEN', message: 'No access to this list' });
+  return membership;
+}
+
+/** Throws FORBIDDEN unless the user is a member (or owner) of the meal plan. */
+export async function assertMealPlanAccess(userId: string, planId: string) {
+  const rows = await db
+    .select({ role: mealPlanMember.role })
+    .from(mealPlanMember)
+    .where(and(eq(mealPlanMember.planId, planId), eq(mealPlanMember.userId, userId)))
+    .limit(1);
+  const membership = rows[0];
+  if (!membership)
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'No access to this meal plan' });
   return membership;
 }

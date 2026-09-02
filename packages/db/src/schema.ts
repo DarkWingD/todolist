@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -320,6 +321,136 @@ export const notification = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('notification_user_idx').on(t.userId)],
+);
+
+// ─────────────────────────── meal planner ───────────────────────────
+/**
+ * A meal plan is a shareable object in its own right, mirroring `list` —
+ * same ownership, membership and invite-by-email shape, so a household shares a
+ * plan the same way it shares a list. `listRoleEnum` and `inviteStatusEnum` are
+ * reused rather than duplicated; both are generic owner/member and invite
+ * lifecycle concepts, not list-specific ones.
+ */
+export const mealPlan = pgTable(
+  'meal_plan',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull().default('Meals'),
+    emojiIcon: text('emoji_icon').notNull().default('🍽️'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('meal_plan_owner_idx').on(t.ownerId)],
+);
+
+export const mealPlanMember = pgTable(
+  'meal_plan_member',
+  {
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    role: listRoleEnum('role').notNull().default('member'),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.planId, t.userId] }),
+    index('meal_plan_member_user_idx').on(t.userId),
+  ],
+);
+
+export const mealPlanInvite = pgTable(
+  'meal_plan_invite',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    token: text('token').notNull().unique(),
+    invitedBy: text('invited_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: inviteStatusEnum('status').notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('meal_plan_invite_plan_idx').on(t.planId),
+    index('meal_plan_invite_email_idx').on(t.email),
+  ],
+);
+
+/**
+ * The meal catalog: one row per distinct meal in a plan. This is what powers
+ * autocomplete, and what remembers a meal's recipe link between weeks.
+ * Names are unique per plan; case-insensitive matching is done in application
+ * code (trim + `ilike`) rather than an expression index, to keep migrations plain.
+ */
+export const meal = pgTable(
+  'meal',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    recipeUrl: text('recipe_url'),
+    notes: text('notes'),
+    isFavourite: boolean('is_favourite').notNull().default(false),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => [index('meal_plan_idx').on(t.planId), uniqueIndex('meal_plan_name_idx').on(t.planId, t.name)],
+);
+
+/**
+ * One planned dinner per calendar day. `mealId` is a real foreign key, so
+ * renaming a meal updates every week it appears in — the plan can never drift
+ * from the catalog the way free-text meal names did.
+ *
+ * Leftovers are DERIVED, never stored: `cookSpan` on the cook's row claims the
+ * following `cookSpan - 1` days. Nothing points back at the cook, so moving a
+ * cook moves its whole chain and shortening the span clears the tail, both for
+ * free. Writing a meal onto a claimed day truncates the earlier cook's span.
+ *
+ * No `deletedAt` here: this is an upserted cell rather than a user-visible
+ * entity, and a soft-deleted row would collide with the (plan, date) unique
+ * index. Clearing a day deletes the row, as `reminder` and `tag` do.
+ */
+export const mealPlanDay = pgTable(
+  'meal_plan_day',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: 'cascade' }),
+    date: date('date', { mode: 'string' }).notNull(),
+    mealId: uuid('meal_id')
+      .notNull()
+      .references(() => meal.id, { onDelete: 'cascade' }),
+    // Nights this cook feeds, including the day itself. 1 = no leftovers.
+    cookSpan: integer('cook_span').notNull().default(1),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('meal_plan_day_plan_idx').on(t.planId),
+    uniqueIndex('meal_plan_day_plan_date_idx').on(t.planId, t.date),
+  ],
 );
 
 // ─────────────────────────── relations ───────────────────────────

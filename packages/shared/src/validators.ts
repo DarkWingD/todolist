@@ -137,6 +137,74 @@ export const quickAddReminderSchema = z.object({
 });
 export type QuickAddReminderInput = z.infer<typeof quickAddReminderSchema>;
 
+// ─────────────────────────── meal planner ───────────────────────────
+
+// A calendar day, "YYYY-MM-DD". Dinners are planned per date, not per timestamp,
+// so there is no timezone to get wrong.
+export const planDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
+
+export const MEAL_NAME_MAX = 120;
+export const COOK_SPAN_MAX = 7;
+
+export const createMealSchema = z.object({
+  planId: z.string().uuid(),
+  name: z.string().trim().min(1).max(MEAL_NAME_MAX),
+  // Stored as given; the API rejects anything that isn't http(s).
+  recipeUrl: z.string().trim().url().max(2048).optional(),
+  notes: z.string().max(10_000).optional(),
+  isFavourite: z.boolean().optional(),
+});
+export type CreateMealInput = z.infer<typeof createMealSchema>;
+
+export const updateMealSchema = createMealSchema
+  .partial()
+  .omit({ planId: true })
+  .extend({
+    id: z.string().uuid(),
+    // Nullable so the UI can clear these fields.
+    recipeUrl: z.string().trim().url().max(2048).nullable().optional(),
+    notes: z.string().max(10_000).nullable().optional(),
+  });
+export type UpdateMealInput = z.infer<typeof updateMealSchema>;
+
+export const setMealDaySchema = z
+  .object({
+    planId: z.string().uuid(),
+    date: planDateSchema,
+    // Either pick an existing meal, or name a new one and it joins the catalog.
+    mealId: z.string().uuid().optional(),
+    name: z.string().trim().min(1).max(MEAL_NAME_MAX).optional(),
+    // Nights this cook feeds, including the day itself. 1 = no leftovers.
+    cookSpan: z.number().int().min(1).max(COOK_SPAN_MAX).default(1),
+  })
+  .refine((v) => Boolean(v.mealId) !== Boolean(v.name), {
+    message: 'Provide exactly one of mealId or name',
+  });
+export type SetMealDayInput = z.infer<typeof setMealDaySchema>;
+
+export const moveMealDaySchema = z.object({
+  planId: z.string().uuid(),
+  from: planDateSchema,
+  to: planDateSchema,
+});
+
+export const mealPlanRangeSchema = z.object({
+  planId: z.string().uuid(),
+  from: planDateSchema,
+  to: planDateSchema,
+});
+
+export const inviteToMealPlanSchema = z.object({
+  planId: z.string().uuid(),
+  email: emailSchema,
+});
+
+export const sendToShoppingListSchema = z.object({
+  planId: z.string().uuid(),
+  from: planDateSchema,
+  to: planDateSchema,
+});
+
 export const requestMagicLinkSchema = z.object({
   email: emailSchema,
 });
