@@ -293,7 +293,9 @@ export function ListsScreen({
           {shoppingList && (
             <ListCard
               list={shoppingList}
-              subtitle={`${shoppingList.remaining} left`}
+              // Says which Shopping list this is: nothing else distinguishes it
+              // from one you made yourself with the same name and icon.
+              subtitle={`${shoppingList.remaining} left · from your meal plan`}
               onOpen={onOpenList}
             />
           )}
