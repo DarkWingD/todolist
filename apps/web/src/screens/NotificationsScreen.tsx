@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 import { BackButton } from '../components/BackButton';
+import { Checkbox } from '../components/Checkbox';
 import { getSubscription, pushSupported, subscribePush, unsubscribePush } from '../lib/push';
 import { trpc } from '../lib/trpc';
 
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  const utils = trpc.useUtils();
   const { data: vapidKey, isLoading: keyLoading } = trpc.push.publicKey.useQuery();
+  const { data: prefs } = trpc.prefs.get.useQuery();
+  const setNotifications = trpc.prefs.setNotifications.useMutation({
+    onSuccess: () => utils.prefs.get.invalidate(),
+  });
+  const notifyEmail = prefs?.notifyEmail ?? true;
+  const notifyPush = prefs?.notifyPush ?? true;
   const subscribe = trpc.push.subscribe.useMutation();
   const unsubscribe = trpc.push.unsubscribe.useMutation();
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -59,11 +67,32 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
         Notifications &amp; reminders
       </h1>
 
-      <div className={card} style={{ fontSize: 'var(--fs-base)' }}>
-        <div className="font-semibold">✉️ Email reminders</div>
-        <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          Reminders you add to a task are emailed to you when they’re due. Always on.
-        </p>
+      <div className={`${card} mb-d2 flex items-start gap-3`} style={{ fontSize: 'var(--fs-base)' }}>
+        <Checkbox
+          checked={notifyEmail}
+          onChange={(v) => setNotifications.mutate({ notifyEmail: v, notifyPush })}
+          label="Email reminders"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold">✉️ Email reminders</div>
+          <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Reminders are emailed to you when they’re due.
+          </p>
+        </div>
+      </div>
+
+      <div className={`${card} flex items-start gap-3`} style={{ fontSize: 'var(--fs-base)' }}>
+        <Checkbox
+          checked={notifyPush}
+          onChange={(v) => setNotifications.mutate({ notifyEmail, notifyPush: v })}
+          label="Push notifications"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold">📱 Push notifications</div>
+          <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Reminders pop up on devices where you’ve enabled notifications below.
+          </p>
+        </div>
       </div>
 
       <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>

@@ -31,4 +31,6 @@ export const DEFAULT_PREFS = {
   appearance: 'system' as Appearance,
   density: 'cozy' as Density,
   textScale: TEXT_SCALE.default,
+  notifyEmail: true,
+  notifyPush: true,
 };

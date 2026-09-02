@@ -105,6 +105,8 @@ export const userPrefs = pgTable('user_prefs', {
   density: densityEnum('density').notNull().default('cozy'),
   textScale: doublePrecision('text_scale').notNull().default(0.96),
   calendarView: calendarViewEnum('calendar_view').notNull().default('month'),
+  notifyEmail: boolean('notify_email').notNull().default(true),
+  notifyPush: boolean('notify_push').notNull().default(true),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

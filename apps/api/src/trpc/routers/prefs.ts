@@ -23,6 +23,19 @@ export const prefsRouter = router({
       return { ok: true };
     }),
 
+  setNotifications: protectedProcedure
+    .input(z.object({ notifyEmail: z.boolean(), notifyPush: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .insert(userPrefs)
+        .values({ userId: ctx.user.id, ...input })
+        .onConflictDoUpdate({
+          target: userPrefs.userId,
+          set: { ...input, updatedAt: new Date() },
+        });
+      return { ok: true };
+    }),
+
   update: protectedProcedure.input(userPrefsSchema).mutation(async ({ ctx, input }) => {
     await db
       .insert(userPrefs)

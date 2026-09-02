@@ -8,7 +8,15 @@ import type { SessionUser } from '../types';
 // How many days ahead the agenda shows.
 const HORIZON_DAYS = 14;
 
-export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (id: string) => void }) {
+export function TodayScreen({
+  me,
+  onOpenTask,
+  onOpenYou,
+}: {
+  me: SessionUser;
+  onOpenTask: (id: string) => void;
+  onOpenYou: () => void;
+}) {
   const utils = trpc.useUtils();
   const until = (() => {
     const d = new Date();
@@ -60,7 +68,9 @@ export function TodayScreen({ me, onOpenTask }: { me: SessionUser; onOpenTask: (
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{today}</div>
         </div>
-        <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
+        <button aria-label="Profile & settings" onClick={onOpenYou}>
+          <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
+        </button>
       </header>
 
       {isLoading ? (

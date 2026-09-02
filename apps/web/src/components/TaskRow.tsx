@@ -29,6 +29,7 @@ const SWIPE_THRESHOLD = 90;
 
 export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
   const [completing, setCompleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const hasMeta = task.due || task.recurrence || task.tag || task.assignee;
   const showChecked = task.completed || completing;
 
@@ -42,7 +43,7 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
 
   function onDragEnd(_e: unknown, info: PanInfo) {
     if (info.offset.x > SWIPE_THRESHOLD) startComplete();
-    else if (onDelete && info.offset.x < -SWIPE_THRESHOLD) onDelete(task.id);
+    else if (onDelete && info.offset.x < -SWIPE_THRESHOLD) setConfirmingDelete(true);
   }
 
   return (
@@ -118,6 +119,32 @@ export function TaskRow({ task, onToggle, onOpen, onDelete }: TaskRowProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Swipe-left asks before deleting — covers the row until answered. */}
+      {confirmingDelete && (
+        <div
+          className="absolute inset-0 z-10 flex items-center gap-2 rounded-card px-3 shadow-card"
+          style={{ background: 'var(--color-surface)' }}
+        >
+          <span className="min-w-0 flex-1 truncate font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+            Delete “{task.title}”?
+          </span>
+          <button
+            className="rounded-full px-3 py-1.5 font-semibold"
+            style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-chip-bg)', color: 'var(--color-text)' }}
+            onClick={() => setConfirmingDelete(false)}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-full px-3 py-1.5 font-bold"
+            style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-danger)', color: '#fff' }}
+            onClick={() => onDelete?.(task.id)}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

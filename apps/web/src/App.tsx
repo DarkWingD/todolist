@@ -171,7 +171,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (view === 'notifications') {
     content = <NotificationsScreen onBack={() => setView('main')} />;
   } else if (tab === 'today') {
-    content = <TodayScreen me={me} onOpenTask={openTask} />;
+    content = <TodayScreen me={me} onOpenTask={openTask} onOpenYou={() => navigate('you')} />;
   } else if (tab === 'lists') {
     content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
   } else if (tab === 'cal') {

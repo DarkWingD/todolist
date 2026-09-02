@@ -279,6 +279,21 @@ export function ListDetailScreen({
                 style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
               />
             )}
+            <button
+              disabled={
+                !newItem.trim() ||
+                !remindAtFrom(remindPreset, customRemindAt) ||
+                quickAddReminder.isPending
+              }
+              onClick={() => {
+                addOne(newItem);
+                setNewItem('');
+              }}
+              className="ml-auto rounded-full px-4 py-1.5 font-bold text-accent-contrast disabled:opacity-50"
+              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+            >
+              Add
+            </button>
           </div>
         )}
       </div>
