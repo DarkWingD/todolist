@@ -14,6 +14,7 @@ import { ManageListsScreen } from './screens/ManageListsScreen';
 import { MealsScreen } from './screens/MealsScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { SignInScreen } from './screens/SignInScreen';
+import { WelcomeScreen } from './screens/WelcomeScreen';
 import { TaskDetailScreen } from './screens/TaskDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { YouScreen } from './screens/YouScreen';
@@ -53,13 +54,43 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
   };
 }
 
+// Per browser rather than per account: it exists to ask for notification
+// permission, which is a property of this browser, not of you.
+const WELCOME_KEY = 'todolist.seenWelcome';
+
+function hasSeenWelcome(): boolean {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === '1';
+  } catch {
+    // Storage blocked — better to show it again than to hide it wrongly.
+    return false;
+  }
+}
+
 export function App() {
   const { data: session, isPending } = useSession();
   const inviteToken = window.location.pathname.match(/^\/invite\/(.+)$/)?.[1];
+  const [welcomed, setWelcomed] = useState(hasSeenWelcome);
 
   if (isPending) return <Splash />;
   if (!session) return <SignInScreen />;
+  // An invite link is someone being pulled into a specific list; the tour can
+  // wait until they've accepted.
   if (inviteToken) return <InviteAcceptScreen token={inviteToken} />;
+  if (!welcomed) {
+    return (
+      <WelcomeScreen
+        onDone={() => {
+          try {
+            localStorage.setItem(WELCOME_KEY, '1');
+          } catch {
+            // It will simply appear again next time.
+          }
+          setWelcomed(true);
+        }}
+      />
+    );
+  }
   return <AuthedApp me={toSessionUser(session.user as Record<string, unknown>)} />;
 }
 
