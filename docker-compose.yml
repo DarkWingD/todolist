@@ -45,7 +45,7 @@ services:
       EMAIL_FROM: ${EMAIL_FROM}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@todolist.dansownsite.com}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@dansownsite.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +65,7 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@todolist.dansownsite.com}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@dansownsite.com}
     depends_on:
       postgres:
         condition: service_healthy

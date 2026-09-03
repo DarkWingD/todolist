@@ -8,7 +8,7 @@ const schema = z.object({
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
-  VAPID_SUBJECT: z.string().default('mailto:hello@todolist.dansownsite.com'),
+  VAPID_SUBJECT: z.string().default('mailto:hello@dansownsite.com'),
 });
 
 // Treat empty strings (Docker Compose passes "" for unset vars) as undefined.
