@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { formatShoppingText } from '@todolist/kitchen-ui';
 import { share } from '../platform';
+import { shareShoppingList } from '../shareList';
 import { exportStore, importStore, shoppingAdapter } from '../store/memory';
 import {
   APPEARANCES,
@@ -91,9 +91,7 @@ export function Settings({
   }
 
   async function onShareList() {
-    const text = formatShoppingText(await shoppingAdapter.getItems());
-    await share.shareText('Shopping list', text);
-    setNote({ ok: true, text: share.describe.text });
+    setNote({ ok: true, text: await shareShoppingList(await shoppingAdapter.getItems()) });
   }
 
   async function onImport(file: File) {

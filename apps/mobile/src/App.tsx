@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MealWeek, ShoppingList } from '@todolist/kitchen-ui';
 import { useEffect, useState } from 'react';
 import { Settings } from './screens/Settings';
+import { shareShoppingList } from './shareList';
 import { Welcome } from './screens/Welcome';
 import { flush, initStore, mealAdapter, shoppingAdapter } from './store/memory';
 import { hasSeenWelcome, markWelcomeSeen, usePrefs } from './theme';
@@ -98,7 +99,12 @@ export function App() {
       <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg">
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3">
           {tab === 'meals' && <MealWeek adapter={mealAdapter} />}
-          {tab === 'shopping' && <ShoppingList adapter={shoppingAdapter} />}
+          {tab === 'shopping' && (
+            <ShoppingList
+              adapter={shoppingAdapter}
+              onShare={(items) => void shareShoppingList(items)}
+            />
+          )}
           {tab === 'settings' && <Settings prefs={prefs} setPrefs={setPrefs} />}
         </main>
 

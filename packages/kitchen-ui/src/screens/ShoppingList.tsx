@@ -11,7 +11,39 @@ import type { ShoppingAdapter, ShoppingItem } from '../adapter';
  * buy" with the bought lines struck through, so you watch it fill up as you
  * shop, and only drops to "Bought" when you tick the meal itself.
  */
-export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
+/** The usual three-node share glyph, drawn to match the app's stroke icons. */
+function ShareIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+    </svg>
+  );
+}
+
+export function ShoppingList({
+  adapter,
+  onShare,
+}: {
+  adapter: ShoppingAdapter;
+  /**
+   * Hand the list to wherever the platform sends text. Absent where there is
+   * nowhere to send it, and the control is then hidden rather than shown inert.
+   */
+  onShare?: (items: ShoppingItem[]) => void | Promise<void>;
+}) {
   const qc = useQueryClient();
   const [newItem, setNewItem] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -179,12 +211,29 @@ export function ShoppingList({ adapter }: { adapter: ShoppingAdapter }) {
         </div>
       </div>
 
-      <h2
-        className="mb-d2 mt-d4 font-bold uppercase text-muted"
-        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-      >
-        To buy
-      </h2>
+      {/* Share sits on the section heading's own row rather than a line of its
+          own: it's a secondary action and shouldn't cost a whole row of a list
+          you read while walking around a shop. Hidden while the list is empty,
+          since there is nothing to send. */}
+      <div className="mb-d2 mt-d4 flex items-center justify-between">
+        <h2
+          className="font-bold uppercase text-muted"
+          style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+        >
+          To buy
+        </h2>
+        {onShare && items.length > 0 && (
+          <button
+            type="button"
+            onClick={() => void onShare(items)}
+            className="-my-1 flex items-center gap-1.5 py-1 pl-2 text-muted"
+            style={{ fontSize: 'var(--fs-xs)' }}
+          >
+            <ShareIcon />
+            Share list
+          </button>
+        )}
+      </div>
       {isLoading ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Loading…

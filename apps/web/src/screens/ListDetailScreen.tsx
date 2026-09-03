@@ -1,7 +1,8 @@
-import { ShoppingList, type ShoppingAdapter } from '@todolist/kitchen-ui';
+import { ShoppingList, formatShoppingText, type ShoppingAdapter } from '@todolist/kitchen-ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarStack } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
+import { shareOrCopy } from '../lib/shareText';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { TaskRow } from '../components/TaskRow';
@@ -374,7 +375,10 @@ export function ListDetailScreen({
       )}
 
       {isChecklist ? (
-        <ShoppingList adapter={shoppingAdapter} />
+        <ShoppingList
+          adapter={shoppingAdapter}
+          onShare={(items) => void shareOrCopy(list.name, formatShoppingText(items))}
+        />
       ) : (
         <>
           {/* Rapid add — Enter to add and keep typing; paste multiple lines = multiple items. */}
