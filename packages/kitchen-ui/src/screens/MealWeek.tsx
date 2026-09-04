@@ -282,8 +282,33 @@ export function MealWeek({
                 ref={(el) => {
                   slotRefs.current[i] = el;
                 }}
-                className={clsx(expanded && 'md:col-span-7')}
+                className={clsx('md:flex md:flex-col md:gap-1', expanded && 'md:col-span-7')}
               >
+                {/* On the board the date belongs above its cell, as a column
+                    heading — inside the card it competes with the meal name for
+                    a width that no longer exists. Hidden when the card expands,
+                    since that card carries its own header. */}
+                {!expanded && (
+                  <div
+                    className={clsx(
+                      'hidden px-0.5 pb-0.5 md:block',
+                      sameDay(d, today) ? 'text-accent' : 'text-muted',
+                    )}
+                  >
+                    <span
+                      className="block font-bold uppercase"
+                      style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.07em' }}
+                    >
+                      {WEEKDAY_SHORT[i]}
+                    </span>
+                    <span
+                      className={clsx('block font-bold', !sameDay(d, today) && 'text-text')}
+                      style={{ fontSize: 'var(--fs-lg)', lineHeight: 1.1 }}
+                    >
+                      {d.getDate()}
+                    </span>
+                  </div>
+                )}
                 <MealDayCard
                   weekday={WEEKDAY_SHORT[i]!}
                   dayNum={d.getDate()}

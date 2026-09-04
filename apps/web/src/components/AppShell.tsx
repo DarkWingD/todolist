@@ -46,8 +46,10 @@ export function AppShell({
   return (
     <div
       className={clsx(
-        'relative mx-auto flex h-[100dvh] flex-col overflow-hidden bg-bg md:flex-row',
-        wide ? 'max-w-md md:max-w-6xl' : 'max-w-md md:max-w-5xl',
+        // Phone: a centred column. Desktop: the shell fills the window so the
+        // rail sits against its left edge, and the content centres inside
+        // whatever is left rather than inheriting the phone's centring.
+        'relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg md:mx-0 md:max-w-none md:flex-row',
       )}
     >
       {/* Desktop rail. The same five destinations as the phone's tab bar, moved
@@ -87,7 +89,12 @@ export function AppShell({
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
         {/* Wide screens get room, but a list of tasks still reads badly at 1000px,
             so only the board opts out of a comfortable measure. */}
-        <div className={clsx('flex min-h-0 w-full flex-1 flex-col', !wide && 'md:max-w-3xl')}>
+        <div
+          className={clsx(
+            'flex min-h-0 w-full flex-1 flex-col md:mx-auto',
+            wide ? 'md:max-w-6xl' : 'md:max-w-3xl',
+          )}
+        >
           {children}
         </div>
       </main>

@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { motion, useDragControls, type PanInfo } from 'framer-motion';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 
 export interface MealEntry {
   date: string;
@@ -143,7 +143,7 @@ export function MealDayCard({
       {(railUp || railDown) && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute"
+          className="pointer-events-none absolute md:hidden"
           style={{
             left: 33,
             top: railUp ? -10 : 34,
@@ -172,28 +172,48 @@ export function MealDayCard({
         }}
         className={clsx(
           'flex gap-d3 rounded-card p-d3',
-          expanded ? 'flex-col shadow-lg' : 'items-start shadow-card',
+          expanded ? 'flex-col shadow-lg' : 'items-start shadow-card md:min-h-[116px]',
+          // An unplanned day on the board is a gap to fill, not a card worth the
+          // same weight as a planned one — so on desktop only it becomes a
+          // dashed outline. The phone keeps solid cards, where a row of dashes
+          // down the screen would read as broken rather than empty.
+          !entry &&
+            !expanded &&
+            'md:border md:border-dashed md:border-border md:shadow-none md:[--cell-bg:transparent]',
         )}
-        style={{
-          position: 'relative',
-          zIndex: dragging ? 5 : undefined,
-          boxShadow: dragging ? '0 12px 26px rgba(0,0,0,.24)' : undefined,
-          background:
-            entry?.isLeftover && !expanded
-              ? 'color-mix(in srgb, var(--color-surface) 62%, transparent)'
-              : isWeekend
-                ? 'color-mix(in srgb, var(--color-weekend), var(--color-surface))'
-                : 'var(--color-surface)',
-          outline: expanded ? '1px solid var(--color-accent)' : undefined,
-        }}
+        style={
+          {
+            position: 'relative',
+            zIndex: dragging ? 5 : undefined,
+            boxShadow: dragging ? '0 12px 26px rgba(0,0,0,.24)' : undefined,
+            // Held in a variable rather than set directly, so the class above can
+            // override it at a breakpoint — an inline background could not be.
+            '--cell-bg':
+              entry?.isLeftover && !expanded
+                ? 'color-mix(in srgb, var(--color-surface) 62%, transparent)'
+                : isWeekend
+                  ? 'color-mix(in srgb, var(--color-weekend), var(--color-surface))'
+                  : 'var(--color-surface)',
+            background: 'var(--cell-bg)',
+            outline: expanded ? '1px solid var(--color-accent)' : undefined,
+          } as CSSProperties
+        }
       >
-        <div className={clsx('flex w-full gap-d3', expanded ? 'items-center' : 'items-start')}>
+        <div
+          className={clsx(
+            'flex w-full gap-d3',
+            expanded ? 'items-center' : 'items-start md:flex-col md:gap-1',
+          )}
+        >
           <button
             type="button"
             onClick={onToggleOpen}
             aria-expanded={expanded}
             aria-label={`${weekday} ${dayNum}${entry ? `, ${entry.name}` : ', nothing planned'}`}
-            className="flex flex-none flex-col items-center rounded-emoji"
+            className={clsx(
+              'flex flex-none flex-col items-center rounded-emoji',
+              !expanded && 'md:hidden',
+            )}
             style={{
               width: 44,
               padding: '6px 0',
@@ -266,7 +286,10 @@ export function MealDayCard({
                   </span>
                 </>
               ) : (
-                <span className="italic text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+                <span
+                  className="block italic text-muted md:text-center"
+                  style={{ fontSize: 'var(--fs-sm)' }}
+                >
                   Nothing planned
                 </span>
               )}
