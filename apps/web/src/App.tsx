@@ -236,7 +236,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
       onNavigate={navigate}
       showFab={showFab}
       onAdd={onAdd}
-      wide={view === 'main' && tab === 'meals'}
+      wide={view === 'main' && (tab === 'meals' || tab === 'cal')}
       overlay={
         <QuickAddSheet
           open={sheetOpen}

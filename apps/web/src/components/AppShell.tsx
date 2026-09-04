@@ -27,9 +27,11 @@ interface AppShellProps {
   /** Overlays (e.g. bottom sheets) rendered at the shell root, above the nav. */
   overlay?: ReactNode;
   /**
-   * Let the screen use the full width on a large display instead of the phone
-   * column. Only the meal week board wants this — everything else reads better
-   * in one column, so it stays opt-in.
+   * Let the screen fill the window instead of sitting in a reading column.
+   *
+   * The grids want it — a month and a meal week both get better the wider they
+   * are. Lists of text do not: a task title spanning 1800px is harder to read,
+   * not easier, so those stay measured and this is opt-in.
    */
   wide?: boolean;
 }
@@ -87,12 +89,12 @@ export function AppShell({
       </nav>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
-        {/* Wide screens get room, but a list of tasks still reads badly at 1000px,
-            so only the board opts out of a comfortable measure. */}
+        {/* Grids fill the window; reading columns keep a measure and centre in
+            what's left. */}
         <div
           className={clsx(
             'flex min-h-0 w-full flex-1 flex-col md:mx-auto',
-            wide ? 'md:max-w-6xl' : 'md:max-w-3xl',
+            wide ? 'md:max-w-none' : 'md:max-w-3xl',
           )}
         >
           {children}
