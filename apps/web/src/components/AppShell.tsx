@@ -46,18 +46,58 @@ export function AppShell({
   return (
     <div
       className={clsx(
-        'relative mx-auto flex h-[100dvh] flex-col overflow-hidden bg-bg',
-        wide ? 'max-w-md md:max-w-5xl' : 'max-w-md',
+        'relative mx-auto flex h-[100dvh] flex-col overflow-hidden bg-bg md:flex-row',
+        wide ? 'max-w-md md:max-w-6xl' : 'max-w-md md:max-w-5xl',
       )}
     >
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3">{children}</main>
+      {/* Desktop rail. The same five destinations as the phone's tab bar, moved
+          to the side: a bottom bar on a monitor puts navigation as far from the
+          content as the screen allows, and wastes the width that made the
+          desktop layout worth doing. */}
+      <nav className="hidden md:flex md:w-52 md:flex-none md:flex-col md:gap-1 md:border-r md:border-border md:px-3 md:py-4">
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="mb-d3 flex items-center gap-2 rounded-full px-4 py-2.5 font-bold text-accent-contrast"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+          >
+            <span style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
+            Add
+          </button>
+        )}
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onNavigate(t.id)}
+            aria-current={active === t.id ? 'page' : undefined}
+            className={clsx(
+              'flex items-center gap-3 rounded-card px-3 py-2.5 text-left',
+              active === t.id ? 'font-bold text-accent' : 'text-muted hover:text-text',
+            )}
+            style={active === t.id ? { background: 'var(--color-accent-soft)' } : undefined}
+          >
+            <NavIcon tab={t.id} />
+            <span style={{ fontSize: 'var(--fs-sm)' }}>{t.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
+        {/* Wide screens get room, but a list of tasks still reads badly at 1000px,
+            so only the board opts out of a comfortable measure. */}
+        <div className={clsx('flex min-h-0 w-full flex-1 flex-col', !wide && 'md:max-w-3xl')}>
+          {children}
+        </div>
+      </main>
 
       {showFab && onAdd && (
         <button
           type="button"
           onClick={onAdd}
           aria-label="Add task"
-          className="absolute grid place-items-center rounded-fab text-accent-contrast"
+          className="absolute grid place-items-center rounded-fab text-accent-contrast md:hidden"
           style={{
             right: 18,
             bottom: 'calc(76px + env(safe-area-inset-bottom))',
@@ -73,7 +113,7 @@ export function AppShell({
       )}
 
       <nav
-        className="flex flex-none items-center justify-around border-t border-border"
+        className="flex flex-none items-center justify-around border-t border-border md:hidden"
         style={{
           height: 'calc(64px + env(safe-area-inset-bottom))',
           paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
