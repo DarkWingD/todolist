@@ -141,10 +141,14 @@ export function MealWeek({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="mb-d3 flex flex-col gap-d3">
-        <div className="flex items-baseline gap-d2">
+      {/* Phone: title, then week nav, then a full-width send button at the foot.
+          Desktop: one toolbar — title, week nav and the week's action share a
+          line, so the seven-column board starts near the top of the window
+          rather than below a stack of phone-shaped rows. */}
+      <header className="mb-d3 flex flex-col gap-d3 md:flex-row md:flex-wrap md:items-center md:gap-d3">
+        <div className="flex items-baseline gap-d2 md:flex-none">
           <h1
-            className="font-head flex-1"
+            className="font-head flex-1 md:flex-none"
             style={{
               fontSize: 'var(--fs-big)',
               fontWeight: 'var(--title-weight)',
@@ -167,8 +171,10 @@ export function MealWeek({
           )}
         </div>
 
+        {/* Ordered last on desktop so opening it drops a full-width panel below
+            the toolbar instead of squeezing into it. */}
         {sharing && planId && adapter.invite && (
-          <div className="flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card">
+          <div className="flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card md:order-last md:w-full">
             <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
               Invite someone to plan meals with you. They'll get a link by email.
             </span>
@@ -201,7 +207,7 @@ export function MealWeek({
           </div>
         )}
 
-        <div className="flex items-center gap-d2">
+        <div className="flex items-center gap-d2 md:ml-auto md:flex-none">
           <button
             type="button"
             aria-label="Previous week"
@@ -211,7 +217,10 @@ export function MealWeek({
           >
             ‹
           </button>
-          <span className="flex-1 text-center font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+          <span
+            className="flex-1 whitespace-nowrap text-center font-semibold md:flex-none"
+            style={{ fontSize: 'var(--fs-base)' }}
+          >
             {fmtDay(days[0]!)} – {fmtDay(days[6]!)} {days[6]!.getFullYear()}
           </span>
           <button
@@ -238,6 +247,20 @@ export function MealWeek({
             </button>
           )}
         </div>
+
+        {/* Desktop only. The phone keeps the full-width button at the foot of
+            the list, which is where your thumb already is after reading the
+            week; on a wide screen that button would be a stripe of accent
+            colour a long way from everything else. */}
+        <button
+          type="button"
+          disabled={!planId || toShopping.isPending || entries.length === 0}
+          onClick={() => planId && toShopping.mutate({ planId, from, to })}
+          className="hidden flex-none rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50 md:inline-flex"
+          style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+        >
+          {toShopping.isPending ? 'Adding…' : '🛒 Send week to shopping list'}
+        </button>
       </header>
 
       {planLoading || (weekLoading && entries.length === 0) ? (
@@ -313,7 +336,7 @@ export function MealWeek({
         </div>
       )}
 
-      <div className="mt-d4 flex gap-d2 pb-2">
+      <div className="mt-d4 flex gap-d2 pb-2 md:hidden">
         <button
           type="button"
           disabled={!planId || toShopping.isPending || entries.length === 0}
