@@ -282,7 +282,12 @@ export function MealWeek({
                 ref={(el) => {
                   slotRefs.current[i] = el;
                 }}
-                className={clsx('md:flex md:flex-col md:gap-1', expanded && 'md:col-span-7')}
+                // The cell keeps its place in the week while its editor is open:
+                // a min-height holds the column open, and the editor floats
+                // above as a popover. Spanning the row instead would push the
+                // remaining days below the fold and stretch every input to the
+                // full width of the board.
+                className={clsx('md:relative md:flex md:min-h-[9rem] md:flex-col md:gap-1')}
               >
                 {/* On the board the date belongs above its cell, as a column
                     heading — inside the card it competes with the meal name for
@@ -309,52 +314,62 @@ export function MealWeek({
                     </span>
                   </div>
                 )}
-                <MealDayCard
-                  weekday={WEEKDAY_SHORT[i]!}
-                  dayNum={d.getDate()}
-                  isToday={sameDay(d, today)}
-                  isWeekend={i >= 5}
-                  entry={entry}
-                  meals={meals}
-                  expanded={expanded}
-                  busy={busy}
-                  onToggleOpen={() => setOpenDate(expanded ? null : key)}
-                  onPick={(v) => {
-                    if (!planId) return;
-                    // Naming a meal on a leftover night starts a new cook there;
-                    // adjusting the span belongs to the original cook's day.
-                    const target = v.name ? key : anchor;
-                    setDay.mutate({ planId, date: target, ...v });
-                  }}
-                  onClear={() => {
-                    if (!planId || !entry) return;
-                    if (entry.isLeftover) {
-                      // Stop the leftovers here rather than deleting a row that
-                      // this day never had.
-                      setDay.mutate({
+                {/* Anchored to whichever edge keeps it on screen: a 26rem panel
+                    hanging off Sunday would run past the right of the board. */}
+                <div
+                  className={clsx(
+                    expanded &&
+                      'md:absolute md:top-0 md:z-30 md:max-h-[75vh] md:w-[26rem] md:overflow-y-auto md:rounded-card md:shadow-2xl',
+                    expanded && (i >= 4 ? 'md:right-0' : 'md:left-0'),
+                  )}
+                >
+                  <MealDayCard
+                    weekday={WEEKDAY_SHORT[i]!}
+                    dayNum={d.getDate()}
+                    isToday={sameDay(d, today)}
+                    isWeekend={i >= 5}
+                    entry={entry}
+                    meals={meals}
+                    expanded={expanded}
+                    busy={busy}
+                    onToggleOpen={() => setOpenDate(expanded ? null : key)}
+                    onPick={(v) => {
+                      if (!planId) return;
+                      // Naming a meal on a leftover night starts a new cook there;
+                      // adjusting the span belongs to the original cook's day.
+                      const target = v.name ? key : anchor;
+                      setDay.mutate({ planId, date: target, ...v });
+                    }}
+                    onClear={() => {
+                      if (!planId || !entry) return;
+                      if (entry.isLeftover) {
+                        // Stop the leftovers here rather than deleting a row that
+                        // this day never had.
+                        setDay.mutate({
+                          planId,
+                          date: entry.cookDate,
+                          mealId: entry.mealId,
+                          cookSpan: entry.night - 1,
+                        });
+                      } else {
+                        clearDay.mutate({ planId, date: key });
+                      }
+                      setOpenDate(null);
+                    }}
+                    onPushNextWeek={() => {
+                      if (!planId || !entry) return;
+                      moveDay.mutate({
                         planId,
-                        date: entry.cookDate,
-                        mealId: entry.mealId,
-                        cookSpan: entry.night - 1,
+                        from: anchor,
+                        to: toKey(addDays(new Date(`${anchor}T00:00:00`), 7)),
                       });
-                    } else {
-                      clearDay.mutate({ planId, date: key });
-                    }
-                    setOpenDate(null);
-                  }}
-                  onPushNextWeek={() => {
-                    if (!planId || !entry) return;
-                    moveDay.mutate({
-                      planId,
-                      from: anchor,
-                      to: toKey(addDays(new Date(`${anchor}T00:00:00`), 7)),
-                    });
-                    setOpenDate(null);
-                  }}
-                  onEditMeal={(v) => editMeal.mutate(v)}
-                  onToggleFavourite={(id, next) => favourite.mutate({ id, isFavourite: next })}
-                  onDragEndY={(offsetY) => onDropFrom(i, offsetY)}
-                />
+                      setOpenDate(null);
+                    }}
+                    onEditMeal={(v) => editMeal.mutate(v)}
+                    onToggleFavourite={(id, next) => favourite.mutate({ id, isFavourite: next })}
+                    onDragEndY={(offsetY) => onDropFrom(i, offsetY)}
+                  />
+                </div>
               </div>
             );
           })}
