@@ -23,7 +23,11 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   const setWeekStart = trpc.prefs.setWeekStart.useMutation({
     onSuccess: () => utils.prefs.get.invalidate(),
   });
+  const setKidsVisible = trpc.prefs.setKidsVisible.useMutation({
+    onSuccess: () => utils.prefs.get.invalidate(),
+  });
   const showMeals = serverPrefs?.showMeals ?? true;
+  const showKids = serverPrefs?.showKids ?? true;
   const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
 
   function apply(patch: Partial<ThemePrefs>) {
@@ -193,6 +197,24 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
         </label>
         <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
           Hides the tab. Your meal plan and its shopping list stay exactly as they are.
+        </p>
+
+        <label className="mt-d3 flex items-center gap-3">
+          <input
+            type="checkbox"
+
+            checked={showKids}
+
+            onChange={(e) => setKidsVisible.mutate({ showKids: e.target.checked })}
+
+            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
+          />
+
+          <span style={{ fontSize: 'var(--fs-base)' }}>Show kids on Today</span>
+        </label>
+
+        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+          Hides the &ldquo;Where everyone is&rdquo; section. The children themselves stay in Lists.
         </p>
       </div>
     </>

@@ -2,6 +2,7 @@ import { router } from './trpc.js';
 import { accountRouter } from './routers/account.js';
 import { birthdaysRouter } from './routers/birthdays.js';
 import { calendarRouter } from './routers/calendar.js';
+import { childrenRouter } from './routers/children.js';
 import { eventsRouter } from './routers/events.js';
 import { invitesRouter } from './routers/invites.js';
 import { listsRouter } from './routers/lists.js';
@@ -21,6 +22,7 @@ export const appRouter = router({
   invites: invitesRouter,
   search: searchRouter,
   calendar: calendarRouter,
+  children: childrenRouter,
   events: eventsRouter,
   birthdays: birthdaysRouter,
   account: accountRouter,

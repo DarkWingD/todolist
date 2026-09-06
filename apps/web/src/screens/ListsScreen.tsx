@@ -74,7 +74,7 @@ export function ListsScreen({
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('📝');
   const [color, setColor] = useState<string | null>(null);
-  const [type, setType] = useState<'tasks' | 'checklist'>('tasks');
+  const [type, setType] = useState<'tasks' | 'checklist' | 'child'>('tasks');
 
   // The floating + button opens the create form — but only when actually tapped
   // (signal changes), not on mount when returning to the tab.
@@ -87,6 +87,18 @@ export function ListsScreen({
       setColor(pickUnusedColor(lists.map((l) => l.color)));
     }
   }, [createSignal, lists]);
+
+  const createChild = trpc.children.create.useMutation({
+    onSuccess: () => {
+      utils.lists.mine.invalidate();
+      utils.children.mine.invalidate();
+      setCreating(false);
+      setName('');
+      setEmoji('📝');
+      setColor(null);
+      setType('tasks');
+    },
+  });
 
   const create = trpc.lists.create.useMutation({
     onSuccess: () => {
@@ -226,6 +238,7 @@ export function ListsScreen({
                   [
                     { v: 'tasks', label: '✓ Tasks' },
                     { v: 'checklist', label: '🛒 Shopping' },
+                    { v: 'child', label: '🧒 Child' },
                   ] as const
                 ).map((o) => (
                   <button
@@ -234,7 +247,8 @@ export function ListsScreen({
                       setType(o.v);
                       // Give a sensible default icon for a shopping list.
                       if (o.v === 'checklist' && emoji === '📝') setEmoji('🛒');
-                      if (o.v === 'tasks' && emoji === '🛒') setEmoji('📝');
+                      if (o.v === 'child' && (emoji === '📝' || emoji === '🛒')) setEmoji('🧒');
+                      if (o.v === 'tasks' && (emoji === '🛒' || emoji === '🧒')) setEmoji('📝');
                     }}
                     className="flex-1 rounded-md py-1.5 font-semibold"
                     style={{
@@ -264,17 +278,18 @@ export function ListsScreen({
                   Cancel
                 </button>
                 <button
-                  disabled={!name.trim() || create.isPending}
+                  disabled={!name.trim() || create.isPending || createChild.isPending}
                   className="rounded-lg px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
                   style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-                  onClick={() =>
-                    create.mutate({
+                  onClick={() => {
+                    const common = {
                       name: name.trim(),
                       emojiIcon: emoji,
                       color: color ?? undefined,
-                      type,
-                    })
-                  }
+                    };
+                    if (type === 'child') createChild.mutate(common);
+                    else create.mutate({ ...common, type });
+                  }}
                 >
                   Create
                 </button>

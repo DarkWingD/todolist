@@ -232,3 +232,62 @@ export const pushSubscribeSchema = z.object({
   p256dh: z.string().min(1),
   auth: z.string().min(1),
 });
+
+// ─────────────────────────── kids ───────────────────────────
+
+/** Date.getDay() numbering: 0 = Sunday … 6 = Saturday. */
+export const weekdaySchema = z.number().int().min(0).max(6);
+
+/** "HH:MM", 24-hour. Times are local to the family; no timezone is stored. */
+export const timeOfDaySchema = z.string().regex(/^([01]d|2[0-3]):[0-5]d$/, 'Must be HH:MM');
+
+export const createChildSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  emojiIcon: emojiSchema,
+  color: hexColorSchema.optional(),
+});
+export type CreateChildInput = z.infer<typeof createChildSchema>;
+
+/**
+ * The whole week in one call.
+ *
+ * A weekly pattern is edited as a unit — you decide Bobby does Tuesdays and
+ * Thursdays, not that Tuesday changed — and replacing the set avoids a
+ * half-applied week if one row of several fails.
+ */
+export const setChildDaysSchema = z.object({
+  listId: z.string().uuid(),
+  days: z
+    .array(
+      z.object({
+        weekday: weekdaySchema,
+        place: z.string().trim().min(1).max(120),
+        startTime: timeOfDaySchema.nullable().optional(),
+        endTime: timeOfDaySchema.nullable().optional(),
+      }),
+    )
+    .max(7),
+});
+
+export const upsertSchoolPeriodSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    listId: z.string().uuid(),
+    kind: z.enum(['term', 'break', 'closure']),
+    name: z.string().trim().min(1).max(120),
+    startDate: planDateSchema,
+    endDate: planDateSchema,
+  })
+  .refine((v) => v.endDate >= v.startDate, {
+    message: 'End date cannot be before the start date',
+    path: ['endDate'],
+  });
+
+export const updateChildProfileSchema = z.object({
+  listId: z.string().uuid(),
+  className: z.string().trim().max(120).nullable().optional(),
+  room: z.string().trim().max(120).nullable().optional(),
+  teacher: z.string().trim().max(120).nullable().optional(),
+  officePhone: z.string().trim().max(40).nullable().optional(),
+  medicalNotes: z.string().max(5000).nullable().optional(),
+});

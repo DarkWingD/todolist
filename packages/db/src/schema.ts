@@ -30,7 +30,9 @@ export const appearanceEnum = pgEnum('appearance', ['system', 'light', 'dark']);
 export const densityEnum = pgEnum('density', ['comfortable', 'cozy', 'compact']);
 export const priorityEnum = pgEnum('priority', ['none', 'low', 'medium', 'high']);
 export const listRoleEnum = pgEnum('list_role', ['owner', 'member']);
-export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist']);
+export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist', 'child']);
+/** A term is in session; a break is not; a closure is a single day off inside a term. */
+export const schoolPeriodKindEnum = pgEnum('school_period_kind', ['term', 'break', 'closure']);
 export const inviteStatusEnum = pgEnum('invite_status', [
   'pending',
   'accepted',
@@ -117,6 +119,7 @@ export const userPrefs = pgTable('user_prefs', {
   // Not everyone plans meals. Hiding the tab is a preference, not a deletion —
   // the plan and its data stay exactly where they were.
   showMeals: boolean('show_meals').notNull().default(true),
+  showKids: boolean('show_kids').notNull().default(true),
   // 1 = Monday, 0 = Sunday, matching Date.getDay(). Applies to the meal week and
   // the calendar alike; two different first-days in one app would be worse than
   // either choice.
@@ -487,6 +490,69 @@ export const mealPlanDay = pgTable(
     uniqueIndex('meal_plan_day_plan_date_idx').on(t.planId, t.date),
   ],
 );
+
+/**
+ * A child is a list of type 'child', so it already has a name, an icon, members
+ * and the ability to hold tasks and events. These three tables add only what a
+ * list cannot express.
+ */
+
+/** Where a child is on each weekday. One row per day they go somewhere. */
+export const childDay = pgTable(
+  'child_day',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => list.id, { onDelete: 'cascade' }),
+    // Date.getDay() numbering: 0 = Sunday. Stored raw so it needs no
+    // translation when compared against a real date.
+    weekday: smallint('weekday').notNull(),
+    place: text('place').notNull(),
+    // "HH:MM", local to the family. A day with no times is still a valid day.
+    startTime: text('start_time'),
+    endTime: text('end_time'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('child_day_list_weekday_idx').on(t.listId, t.weekday)],
+);
+
+/**
+ * Term dates, holidays and pupil-free days.
+ *
+ * Without these the weekly pattern says "school" on the first Monday of the
+ * holidays, and stops being worth trusting. A closure is a one-day range, so
+ * all three kinds share a shape.
+ */
+export const schoolPeriod = pgTable(
+  'school_period',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => list.id, { onDelete: 'cascade' }),
+    kind: schoolPeriodKindEnum('kind').notNull(),
+    name: text('name').notNull(),
+    startDate: date('start_date', { mode: 'string' }).notNull(),
+    endDate: date('end_date', { mode: 'string' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('school_period_list_idx').on(t.listId)],
+);
+
+/** The details you otherwise hunt for in an email. One row per child. */
+export const childProfile = pgTable('child_profile', {
+  listId: uuid('list_id')
+    .primaryKey()
+    .references(() => list.id, { onDelete: 'cascade' }),
+  className: text('class_name'),
+  room: text('room'),
+  teacher: text('teacher'),
+  officePhone: text('office_phone'),
+  // Allergies, medication, anything a carer would need in a hurry.
+  medicalNotes: text('medical_notes'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ─────────────────────────── relations ───────────────────────────
 export const userRelations = relations(user, ({ many, one }) => ({

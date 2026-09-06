@@ -8,7 +8,7 @@ export interface SessionUser {
   image: string | null;
 }
 
-export type ListType = 'tasks' | 'checklist';
+export type ListType = 'tasks' | 'checklist' | 'child';
 
 // A list row from lists.mine / lists.reminders (includes computed counts).
 export interface ListSummary {

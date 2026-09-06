@@ -12,10 +12,14 @@ export function TodayScreen({
   me,
   onOpenTask,
   onOpenYou,
+  onOpenChild,
+  showKids = true,
 }: {
   me: SessionUser;
   onOpenTask: (id: string) => void;
   onOpenYou: () => void;
+  onOpenChild?: (id: string) => void;
+  showKids?: boolean;
 }) {
   const utils = trpc.useUtils();
   const until = (() => {
@@ -27,6 +31,8 @@ export function TodayScreen({
 
   const { data: tasks = [], isLoading } = trpc.tasks.agenda.useQuery({ until });
   const { data: flagged = [] } = trpc.tasks.highPriority.useQuery();
+  // Where each child is today, already crossed with term dates server-side.
+  const { data: children = [] } = trpc.children.mine.useQuery(undefined, { enabled: showKids });
   const toggle = trpc.tasks.toggle.useMutation({
     onSuccess: () => {
       utils.tasks.agenda.invalidate();
@@ -86,6 +92,56 @@ export function TodayScreen({
           <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
         </button>
       </header>
+
+      {showKids && children.length > 0 && (
+        <div className="mb-d4">
+          <h2 className="mb-d2 font-bold uppercase" style={sectionH('var(--color-muted)')}>
+            Where everyone is
+          </h2>
+
+          <div className="flex flex-col gap-d2 md:grid md:grid-cols-2">
+            {children.map((c) => (
+              <button
+                key={c.id}
+
+                type="button"
+
+                onClick={() => onOpenChild?.(c.id)}
+
+                className="flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+              >
+                <span
+                  className="grid h-9 w-9 flex-none place-items-center rounded-emoji"
+
+                  style={{
+                    fontSize: 18,
+
+                    background: c.color
+                      ? `color-mix(in srgb, ${c.color} 22%, var(--color-surface))`
+                      : 'var(--color-emoji-bg)',
+                  }}
+                >
+                  {c.emojiIcon}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    {c.name}
+                  </span>
+
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    {c.offReason
+                      ? c.offReason
+                      : c.place
+                        ? `${c.place}${c.startTime ? ` · ${c.startTime}${c.endTime ? `–${c.endTime}` : ''}` : ''}`
+                        : 'Nothing on today'}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>

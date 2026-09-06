@@ -6,6 +6,7 @@ import { trpc } from './lib/trpc';
 import { AccountScreen } from './screens/AccountScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
 import { CalScreen } from './screens/CalScreen';
+import { ChildScreen } from './screens/ChildScreen';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
 import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
@@ -25,7 +26,7 @@ interface MinList {
   id: string;
   name: string;
   emojiIcon: string;
-  type?: 'tasks' | 'checklist';
+  type?: 'tasks' | 'checklist' | 'child';
   systemKey?: string | null;
 }
 
@@ -102,12 +103,14 @@ type View =
   | 'account'
   | 'privacy'
   | 'manageLists'
-  | 'notifications';
+  | 'notifications'
+  | 'child';
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
   const { data: serverPrefs } = trpc.prefs.get.useQuery();
   const showMeals = serverPrefs?.showMeals ?? true;
+  const showKids = serverPrefs?.showKids ?? true;
   const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
   const { data: lists = [] } = trpc.lists.mine.useQuery();
 
@@ -153,7 +156,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
   function openList(l: MinList) {
     setSelectedList(l);
-    setView('listDetail');
+    setView(l.type === 'child' ? 'child' : 'listDetail');
   }
   function openTask(id: string) {
     setSelectedTaskId(id);
@@ -171,19 +174,21 @@ function AuthedApp({ me }: { me: SessionUser }) {
   }
 
   const activeTab: TabId =
-    view === 'appearance' ||
-    view === 'account' ||
-    view === 'privacy' ||
-    view === 'manageLists' ||
-    view === 'notifications'
-      ? 'you'
-      : view === 'listDetail'
-        ? 'lists'
-        : view === 'taskDetail'
-          ? taskReturn.view === 'listDetail'
-            ? 'lists'
-            : taskReturn.tab
-          : tab;
+    view === 'child'
+      ? 'lists'
+      : view === 'appearance' ||
+          view === 'account' ||
+          view === 'privacy' ||
+          view === 'manageLists' ||
+          view === 'notifications'
+        ? 'you'
+        : view === 'listDetail'
+          ? 'lists'
+          : view === 'taskDetail'
+            ? taskReturn.view === 'listDetail'
+              ? 'lists'
+              : taskReturn.tab
+            : tab;
   const showFab =
     (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
     view === 'listDetail';
@@ -191,6 +196,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
   let content;
   if (view === 'taskDetail' && selectedTaskId) {
     content = <TaskDetailScreen taskId={selectedTaskId} onBack={closeTask} />;
+  } else if (view === 'child' && selectedList) {
+    content = <ChildScreen listId={selectedList.id} onBack={() => navigate('lists')} />;
   } else if (view === 'listDetail' && selectedList) {
     content = (
       <ListDetailScreen
@@ -211,7 +218,18 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (view === 'notifications') {
     content = <NotificationsScreen onBack={() => setView('main')} />;
   } else if (tab === 'today') {
-    content = <TodayScreen me={me} onOpenTask={openTask} onOpenYou={() => navigate('you')} />;
+    content = (
+      <TodayScreen
+        me={me}
+        onOpenTask={openTask}
+        onOpenYou={() => navigate('you')}
+        showKids={showKids}
+        onOpenChild={(id) => {
+          setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
+          setView('child');
+        }}
+      />
+    );
   } else if (tab === 'lists') {
     content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
   } else if (tab === 'cal') {

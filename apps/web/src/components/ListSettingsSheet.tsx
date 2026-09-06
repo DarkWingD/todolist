@@ -9,7 +9,7 @@ interface Props {
     name: string;
     emojiIcon: string;
     color?: string | null;
-    type?: 'tasks' | 'checklist';
+    type?: 'tasks' | 'checklist' | 'child';
     /** Set on built-in lists, which can be hidden but never deleted. */
     systemKey?: string | null;
     hidden?: boolean;
@@ -23,7 +23,13 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
   const [name, setName] = useState(list.name);
   const [emoji, setEmoji] = useState(list.emojiIcon);
   const [color, setColor] = useState<string | null>(list.color ?? null);
-  const [type, setType] = useState<'tasks' | 'checklist'>(list.type ?? 'tasks');
+  // A child list has no tasks/shopping choice to make, and offering one would
+  // let a stray tap convert it into an ordinary list and strand its week,
+  // terms and profile behind a screen you could no longer reach.
+  const isChild = list.type === 'child';
+  const [type, setType] = useState<'tasks' | 'checklist'>(
+    list.type === 'checklist' ? 'checklist' : 'tasks',
+  );
   const [confirmDel, setConfirmDel] = useState(false);
 
   const update = trpc.lists.update.useMutation({
@@ -84,27 +90,32 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
           style={fieldStyle}
         />
 
-        <div className="mt-3 flex rounded-lg p-0.5" style={{ background: 'var(--color-chip-bg)' }}>
-          {(
-            [
-              { v: 'tasks', label: '✓ Tasks' },
-              { v: 'checklist', label: '🛒 Shopping' },
-            ] as const
-          ).map((o) => (
-            <button
-              key={o.v}
-              onClick={() => setType(o.v)}
-              className="flex-1 rounded-md py-1.5 font-semibold"
-              style={{
-                fontSize: 'var(--fs-sm)',
-                background: type === o.v ? 'var(--color-surface)' : 'transparent',
-                color: type === o.v ? 'var(--color-text)' : 'var(--color-muted)',
-              }}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {!isChild && (
+          <div
+            className="mt-3 flex rounded-lg p-0.5"
+            style={{ background: 'var(--color-chip-bg)' }}
+          >
+            {(
+              [
+                { v: 'tasks', label: '✓ Tasks' },
+                { v: 'checklist', label: '🛒 Shopping' },
+              ] as const
+            ).map((o) => (
+              <button
+                key={o.v}
+                onClick={() => setType(o.v)}
+                className="flex-1 rounded-md py-1.5 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: type === o.v ? 'var(--color-surface)' : 'transparent',
+                  color: type === o.v ? 'var(--color-text)' : 'var(--color-muted)',
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-3">
           <EmojiPicker value={emoji} onChange={setEmoji} />
@@ -118,7 +129,13 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
         <button
           disabled={!name.trim() || update.isPending}
           onClick={() =>
-            update.mutate({ listId: list.id, name: name.trim(), emojiIcon: emoji, color, type })
+            update.mutate({
+              listId: list.id,
+              name: name.trim(),
+              emojiIcon: emoji,
+              color,
+              ...(isChild ? {} : { type }),
+            })
           }
           className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
           style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}

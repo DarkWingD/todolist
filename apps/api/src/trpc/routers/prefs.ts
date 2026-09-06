@@ -54,6 +54,20 @@ export const prefsRouter = router({
       return { ok: true };
     }),
 
+  /** Same reasoning as Meals: not every household has school runs to track. */
+  setKidsVisible: protectedProcedure
+    .input(z.object({ showKids: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .insert(userPrefs)
+        .values({ userId: ctx.user.id, showKids: input.showKids })
+        .onConflictDoUpdate({
+          target: userPrefs.userId,
+          set: { showKids: input.showKids, updatedAt: new Date() },
+        });
+      return { ok: true };
+    }),
+
   /** 1 = Monday, 0 = Sunday. Applies to the meal week and the calendar alike. */
   setWeekStart: protectedProcedure
     .input(z.object({ weekStartsOn: z.union([z.literal(0), z.literal(1)]) }))

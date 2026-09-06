@@ -13,7 +13,7 @@ interface DetailList {
   id: string;
   name: string;
   emojiIcon: string;
-  type?: 'tasks' | 'checklist';
+  type?: 'tasks' | 'checklist' | 'child';
   systemKey?: string | null;
 }
 
