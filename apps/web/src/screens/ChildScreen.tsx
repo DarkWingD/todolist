@@ -1,53 +1,111 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { BackButton } from '../components/BackButton';
 import { trpc } from '../lib/trpc';
+import { ChildSetup } from './ChildSetup';
 
-const KIND_LABEL = { term: 'Term', break: 'Holidays', closure: 'Day off' } as const;
-const KIND_COLOR = {
-  term: 'var(--color-accent)',
-  break: 'var(--color-muted)',
-  closure: '#f59e0b',
-} as const;
+/**
+ * A child, on day 30 rather than day 1.
+ *
+ * Setting up the weekly pattern and term dates happens once; after that the
+ * screen is a working list of this child's things, and the whole of that setup
+ * shows as a single derived line at the top — "Today · Primary school 9:00–3:00".
+ * The setup surfaces themselves fold into one row at the foot. Nothing is
+ * removed as the child fills up; the weight shifts.
+ */
 
-/** Sunday-first, matching Date.getDay() so the index is the stored value. */
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/** RRULE day codes, indexed by Date.getDay(). */
+const RRULE_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-d4">
-      <h2
-        className="mb-d2 font-bold uppercase text-muted"
-        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-      >
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
+interface Item {
+  id: string;
+  title: string;
+  when: Date;
+  kind: 'task' | 'event';
+  done: boolean;
+  timeLabel: string | null;
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** "Today", "Tomorrow", the weekday within the week, then a full date. */
+function dayHeading(d: Date): string {
+  const days = Math.round((d.getTime() - startOfToday().getTime()) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days > 1 && days < 7) return DAY_LONG[d.getDay()]!;
+  return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => void }) {
   const utils = trpc.useUtils();
   const { data: child, isLoading } = trpc.children.get.useQuery({ listId });
+  const [setupOpen, setSetupOpen] = useState(false);
+
   const refresh = () => {
     utils.children.get.invalidate({ listId });
     utils.children.mine.invalidate();
   };
+  const toggleTask = trpc.tasks.toggle.useMutation({ onSuccess: refresh });
 
-  const setDays = trpc.children.setDays.useMutation({ onSuccess: refresh });
-  const upsertPeriod = trpc.children.upsertPeriod.useMutation({ onSuccess: refresh });
-  const removePeriod = trpc.children.removePeriod.useMutation({ onSuccess: refresh });
-  const updateProfile = trpc.children.updateProfile.useMutation({ onSuccess: refresh });
+  // Dated one-offs and events interleave by date. A weekly recurring task would
+  // otherwise generate a dozen identical rows a term and drown every real one,
+  // so recurring items surface only on the day they actually fire.
+  const { groups, todayRoutine } = useMemo(() => {
+    if (!child) return { groups: [], todayRoutine: [] as Item[] };
+    const weekday = new Date().getDay();
+    const routine: Item[] = [];
+    const dated: Item[] = [];
 
-  const [editingDays, setEditingDays] = useState(false);
-  const [draftDays, setDraftDays] = useState<
-    Record<number, { place: string; from: string; to: string }>
-  >({});
-  const [addingPeriod, setAddingPeriod] = useState(false);
-  const [pKind, setPKind] = useState<'term' | 'break' | 'closure'>('term');
-  const [pName, setPName] = useState('');
-  const [pStart, setPStart] = useState('');
-  const [pEnd, setPEnd] = useState('');
+    for (const t of child.tasks) {
+      const base = {
+        id: t.id,
+        title: t.title,
+        kind: 'task' as const,
+        done: Boolean(t.completedAt),
+        timeLabel: null,
+      };
+      if (t.recurrenceRule) {
+        if (t.recurrenceRule.includes(RRULE_DAYS[weekday]!)) {
+          routine.push({ ...base, when: startOfToday() });
+        }
+        continue;
+      }
+      if (t.dueAt) dated.push({ ...base, when: new Date(t.dueAt) });
+    }
+
+    for (const e of child.events) {
+      const start = new Date(e.startAt);
+      dated.push({
+        id: e.id,
+        title: e.title,
+        when: start,
+        kind: 'event',
+        done: false,
+        timeLabel: e.allDay
+          ? null
+          : start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      });
+    }
+
+    // Past items are kept, not dropped — an overdue form is the thing you most
+    // need to see. Sorting puts them first.
+    dated.sort((a, b) => a.when.getTime() - b.when.getTime());
+
+    const byDay = new Map<string, Item[]>();
+    for (const it of dated) {
+      const key = it.when.toDateString();
+      byDay.set(key, [...(byDay.get(key) ?? []), it]);
+    }
+    return {
+      groups: [...byDay.entries()].map(([key, items]) => ({ date: new Date(key), items })),
+      todayRoutine: routine,
+    };
+  }, [child]);
 
   if (isLoading || !child) {
     return (
@@ -60,32 +118,34 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
     );
   }
 
-  function startEditingDays() {
-    const seed: Record<number, { place: string; from: string; to: string }> = {};
-    for (const d of child!.days) {
-      seed[d.weekday] = { place: d.place, from: d.startTime ?? '', to: d.endTime ?? '' };
-    }
-    setDraftDays(seed);
-    setEditingDays(true);
-  }
+  const hasPattern = child.days.length > 0;
+  const t = child.today;
+  const contextLine = t.offReason
+    ? t.offReason
+    : t.place
+      ? `${t.place}${t.startTime ? ` ${t.startTime}${t.endTime ? `–${t.endTime}` : ''}` : ''}`
+      : hasPattern
+        ? 'Nothing on today'
+        : null;
 
-  function saveDays() {
-    // A day with no place is a day off — the absence of a row is how "nowhere"
-    // is stored, rather than a row saying "home".
-    const days = Object.entries(draftDays)
-      .filter(([, v]) => v.place.trim())
-      .map(([weekday, v]) => ({
-        weekday: Number(weekday),
-        place: v.place.trim(),
-        startTime: v.from || null,
-        endTime: v.to || null,
-      }));
-    setDays.mutate({ listId, days });
-    setEditingDays(false);
-  }
+  const isOverdue = (d: Date) => d.getTime() < startOfToday().getTime();
 
-  const byWeekday = new Map(child.days.map((d) => [d.weekday, d]));
-  const profile = child.profile;
+  const checkbox = (done: boolean, onClick: () => void, label: string) => (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="grid h-5 w-5 flex-none place-items-center rounded-check border"
+      style={{
+        borderColor: done ? 'var(--color-accent)' : 'var(--color-check-border)',
+        background: done ? 'var(--color-accent)' : 'transparent',
+        color: 'var(--color-accent-contrast)',
+        fontSize: 12,
+      }}
+    >
+      {done ? '✓' : ''}
+    </button>
+  );
 
   return (
     <>
@@ -103,306 +163,174 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
         >
           {child.emojiIcon}
         </span>
-        <h1
-          className="font-head"
-          style={{
-            fontSize: 'var(--fs-big)',
-            fontWeight: 'var(--title-weight)',
-            letterSpacing: 'var(--title-tracking)',
-          }}
-        >
-          {child.name}
-        </h1>
+        <div className="min-w-0">
+          <h1
+            className="font-head truncate"
+            style={{
+              fontSize: 'var(--fs-big)',
+              fontWeight: 'var(--title-weight)',
+              letterSpacing: 'var(--title-tracking)',
+            }}
+          >
+            {child.name}
+          </h1>
+          {/* The whole visible payoff of the weekly pattern and the term dates. */}
+          {contextLine && (
+            <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+              Today · {contextLine}
+            </div>
+          )}
+        </div>
       </header>
 
-      <Section title={`Where ${child.name} is`}>
-        {editingDays ? (
+      {/* Emergency information does not live behind a chevron. */}
+      {child.profile?.medicalNotes && (
+        <div
+          className="mb-d3 flex items-start gap-2 rounded-card p-d3"
+          style={{ background: 'var(--color-danger-soft)' }}
+        >
+          <span style={{ fontSize: 15, lineHeight: 1.3 }}>⚠️</span>
+          <span style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.45 }}>
+            {child.profile.medicalNotes}
+          </span>
+        </div>
+      )}
+
+      {!hasPattern && !setupOpen && (
+        <div className="mb-d3 rounded-card bg-surface p-d4 shadow-card">
+          <p className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+            Let&rsquo;s set up {child.name}&rsquo;s week.
+          </p>
+          <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            About a minute. You can change anything later.
+          </p>
+          <button
+            type="button"
+            onClick={() => setSetupOpen(true)}
+            className="mt-d3 w-full rounded-full py-2.5 font-bold text-accent-contrast"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+          >
+            Set up the week
+          </button>
+        </div>
+      )}
+
+      {/* Today's routine: present, but calmer than the dated items. */}
+      {todayRoutine.length > 0 && (
+        <div className="mb-d3">
+          <h2
+            className="mb-d2 font-bold uppercase text-muted"
+            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+          >
+            Today
+          </h2>
           <div className="flex flex-col gap-d2">
-            {DAY_NAMES.map((label, weekday) => {
-              const v = draftDays[weekday] ?? { place: '', from: '', to: '' };
-              const set = (patch: Partial<typeof v>) =>
-                setDraftDays((d) => ({ ...d, [weekday]: { ...v, ...patch } }));
-              return (
-                <div key={weekday} className="flex items-center gap-2">
-                  <span
-                    className="w-10 flex-none font-bold uppercase text-muted"
-                    style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.07em' }}
-                  >
-                    {label}
-                  </span>
-                  <input
-                    value={v.place}
-                    onChange={(e) => set({ place: e.target.value })}
-                    placeholder="Nowhere"
-                    className="min-w-0 flex-1 rounded-check border border-border bg-bg px-2 py-1.5 outline-none focus:border-accent"
-                    style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-                  />
-                  <input
-                    type="time"
-                    value={v.from}
-                    onChange={(e) => set({ from: e.target.value })}
-                    aria-label={`${label} start time`}
-                    className="w-24 flex-none rounded-check border border-border bg-bg px-2 py-1.5 outline-none focus:border-accent"
-                    style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-                  />
-                  <input
-                    type="time"
-                    value={v.to}
-                    onChange={(e) => set({ to: e.target.value })}
-                    aria-label={`${label} end time`}
-                    className="w-24 flex-none rounded-check border border-border bg-bg px-2 py-1.5 outline-none focus:border-accent"
-                    style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-                  />
-                </div>
-              );
-            })}
-            <div className="mt-1 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingDays(false)}
-                className="text-muted"
-                style={{ fontSize: 'var(--fs-sm)' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={saveDays}
-                className="rounded-full px-4 py-2 font-bold text-accent-contrast"
-                style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-              >
-                Save
-              </button>
-            </div>
+            {todayRoutine.map((it) => (
+              <div key={it.id} className="flex items-center gap-d3 rounded-card bg-surface p-d3">
+                {checkbox(
+                  it.done,
+                  () => toggleTask.mutate({ id: it.id, completed: !it.done }),
+                  it.done ? 'Mark not done' : 'Mark done',
+                )}
+                <span
+                  className={it.done ? 'flex-1 text-muted line-through' : 'flex-1 text-muted'}
+                  style={{ fontSize: 'var(--fs-base)' }}
+                >
+                  {it.title}
+                </span>
+                <span className="flex-none text-muted" style={{ fontSize: 12 }} title="Every week">
+                  ↻
+                </span>
+              </div>
+            ))}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-4 gap-2 md:grid-cols-7">
-              {DAY_NAMES.map((label, weekday) => {
-                const d = byWeekday.get(weekday);
-                return (
+        </div>
+      )}
+
+      <h2
+        className="mb-d2 font-bold uppercase text-muted"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+      >
+        Coming up
+      </h2>
+
+      {groups.length === 0 ? (
+        <p className="mb-d3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Nothing dated yet. Anything you add to {child.name} with a due date turns up here.
+        </p>
+      ) : (
+        <div className="mb-d3 flex flex-col gap-d3">
+          {groups.map((g) => (
+            <div key={g.date.toDateString()}>
+              <div
+                className="mb-1 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-xs)',
+                  color: isOverdue(g.date) ? 'var(--color-danger)' : 'var(--color-muted)',
+                }}
+              >
+                {isOverdue(g.date) ? 'Overdue · ' : ''}
+                {dayHeading(g.date)}
+              </div>
+              <div className="flex flex-col gap-d2">
+                {g.items.map((it) => (
                   <div
-                    key={weekday}
-                    className="flex flex-col items-center gap-1 rounded-card p-2 text-center"
-                    style={{
-                      background: d ? 'var(--color-surface)' : 'transparent',
-                      border: d ? 'none' : '1.5px dashed var(--color-border)',
-                      minHeight: 74,
-                    }}
+                    key={it.id}
+                    className="flex items-center gap-d3 rounded-card bg-surface p-d3 shadow-card"
+                    style={
+                      isOverdue(g.date)
+                        ? { boxShadow: 'inset 3px 0 0 0 var(--color-danger)' }
+                        : undefined
+                    }
                   >
-                    <span
-                      className="font-bold uppercase text-muted"
-                      style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.07em' }}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      className={d ? 'font-semibold' : 'text-muted'}
-                      style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.25 }}
-                    >
-                      {d?.place ?? '—'}
-                    </span>
-                    {d?.startTime && (
-                      <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                        {d.startTime}
-                        {d.endTime ? `–${d.endTime}` : ''}
+                    {it.kind === 'task' ? (
+                      checkbox(
+                        it.done,
+                        () => toggleTask.mutate({ id: it.id, completed: !it.done }),
+                        it.done ? 'Mark not done' : 'Mark done',
+                      )
+                    ) : (
+                      // No checkbox on an event: you do not tick a concert.
+                      <span
+                        className="w-12 flex-none text-muted"
+                        style={{ fontSize: 'var(--fs-xs)' }}
+                      >
+                        {it.timeLabel ?? 'All day'}
                       </span>
                     )}
+                    <span
+                      className={it.done ? 'flex-1 text-muted line-through' : 'flex-1'}
+                      style={{ fontSize: 'var(--fs-base)' }}
+                    >
+                      {it.title}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={startEditingDays}
-              className="mt-d2 rounded-full px-3 py-1.5 font-semibold text-muted"
-              style={{ background: 'var(--color-chip-bg)', fontSize: 'var(--fs-xs)' }}
-            >
-              Edit the week
-            </button>
-          </>
-        )}
-      </Section>
-
-      <Section title="Term dates">
-        <div className="flex flex-col gap-d2">
-          {child.periods.length === 0 && !addingPeriod && (
-            <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-              None yet. Without term dates the week above is assumed to run all year.
-            </p>
-          )}
-          {child.periods.map((p) => (
-            <div key={p.id} className="flex items-center gap-d3 rounded-card bg-surface p-d3">
-              <span
-                className="h-2 w-2 flex-none rounded-full"
-                style={{ background: KIND_COLOR[p.kind] }}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
-                  {p.name}
-                </span>
-                <span className="block text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                  {KIND_LABEL[p.kind]} · {p.startDate}
-                  {p.endDate !== p.startDate ? ` – ${p.endDate}` : ''}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => removePeriod.mutate({ listId, id: p.id })}
-                aria-label={`Remove ${p.name}`}
-                className="flex-none text-muted"
-                style={{ fontSize: 16 }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-
-          {addingPeriod ? (
-            <div className="flex flex-col gap-2 rounded-card bg-surface p-d3">
-              <div className="flex rounded-lg p-0.5" style={{ background: 'var(--color-chip-bg)' }}>
-                {(['term', 'break', 'closure'] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setPKind(k)}
-                    className="flex-1 rounded-md py-1.5 font-semibold"
-                    style={{
-                      fontSize: 'var(--fs-sm)',
-                      background: pKind === k ? 'var(--color-surface)' : 'transparent',
-                      color: pKind === k ? 'var(--color-text)' : 'var(--color-muted)',
-                    }}
-                  >
-                    {KIND_LABEL[k]}
-                  </button>
                 ))}
               </div>
-              <input
-                value={pName}
-                onChange={(e) => setPName(e.target.value)}
-                placeholder={pKind === 'closure' ? 'Pupil-free day' : 'Term 4'}
-                className="rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
-                style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-              />
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={pStart}
-                  onChange={(e) => {
-                    setPStart(e.target.value);
-                    // A day off is one day; filling the end saves a step and is
-                    // right far more often than it is wrong.
-                    if (pKind === 'closure' || !pEnd) setPEnd(e.target.value);
-                  }}
-                  aria-label="Start date"
-                  className="min-w-0 flex-1 rounded-check border border-border bg-bg px-2 py-2 outline-none focus:border-accent"
-                  style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-                />
-                <input
-                  type="date"
-                  value={pEnd}
-                  onChange={(e) => setPEnd(e.target.value)}
-                  aria-label="End date"
-                  className="min-w-0 flex-1 rounded-check border border-border bg-bg px-2 py-2 outline-none focus:border-accent"
-                  style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAddingPeriod(false)}
-                  className="text-muted"
-                  style={{ fontSize: 'var(--fs-sm)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={!pName.trim() || !pStart || !pEnd}
-                  onClick={() => {
-                    upsertPeriod.mutate({
-                      listId,
-                      kind: pKind,
-                      name: pName.trim(),
-                      startDate: pStart,
-                      endDate: pEnd,
-                    });
-                    setAddingPeriod(false);
-                    setPName('');
-                    setPStart('');
-                    setPEnd('');
-                  }}
-                  className="rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
-                  style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-                >
-                  Add
-                </button>
-              </div>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingPeriod(true)}
-              className="self-start rounded-full px-3 py-1.5 font-semibold text-muted"
-              style={{ background: 'var(--color-chip-bg)', fontSize: 'var(--fs-xs)' }}
-            >
-              + Add term, holidays or a day off
-            </button>
-          )}
-        </div>
-      </Section>
-
-      <Section title="Details">
-        <div className="flex flex-col gap-d2">
-          {(
-            [
-              ['className', 'Class'],
-              ['room', 'Room'],
-              ['teacher', 'Teacher or educator'],
-              ['officePhone', 'Office phone'],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="flex flex-col gap-1">
-              <span
-                className="font-bold uppercase text-muted"
-                style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-              >
-                {label}
-              </span>
-              <input
-                defaultValue={profile?.[key] ?? ''}
-                onBlur={(e) => {
-                  const value = e.target.value.trim();
-                  if (value === (profile?.[key] ?? '')) return;
-                  updateProfile.mutate({ listId, [key]: value || null });
-                }}
-                className="rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
-                style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-              />
-            </label>
           ))}
-          <label className="flex flex-col gap-1">
-            <span
-              className="font-bold uppercase text-muted"
-              style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-            >
-              Medical &amp; allergies
-            </span>
-            <textarea
-              defaultValue={profile?.medicalNotes ?? ''}
-              rows={3}
-              placeholder="Anything a carer would need in a hurry"
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                if (value === (profile?.medicalNotes ?? '')) return;
-                updateProfile.mutate({ listId, medicalNotes: value || null });
-              }}
-              className="rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
-              style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
-            />
-          </label>
         </div>
-      </Section>
+      )}
+
+      {/* Everything setup built, folded away once it has been answered. */}
+      <button
+        type="button"
+        onClick={() => setSetupOpen((v) => !v)}
+        aria-expanded={setupOpen}
+        className="mb-d2 flex w-full items-center gap-2 rounded-card bg-surface p-d3 text-left"
+      >
+        <span className="flex-1 font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+          Week &amp; school
+        </span>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {hasPattern ? `${child.days.length} days · ${child.periods.length} dates` : 'Not set up'}
+        </span>
+        <span className="text-muted" style={{ fontSize: 16 }}>
+          {setupOpen ? '⌃' : '⌄'}
+        </span>
+      </button>
+
+      {setupOpen && <ChildSetup child={child} listId={listId} onChanged={refresh} />}
     </>
   );
 }

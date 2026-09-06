@@ -1,5 +1,14 @@
-import { and, asc, eq, inArray, isNull, lte, gte } from 'drizzle-orm';
-import { childDay, childProfile, db, list, listMember, schoolPeriod } from '@todolist/db';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import {
+  childDay,
+  childProfile,
+  db,
+  event,
+  list,
+  listMember,
+  schoolPeriod,
+  task,
+} from '@todolist/db';
 import {
   createChildSchema,
   setChildDaysSchema,
@@ -38,6 +47,31 @@ async function assertChild(userId: string, listId: string) {
  * A closure beats a term — a pupil-free day sits inside term time and is the
  * whole point of recording it. A break beats a term for the same reason.
  */
+function derivedBreaks(
+  periods: { kind: 'term' | 'break' | 'closure'; startDate: string; endDate: string }[],
+): { startDate: string; endDate: string }[] {
+  const terms = periods
+    .filter((p) => p.kind === 'term')
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const gaps: { startDate: string; endDate: string }[] = [];
+  for (let i = 0; i < terms.length - 1; i++) {
+    const end = terms[i]!.endDate;
+    const next = terms[i + 1]!.startDate;
+    const from = shiftDay(end, 1);
+    const to = shiftDay(next, -1);
+    if (from <= to) gaps.push({ startDate: from, endDate: to });
+  }
+  return gaps;
+}
+
+function shiftDay(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 function statusFor(
   periods: {
     kind: 'term' | 'break' | 'closure';
@@ -47,7 +81,15 @@ function statusFor(
   }[],
   day: string,
 ): { attending: boolean; reason: string | null } {
-  const covering = periods.filter((p) => p.startDate <= day && p.endDate >= day);
+  const all = [
+    ...periods,
+    ...derivedBreaks(periods).map((g) => ({
+      ...g,
+      kind: 'break' as const,
+      name: 'School holidays',
+    })),
+  ];
+  const covering = all.filter((p) => p.startDate <= day && p.endDate >= day);
   const off =
     covering.find((p) => p.kind === 'closure') ?? covering.find((p) => p.kind === 'break');
   if (off) return { attending: false, reason: off.name };
@@ -85,16 +127,7 @@ export const childrenRouter = router({
         .select()
         .from(childDay)
         .where(and(inArray(childDay.listId, ids), eq(childDay.weekday, weekday))),
-      db
-        .select()
-        .from(schoolPeriod)
-        .where(
-          and(
-            inArray(schoolPeriod.listId, ids),
-            lte(schoolPeriod.startDate, day),
-            gte(schoolPeriod.endDate, day),
-          ),
-        ),
+      db.select().from(schoolPeriod).where(inArray(schoolPeriod.listId, ids)),
     ]);
 
     return lists.map((l) => {
@@ -132,7 +165,7 @@ export const childrenRouter = router({
         .limit(1);
       if (!row) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      const [days, periods, profile] = await Promise.all([
+      const [days, periods, profile, tasks, events] = await Promise.all([
         db
           .select()
           .from(childDay)
@@ -144,9 +177,51 @@ export const childrenRouter = router({
           .where(eq(schoolPeriod.listId, input.listId))
           .orderBy(asc(schoolPeriod.startDate)),
         db.select().from(childProfile).where(eq(childProfile.listId, input.listId)).limit(1),
+        db
+          .select({
+            id: task.id,
+            title: task.title,
+            dueAt: task.dueAt,
+            completedAt: task.completedAt,
+            recurrenceRule: task.recurrenceRule,
+            assigneeId: task.assigneeId,
+          })
+          .from(task)
+          .where(and(eq(task.listId, input.listId), isNull(task.deletedAt)))
+          .orderBy(asc(task.dueAt), asc(task.sortOrder)),
+        db
+          .select({
+            id: event.id,
+            title: event.title,
+            startAt: event.startAt,
+            endAt: event.endAt,
+            allDay: event.allDay,
+          })
+          .from(event)
+          .where(and(eq(event.listId, input.listId), isNull(event.deletedAt)))
+          .orderBy(asc(event.startAt)),
       ]);
 
-      return { ...row, days, periods, profile: profile[0] ?? null };
+      const day = todayKey();
+      const weekday = new Date().getDay();
+      const status = statusFor(periods, day);
+      const todayDay = days.find((d) => d.weekday === weekday) ?? null;
+
+      return {
+        ...row,
+        days,
+        periods,
+        profile: profile[0] ?? null,
+        tasks,
+        events,
+        today: {
+          date: day,
+          place: status.attending ? (todayDay?.place ?? null) : null,
+          startTime: status.attending ? (todayDay?.startTime ?? null) : null,
+          endTime: status.attending ? (todayDay?.endTime ?? null) : null,
+          offReason: status.attending ? null : status.reason,
+        },
+      };
     }),
 
   create: protectedProcedure.input(createChildSchema).mutation(async ({ ctx, input }) => {
