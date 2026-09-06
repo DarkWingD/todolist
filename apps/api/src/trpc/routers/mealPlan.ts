@@ -18,6 +18,7 @@ import {
   mealPlanRangeSchema,
   moveMealDaySchema,
   planDateSchema,
+  copyWeekSchema,
   sendToShoppingListSchema,
   setMealDaySchema,
   updateMealSchema,
@@ -478,6 +479,92 @@ export const mealPlanRouter = router({
    * derived rather than stored, so nothing is ever added twice for a cook that
    * feeds several nights; anything already on the list and unticked is skipped.
    */
+  /**
+   * Fill this week from the previous one.
+   *
+   * Only empty days are written: a week you have already planned should never
+   * be silently overwritten by a button labelled "copy". Clearing a day first is
+   * the way to ask for it to be replaced.
+   *
+   * Cook spans copy across as they are, then each is truncated so it cannot run
+   * past the end of the week or over a day that is already planned.
+   */
+  copyWeek: protectedProcedure.input(copyWeekSchema).mutation(async ({ ctx, input }) => {
+    await assertMealPlanAccess(ctx.user.id, input.planId);
+
+    const shift = (iso: string, days: number) => {
+      const d = new Date(`${iso}T00:00:00`);
+      d.setDate(d.getDate() + days);
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${d.getFullYear()}-${m}-${day}`;
+    };
+
+    const sourceFrom = shift(input.from, -7);
+    const sourceTo = shift(input.to, -7);
+
+    const [source, existing] = await Promise.all([
+      db
+        .select({
+          date: mealPlanDay.date,
+          mealId: mealPlanDay.mealId,
+          cookSpan: mealPlanDay.cookSpan,
+        })
+        .from(mealPlanDay)
+        .where(
+          and(
+            eq(mealPlanDay.planId, input.planId),
+            gte(mealPlanDay.date, sourceFrom),
+            lte(mealPlanDay.date, sourceTo),
+          ),
+        ),
+      db
+        .select({ date: mealPlanDay.date })
+        .from(mealPlanDay)
+        .where(
+          and(
+            eq(mealPlanDay.planId, input.planId),
+            gte(mealPlanDay.date, input.from),
+            lte(mealPlanDay.date, input.to),
+          ),
+        ),
+    ]);
+
+    if (source.length === 0) return { copied: 0, skipped: 0 };
+
+    const taken = new Set(existing.map((r) => r.date));
+    const rows = [];
+    let skipped = 0;
+    for (const row of source) {
+      const date = shift(row.date, 7);
+      if (taken.has(date)) {
+        skipped++;
+        continue;
+      }
+      // A span may not reach past the end of the week, nor over a day that is
+      // already planned — otherwise leftovers would claim days it never owned.
+      let span = row.cookSpan;
+      for (let n = 1; n < span; n++) {
+        const night = shift(date, n);
+        if (night > input.to || taken.has(night)) {
+          span = n;
+          break;
+        }
+      }
+      rows.push({
+        planId: input.planId,
+        date,
+        mealId: row.mealId,
+        cookSpan: span,
+        createdBy: ctx.user.id,
+      });
+      taken.add(date);
+    }
+
+    if (rows.length > 0) await db.insert(mealPlanDay).values(rows);
+    return { copied: rows.length, skipped };
+  }),
+
   sendToShoppingList: protectedProcedure
     .input(sendToShoppingListSchema)
     .mutation(async ({ ctx, input }) => {

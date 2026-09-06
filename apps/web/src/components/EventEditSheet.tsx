@@ -17,7 +17,13 @@ export interface EditableEvent {
 interface Props {
   event: EditableEvent;
   lists: { id: string; name: string; emojiIcon: string }[];
-  people: { id: string; name: string; avatarEmoji: string; avatarColor: string; image?: string | null }[];
+  people: {
+    id: string;
+    name: string;
+    avatarEmoji: string;
+    avatarColor: string;
+    image?: string | null;
+  }[];
   onClose: () => void;
   /** Called after a successful save or delete. */
   onDone: () => void;
@@ -42,26 +48,63 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
 
   return (
     <>
-      <div className="fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,.4)' }} onClick={onClose} />
+      <div
+        className="fixed inset-0 z-30"
+        style={{ background: 'rgba(0,0,0,.4)' }}
+        onClick={onClose}
+      />
       <div
         className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md overflow-y-auto p-4"
-        style={{ background: 'var(--color-bg)', borderRadius: '22px 22px 0 0', maxHeight: '82%', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}
+        style={{
+          background: 'var(--color-bg)',
+          borderRadius: '22px 22px 0 0',
+          maxHeight: '82%',
+          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+        }}
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full" style={{ background: 'var(--color-check-border)' }} />
-        <h3 className="mb-2 font-head" style={{ fontSize: 18 }}>Edit event</h3>
+        <div
+          className="mx-auto mb-3 h-1.5 w-10 rounded-full"
+          style={{ background: 'var(--color-check-border)' }}
+        />
+        <h3 className="mb-2 font-head" style={{ fontSize: 18 }}>
+          Edit event
+        </h3>
 
-        <input className={field} style={fieldStyle} placeholder="Event title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input
+          className={field}
+          style={fieldStyle}
+          placeholder="Event title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-        <label className={label} style={labelStyle}>List</label>
-        <select className={field} style={fieldStyle} value={listId} onChange={(e) => setListId(e.target.value)}>
-          {lists.map((l) => <option key={l.id} value={l.id}>{l.emojiIcon} {l.name}</option>)}
+        <label className={label} style={labelStyle}>
+          List
+        </label>
+        <select
+          className={field}
+          style={fieldStyle}
+          value={listId}
+          onChange={(e) => setListId(e.target.value)}
+        >
+          {lists.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.emojiIcon} {l.name}
+            </option>
+          ))}
         </select>
 
-        <label className="mt-3 flex items-center gap-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> All day
+        <label
+          className="mt-3 flex items-center gap-2 font-semibold"
+          style={{ fontSize: 'var(--fs-sm)' }}
+        >
+          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />{' '}
+          All day
         </label>
 
-        <label className={label} style={labelStyle}>Start</label>
+        <label className={label} style={labelStyle}>
+          Start
+        </label>
         <input
           type={allDay ? 'date' : 'datetime-local'}
           className={field}
@@ -69,7 +112,9 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
           value={allDay ? start.slice(0, 10) : start}
           onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
         />
-        <label className={label} style={labelStyle}>End</label>
+        <label className={label} style={labelStyle}>
+          End
+        </label>
         <input
           type={allDay ? 'date' : 'datetime-local'}
           className={field}
@@ -80,14 +125,20 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
 
         {people.length > 1 && (
           <>
-            <label className={label} style={labelStyle}>For</label>
+            <label className={label} style={labelStyle}>
+              For
+            </label>
             <div className="flex flex-wrap gap-2">
               {people.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setAssignee((a) => (a === p.id ? null : p.id))}
                   className="rounded-full"
-                  style={{ padding: 2, borderRadius: '50%', boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none' }}
+                  style={{
+                    padding: 2,
+                    borderRadius: '50%',
+                    boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
+                  }}
                 >
                   <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
                 </button>
@@ -104,7 +155,15 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
             const s = fromLocalInput(start);
             const e = fromLocalInput(end);
             if (!s || !e) return;
-            update.mutate({ id: event.id, listId, title: title.trim(), startAt: s, endAt: e, allDay, assigneeId: assignee });
+            update.mutate({
+              id: event.id,
+              listId,
+              title: title.trim(),
+              startAt: s,
+              endAt: e,
+              allDay,
+              assigneeId: assignee,
+            });
           }}
         >
           {update.isPending ? 'Saving…' : 'Save'}
@@ -113,7 +172,11 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
         {!confirmDel ? (
           <button
             className="mt-3 w-full rounded-card py-3 font-semibold"
-            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-danger)', background: 'var(--color-danger-soft)' }}
+            style={{
+              fontSize: 'var(--fs-base)',
+              color: 'var(--color-danger)',
+              background: 'var(--color-danger-soft)',
+            }}
             onClick={() => setConfirmDel(true)}
           >
             🗑 Delete event

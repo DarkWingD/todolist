@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -113,6 +114,13 @@ export const userPrefs = pgTable('user_prefs', {
   calendarView: calendarViewEnum('calendar_view').notNull().default('month'),
   notifyEmail: boolean('notify_email').notNull().default(true),
   notifyPush: boolean('notify_push').notNull().default(true),
+  // Not everyone plans meals. Hiding the tab is a preference, not a deletion —
+  // the plan and its data stay exactly where they were.
+  showMeals: boolean('show_meals').notNull().default(true),
+  // 1 = Monday, 0 = Sunday, matching Date.getDay(). Applies to the meal week and
+  // the calendar alike; two different first-days in one app would be worse than
+  // either choice.
+  weekStartsOn: smallint('week_starts_on').notNull().default(1),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

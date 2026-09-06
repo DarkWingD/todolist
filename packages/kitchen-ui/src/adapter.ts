@@ -41,6 +41,15 @@ export interface MealPlannerAdapter {
   toggleFavourite(id: string, isFavourite: boolean): Promise<void>;
   sendToShoppingList(planId: string, from: string, to: string): Promise<{ added: number }>;
   /**
+   * Fill this week from the one before it, leaving planned days alone.
+   * Returns what happened so the screen can say "5 copied, 2 already planned".
+   */
+  copyWeek?: (
+    planId: string,
+    from: string,
+    to: string,
+  ) => Promise<{ copied: number; skipped: number }>;
+  /**
    * Absent on the phone, which has no server and so no one to share with. The
    * screen hides the Share control when this is undefined rather than offering
    * something that cannot work.

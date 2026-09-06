@@ -34,6 +34,8 @@ interface AppShellProps {
    * not easier, so those stay measured and this is opt-in.
    */
   wide?: boolean;
+  /** Meals is optional — hiding it removes the destination, not the data. */
+  showMeals?: boolean;
 }
 
 export function AppShell({
@@ -44,7 +46,9 @@ export function AppShell({
   children,
   overlay,
   wide,
+  showMeals = true,
 }: AppShellProps) {
+  const tabs = showMeals ? TABS : TABS.filter((t) => t.id !== 'meals');
   return (
     <div
       className={clsx(
@@ -70,7 +74,7 @@ export function AppShell({
             Add
           </button>
         )}
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -130,7 +134,7 @@ export function AppShell({
           backdropFilter: 'blur(10px)',
         }}
       >
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"

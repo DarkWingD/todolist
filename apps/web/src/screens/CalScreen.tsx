@@ -2,13 +2,7 @@ import type { CalendarView } from '@todolist/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { EventEditSheet } from '../components/EventEditSheet';
-import {
-  addDays,
-  sameDay,
-  startOfDay,
-  startOfWeekMon,
-  WEEKDAY_INITIALS,
-} from '@todolist/kitchen-ui';
+import { addDays, sameDay, startOfDay, startOfWeek, weekdayInitials } from '@todolist/kitchen-ui';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 
@@ -21,7 +15,6 @@ const VIEWS: { v: CalendarView; label: string }[] = [
   { v: 'agenda', label: 'Agenda' },
   { v: 'list', label: 'List' },
 ];
-const isWeekendCol = (i: number) => i === 5 || i === 6;
 
 type SheetMode = null | 'day' | 'choose' | 'event' | 'birthday';
 
@@ -39,10 +32,17 @@ interface CalItem {
 export function CalScreen({
   onOpenTask,
   createSignal,
+  weekStartsOn = 1,
 }: {
   onOpenTask: (id: string) => void;
   createSignal?: number;
+  /** 1 = Monday, 0 = Sunday. Shared with the meal week. */
+  weekStartsOn?: 0 | 1;
 }) {
+  const dayInitials = weekdayInitials(weekStartsOn);
+  // Which columns are Saturday and Sunday depends on where the week starts:
+  // last two when it starts on Monday, first and last when it starts on Sunday.
+  const isWeekendCol = (i: number) => (weekStartsOn === 1 ? i >= 5 : i === 0 || i === 6);
   const utils = trpc.useUtils();
   const [view, setView] = useState<CalendarView>('month');
   const [cursor, setCursor] = useState(() => {
@@ -71,7 +71,7 @@ export function CalScreen({
   }
 
   // Range covers the month grid AND ~45 days forward (for List), in one query.
-  const gridStart = startOfWeekMon(cursor);
+  const gridStart = startOfWeek(cursor, weekStartsOn);
   const gridEnd = addDays(gridStart, 42);
   // Only render the weeks this month needs (5 usually, sometimes 4 or 6) — no
   // wasted trailing next-month row, so each day cell is taller.
@@ -293,7 +293,7 @@ export function CalScreen({
     return (
       <>
         <div className="grid grid-cols-7" style={FULLBLEED}>
-          {WEEKDAY_INITIALS.map((d, i) => (
+          {dayInitials.map((d, i) => (
             <div
               key={i}
               className="pb-1 text-center font-bold uppercase"
@@ -319,7 +319,7 @@ export function CalScreen({
 
   // ─────────── WEEK ───────────
   function weekView() {
-    const start = startOfWeekMon(selDay);
+    const start = startOfWeek(selDay, weekStartsOn);
     const rows = [];
     for (let i = 0; i < 7; i++) {
       const day = addDays(start, i);
@@ -413,7 +413,7 @@ export function CalScreen({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="grid grid-cols-7 px-1">
-          {WEEKDAY_INITIALS.map((d, i) => (
+          {dayInitials.map((d, i) => (
             <div
               key={i}
               className="pb-1 text-center font-bold uppercase"
@@ -489,7 +489,7 @@ export function CalScreen({
     view === 'list'
       ? 'Upcoming'
       : view === 'week'
-        ? `${startOfWeekMon(selDay).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${addDays(startOfWeekMon(selDay), 6).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
+        ? `${startOfWeek(selDay, weekStartsOn).toLocaleDateString([], { day: 'numeric', month: 'short' })} – ${addDays(startOfWeek(selDay, weekStartsOn), 6).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
         : cursor.toLocaleDateString([], { month: 'long', year: 'numeric' });
   const showNav = view === 'month' || view === 'agenda';
 

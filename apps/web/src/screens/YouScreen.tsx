@@ -4,7 +4,11 @@ import { signOut } from '../lib/auth';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
 
-const THEME_LABEL: Record<string, string> = { tento: 'Tento', nudge: 'Nudge', momentum: 'Momentum' };
+const THEME_LABEL: Record<string, string> = {
+  tento: 'Tento',
+  nudge: 'Nudge',
+  momentum: 'Momentum',
+};
 
 // Centre-crop to a small square so the stored data URL stays ~20KB.
 async function fileToSquareDataUrl(file: File, px = 256): Promise<string> {
@@ -40,15 +44,29 @@ export function YouScreen({
   // Reload after changing the photo so the Better Auth session picks up the new image.
   const setPhoto = trpc.account.setPhoto.useMutation({ onSuccess: () => location.reload() });
 
-  const row = (icon: string, label: string, opts: { onClick?: () => void; value?: string } = {}) => (
+  const row = (
+    icon: string,
+    label: string,
+    opts: { onClick?: () => void; value?: string } = {},
+  ) => (
     <button
       onClick={opts.onClick}
       className="flex w-full items-center gap-3 border-b border-border px-3.5 py-3 text-left last:border-0"
     >
-      <span className="w-6 text-center" style={{ fontSize: 16 }}>{icon}</span>
-      <span className="flex-1 font-medium" style={{ fontSize: 'var(--fs-base)' }}>{label}</span>
-      {opts.value && <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{opts.value}</span>}
-      <span className="text-muted" style={{ fontSize: 18 }}>›</span>
+      <span className="w-6 text-center" style={{ fontSize: 16 }}>
+        {icon}
+      </span>
+      <span className="flex-1 font-medium" style={{ fontSize: 'var(--fs-base)' }}>
+        {label}
+      </span>
+      {opts.value && (
+        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {opts.value}
+        </span>
+      )}
+      <span className="text-muted" style={{ fontSize: 18 }}>
+        ›
+      </span>
     </button>
   );
 
@@ -56,7 +74,11 @@ export function YouScreen({
     <>
       <h1
         className="mb-d3 font-head"
-        style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+        style={{
+          fontSize: 'var(--fs-big)',
+          fontWeight: 'var(--title-weight)',
+          letterSpacing: 'var(--title-tracking)',
+        }}
       >
         You
       </h1>
@@ -71,7 +93,13 @@ export function YouScreen({
           <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={54} />
           <span
             className="absolute -bottom-0.5 -right-0.5 grid place-items-center rounded-full"
-            style={{ width: 20, height: 20, fontSize: 11, background: 'var(--color-accent)', boxShadow: '0 0 0 2px var(--color-bg)' }}
+            style={{
+              width: 20,
+              height: 20,
+              fontSize: 11,
+              background: 'var(--color-accent)',
+              boxShadow: '0 0 0 2px var(--color-bg)',
+            }}
           >
             📷
           </span>
@@ -93,8 +121,12 @@ export function YouScreen({
           }}
         />
         <div className="min-w-0 flex-1">
-          <div className="font-head font-bold" style={{ fontSize: 'var(--fs-lg)' }}>{me.name}</div>
-          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{me.email}</div>
+          <div className="font-head font-bold" style={{ fontSize: 'var(--fs-lg)' }}>
+            {me.name}
+          </div>
+          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            {me.email}
+          </div>
           {me.image && (
             <button
               className="mt-0.5 font-semibold text-muted"

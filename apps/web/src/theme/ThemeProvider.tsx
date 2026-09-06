@@ -7,12 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  DEFAULT_PREFS,
-  type Appearance,
-  type Density,
-  type Theme,
-} from '@todolist/shared';
+import { DEFAULT_PREFS, type Appearance, type Density, type Theme } from '@todolist/shared';
 
 export interface ThemePrefs {
   theme: Theme;

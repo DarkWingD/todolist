@@ -35,17 +35,29 @@ export function AccountScreen({ me, onBack }: { me: SessionUser; onBack: () => v
       <BackButton label="You" onClick={onBack} />
       <h1
         className="mb-d3 font-head"
-        style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+        style={{
+          fontSize: 'var(--fs-big)',
+          fontWeight: 'var(--title-weight)',
+          letterSpacing: 'var(--title-tracking)',
+        }}
       >
         Account
       </h1>
 
-      <div className="rounded-card bg-surface p-d3 shadow-card" style={{ fontSize: 'var(--fs-base)' }}>
+      <div
+        className="rounded-card bg-surface p-d3 shadow-card"
+        style={{ fontSize: 'var(--fs-base)' }}
+      >
         <div className="font-semibold">{me.name}</div>
-        <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{me.email}</div>
+        <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          {me.email}
+        </div>
       </div>
 
-      <h2 className="mb-d2 mt-d4 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+      <h2
+        className="mb-d2 mt-d4 font-bold uppercase text-muted"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+      >
         Your data
       </h2>
       <button
@@ -60,24 +72,39 @@ export function AccountScreen({ me, onBack }: { me: SessionUser; onBack: () => v
         Downloads everything you’ve created — profile, lists, tasks, events and birthdays.
       </p>
 
-      <h2 className="mb-d2 mt-d4 font-bold uppercase" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em', color: 'var(--color-danger)' }}>
+      <h2
+        className="mb-d2 mt-d4 font-bold uppercase"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em', color: 'var(--color-danger)' }}
+      >
         Danger zone
       </h2>
       {!confirming ? (
         <button
           onClick={() => setConfirming(true)}
           className="w-full rounded-card p-d3 text-left font-semibold shadow-card"
-          style={{ fontSize: 'var(--fs-base)', color: 'var(--color-danger)', background: 'var(--color-danger-soft)' }}
+          style={{
+            fontSize: 'var(--fs-base)',
+            color: 'var(--color-danger)',
+            background: 'var(--color-danger-soft)',
+          }}
         >
           🗑 &nbsp;Delete my account
         </button>
       ) : (
         <div className="rounded-card p-d3" style={{ background: 'var(--color-danger-soft)' }}>
-          <p className="mb-3 font-semibold" style={{ fontSize: 'var(--fs-base)', color: 'var(--color-danger)' }}>
-            This permanently deletes your account and everything in lists you own. This can’t be undone.
+          <p
+            className="mb-3 font-semibold"
+            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-danger)' }}
+          >
+            This permanently deletes your account and everything in lists you own. This can’t be
+            undone.
           </p>
           <div className="flex gap-2">
-            <button className="flex-1 rounded-lg py-2 font-semibold" style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-surface)' }} onClick={() => setConfirming(false)}>
+            <button
+              className="flex-1 rounded-lg py-2 font-semibold"
+              style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-surface)' }}
+              onClick={() => setConfirming(false)}
+            >
               Cancel
             </button>
             <button

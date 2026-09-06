@@ -30,7 +30,12 @@ export const pushRouter = router({
     .mutation(async ({ ctx, input }) => {
       await db
         .delete(pushSubscription)
-        .where(and(eq(pushSubscription.endpoint, input.endpoint), eq(pushSubscription.userId, ctx.user.id)));
+        .where(
+          and(
+            eq(pushSubscription.endpoint, input.endpoint),
+            eq(pushSubscription.userId, ctx.user.id),
+          ),
+        );
       return { ok: true };
     }),
 });

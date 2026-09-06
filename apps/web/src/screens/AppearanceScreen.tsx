@@ -12,7 +12,19 @@ const THEME_NAME: Record<Theme, string> = { tento: 'Tento', nudge: 'Nudge', mome
 
 export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   const { theme, appearance, density, textScale, setPrefs } = useTheme();
+  const utils = trpc.useUtils();
   const update = trpc.prefs.update.useMutation();
+  const { data: serverPrefs } = trpc.prefs.get.useQuery();
+  // These two live outside the theme bundle: they change what the app shows,
+  // not how it looks, and the server is the source of truth for both.
+  const setMealsVisible = trpc.prefs.setMealsVisible.useMutation({
+    onSuccess: () => utils.prefs.get.invalidate(),
+  });
+  const setWeekStart = trpc.prefs.setWeekStart.useMutation({
+    onSuccess: () => utils.prefs.get.invalidate(),
+  });
+  const showMeals = serverPrefs?.showMeals ?? true;
+  const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
 
   function apply(patch: Partial<ThemePrefs>) {
     const next = { theme, appearance, density, textScale, ...patch };
@@ -49,12 +61,19 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
       <BackButton label="You" onClick={onBack} />
       <h1
         className="mb-d3 font-head"
-        style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+        style={{
+          fontSize: 'var(--fs-big)',
+          fontWeight: 'var(--title-weight)',
+          letterSpacing: 'var(--title-tracking)',
+        }}
       >
         Appearance
       </h1>
 
-      <h2 className="mb-d2 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+      <h2
+        className="mb-d2 font-bold uppercase text-muted"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+      >
         Theme
       </h2>
       <div className="mb-d4 flex gap-2">
@@ -64,7 +83,10 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
             onClick={() => apply({ theme: t })}
             className="flex-1 rounded-xl p-2.5 text-center"
             style={{
-              boxShadow: theme === t ? 'inset 0 0 0 2px var(--color-accent)' : 'inset 0 0 0 1.5px var(--color-border)',
+              boxShadow:
+                theme === t
+                  ? 'inset 0 0 0 2px var(--color-accent)'
+                  : 'inset 0 0 0 1.5px var(--color-border)',
             }}
           >
             <span className="mb-1.5 flex justify-center gap-1">
@@ -72,31 +94,56 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
                 <i key={i} className="h-3 w-3 rounded" style={{ background: c }} />
               ))}
             </span>
-            <span className="font-bold" style={{ fontSize: 'var(--fs-xs)' }}>{THEME_NAME[t]}</span>
+            <span className="font-bold" style={{ fontSize: 'var(--fs-xs)' }}>
+              {THEME_NAME[t]}
+            </span>
           </button>
         ))}
       </div>
 
-      <h2 className="mb-d2 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}>
+      <h2
+        className="mb-d2 font-bold uppercase text-muted"
+        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+      >
         Display
       </h2>
       <div className="rounded-card bg-surface p-d3 shadow-card">
         <div className="mb-d3">
-          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>Appearance</div>
-          {seg<Appearance>(appearance,
-            [{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }],
-            (v) => apply({ appearance: v }))}
+          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+            Appearance
+          </div>
+          {seg<Appearance>(
+            appearance,
+            [
+              { value: 'system', label: 'System' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ],
+            (v) => apply({ appearance: v }),
+          )}
         </div>
         <div className="mb-d3">
-          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>Density</div>
-          {seg<Density>(density,
-            [{ value: 'comfortable', label: 'Comfortable' }, { value: 'cozy', label: 'Cozy' }, { value: 'compact', label: 'Compact' }],
-            (v) => apply({ density: v }))}
+          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+            Density
+          </div>
+          {seg<Density>(
+            density,
+            [
+              { value: 'comfortable', label: 'Comfortable' },
+              { value: 'cozy', label: 'Cozy' },
+              { value: 'compact', label: 'Compact' },
+            ],
+            (v) => apply({ density: v }),
+          )}
         </div>
         <div>
-          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>Text size</div>
+          <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+            Text size
+          </div>
           <div className="flex items-center gap-3">
-            <span className="text-muted" style={{ fontSize: 12 }}>A</span>
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              A
+            </span>
             <input
               type="range"
               min={0.88}
@@ -107,9 +154,46 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
               className="flex-1"
               style={{ accentColor: 'var(--color-accent)' }}
             />
-            <span className="text-muted" style={{ fontSize: 18 }}>A</span>
+            <span className="text-muted" style={{ fontSize: 18 }}>
+              A
+            </span>
           </div>
         </div>
+      </div>
+
+      <div className="mt-d4">
+        <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+          Week starts on
+        </div>
+        {seg<'sun' | 'mon'>(
+          weekStartsOn === 0 ? 'sun' : 'mon',
+          [
+            { value: 'sun', label: 'Sunday' },
+            { value: 'mon', label: 'Monday' },
+          ],
+          (v) => setWeekStart.mutate({ weekStartsOn: v === 'sun' ? 0 : 1 }),
+        )}
+        <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+          Used by the meal week and the calendar.
+        </p>
+      </div>
+
+      <div className="mt-d4">
+        <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
+          Sections
+        </div>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={showMeals}
+            onChange={(e) => setMealsVisible.mutate({ showMeals: e.target.checked })}
+            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
+          />
+          <span style={{ fontSize: 'var(--fs-base)' }}>Show Meals</span>
+        </label>
+        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+          Hides the tab. Your meal plan and its shopping list stay exactly as they are.
+        </p>
       </div>
     </>
   );

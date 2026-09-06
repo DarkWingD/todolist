@@ -17,7 +17,10 @@ export {
   addDays,
   sameDay,
   startOfDay,
+  startOfWeek,
   startOfWeekMon,
+  weekdayInitials,
+  weekdayShort,
   WEEKDAY_INITIALS,
   WEEKDAY_SHORT,
 } from './lib/caldate';

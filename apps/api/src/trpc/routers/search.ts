@@ -20,7 +20,11 @@ export const searchRouter = router({
         .innerJoin(list, eq(list.id, task.listId))
         .innerJoin(listMember, eq(listMember.listId, list.id))
         .where(
-          and(eq(listMember.userId, ctx.user.id), isNull(task.deletedAt), ilike(task.title, pattern)),
+          and(
+            eq(listMember.userId, ctx.user.id),
+            isNull(task.deletedAt),
+            ilike(task.title, pattern),
+          ),
         )
         .limit(20);
 
@@ -29,7 +33,11 @@ export const searchRouter = router({
         .from(list)
         .innerJoin(listMember, eq(listMember.listId, list.id))
         .where(
-          and(eq(listMember.userId, ctx.user.id), isNull(list.deletedAt), ilike(list.name, pattern)),
+          and(
+            eq(listMember.userId, ctx.user.id),
+            isNull(list.deletedAt),
+            ilike(list.name, pattern),
+          ),
         )
         .limit(10);
 

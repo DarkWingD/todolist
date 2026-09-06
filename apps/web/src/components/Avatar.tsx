@@ -80,7 +80,13 @@ export function AvatarStack({ users, size = 26, max = 4 }: AvatarStackProps) {
       {extra > 0 && (
         <span
           className="grid place-items-center rounded-full bg-chip-bg text-muted"
-          style={{ width: size, height: size, fontSize: size * 0.4, marginLeft: -7, fontWeight: 700 }}
+          style={{
+            width: size,
+            height: size,
+            fontSize: size * 0.4,
+            marginLeft: -7,
+            fontWeight: 700,
+          }}
         >
           +{extra}
         </span>

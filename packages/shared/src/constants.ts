@@ -33,4 +33,11 @@ export const DEFAULT_PREFS = {
   textScale: TEXT_SCALE.default,
   notifyEmail: true,
   notifyPush: true,
+  showMeals: true,
+  weekStartsOn: 1 as WeekStart,
 };
+
+/** 1 = Monday, 0 = Sunday — the same numbering as Date.getDay(). */
+export const WEEK_STARTS = [0, 1] as const;
+export type WeekStart = (typeof WEEK_STARTS)[number];
+export const WEEK_START_LABEL: Record<WeekStart, string> = { 0: 'Sunday', 1: 'Monday' };

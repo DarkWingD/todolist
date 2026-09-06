@@ -4,9 +4,12 @@ import { useState, type ReactNode } from 'react';
 import { trpc } from './trpc';
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: { queries: { staleTime: 5_000, retry: 1 } },
-  }));
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { staleTime: 5_000, retry: 1 } },
+      }),
+  );
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [

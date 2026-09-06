@@ -107,6 +107,8 @@ type View =
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
   const { data: serverPrefs } = trpc.prefs.get.useQuery();
+  const showMeals = serverPrefs?.showMeals ?? true;
+  const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
   const { data: lists = [] } = trpc.lists.mine.useQuery();
 
   const [tab, setTab] = useState<TabId>('today');
@@ -213,9 +215,11 @@ function AuthedApp({ me }: { me: SessionUser }) {
   } else if (tab === 'lists') {
     content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
   } else if (tab === 'cal') {
-    content = <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} />;
+    content = (
+      <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} weekStartsOn={weekStartsOn} />
+    );
   } else if (tab === 'meals') {
-    content = <MealsScreen />;
+    content = <MealsScreen weekStartsOn={weekStartsOn} />;
   } else {
     content = (
       <YouScreen
@@ -237,6 +241,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
       showFab={showFab}
       onAdd={onAdd}
       wide={view === 'main' && (tab === 'meals' || tab === 'cal' || tab === 'lists')}
+      showMeals={showMeals}
       overlay={
         <QuickAddSheet
           open={sheetOpen}

@@ -31,10 +31,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const [priority, setPriority] = useState<'none' | 'high'>('none');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
 
-  const { data: members = [] } = trpc.lists.members.useQuery(
-    { listId },
-    { enabled: !!listId },
-  );
+  const { data: members = [] } = trpc.lists.members.useQuery({ listId }, { enabled: !!listId });
 
   useEffect(() => {
     if (open) setListId(defaultListId ?? lists[0]?.id ?? '');
@@ -131,7 +128,9 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
           <button
             className={optClass(due !== 'none')}
             style={optStyle(due !== 'none')}
-            onClick={() => setDue((d) => (d === 'today' ? 'tomorrow' : d === 'tomorrow' ? 'none' : 'today'))}
+            onClick={() =>
+              setDue((d) => (d === 'today' ? 'tomorrow' : d === 'tomorrow' ? 'none' : 'today'))
+            }
           >
             📅 {due === 'none' ? 'No date' : due === 'today' ? 'Today' : 'Tomorrow'}
           </button>
@@ -146,7 +145,9 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
 
         {members.length > 1 && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>Assign:</span>
+            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+              Assign:
+            </span>
             {members.map((m) => (
               <button
                 key={m.id}

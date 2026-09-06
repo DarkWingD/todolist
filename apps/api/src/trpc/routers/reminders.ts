@@ -7,7 +7,11 @@ import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 async function assertTaskAccess(userId: string, taskId: string) {
-  const rows = await db.select({ listId: task.listId }).from(task).where(eq(task.id, taskId)).limit(1);
+  const rows = await db
+    .select({ listId: task.listId })
+    .from(task)
+    .where(eq(task.id, taskId))
+    .limit(1);
   const found = rows[0];
   if (!found) throw new TRPCError({ code: 'NOT_FOUND' });
   await assertListAccess(userId, found.listId);

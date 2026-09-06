@@ -48,7 +48,6 @@ interface Props {
   onToggleOpen: () => void;
   onPick: (v: { mealId?: string; name?: string; cookSpan: number }) => void;
   onClear: () => void;
-  onPushNextWeek: () => void;
   onEditMeal: (v: {
     id: string;
     recipeUrl?: string | null;
@@ -72,7 +71,6 @@ export function MealDayCard({
   onToggleOpen,
   onPick,
   onClear,
-  onPushNextWeek,
   onEditMeal,
   onToggleFavourite,
   onDragEndY,
@@ -497,14 +495,18 @@ export function MealDayCard({
                 </p>
 
                 <div className="flex flex-wrap gap-d2">
+                  {/* Was "Push to next week", which sat where a save button belongs and
+                      moved the meal to a week you could not see — easy to hit by accident
+                      and hard to notice afterwards. Dragging a card still moves a meal. */}
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={onPushNextWeek}
+                    onClick={onToggleOpen}
                     className="flex-1 rounded-full px-3 py-2 font-bold text-accent-contrast disabled:opacity-50"
                     style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
                   >
-                    Push to next week →
+                    {' '}
+                    Done
                   </button>
                   <button
                     type="button"

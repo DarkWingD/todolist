@@ -203,7 +203,8 @@ export function EmojiPicker({ value, onChange }: EmojiPickerProps) {
   const [q, setQ] = useState('');
   const query = q.trim().toLowerCase();
   const custom = EMOJI_RE.test(q.trim()) && q.trim().length <= 12 ? q.trim() : null;
-  const matches = query && !custom ? ALL.filter((it) => it.k.includes(query) || it.e === query) : null;
+  const matches =
+    query && !custom ? ALL.filter((it) => it.k.includes(query) || it.e === query) : null;
 
   const cell = (e: string) => (
     <button
@@ -224,7 +225,9 @@ export function EmojiPicker({ value, onChange }: EmojiPickerProps) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
-        <span className="text-muted" style={{ fontSize: 14 }}>🔍</span>
+        <span className="text-muted" style={{ fontSize: 14 }}>
+          🔍
+        </span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -233,7 +236,13 @@ export function EmojiPicker({ value, onChange }: EmojiPickerProps) {
           style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
         />
         {q && (
-          <button type="button" className="text-muted" style={{ fontSize: 14 }} onClick={() => setQ('')} aria-label="Clear search">
+          <button
+            type="button"
+            className="text-muted"
+            style={{ fontSize: 14 }}
+            onClick={() => setQ('')}
+            aria-label="Clear search"
+          >
             ✕
           </button>
         )}
@@ -264,7 +273,10 @@ export function EmojiPicker({ value, onChange }: EmojiPickerProps) {
         ) : (
           CATEGORIES.map((c) => (
             <div key={c.name}>
-              <h4 className="mb-1 mt-2 font-bold uppercase text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.07em' }}>
+              <h4
+                className="mb-1 mt-2 font-bold uppercase text-muted"
+                style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.07em' }}
+              >
                 {c.name}
               </h4>
               <div className="grid grid-cols-8 gap-1">{c.items.map((it) => cell(it.e))}</div>

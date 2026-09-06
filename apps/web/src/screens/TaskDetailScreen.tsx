@@ -83,7 +83,9 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
     return (
       <>
         <BackButton label="Back" onClick={onBack} />
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Loading…
+        </p>
       </>
     );
   }
@@ -109,7 +111,10 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
 
       <button
         className="mb-d3 flex items-center gap-2 font-semibold"
-        style={{ fontSize: 'var(--fs-sm)', color: completed ? 'var(--color-accent)' : 'var(--color-muted)' }}
+        style={{
+          fontSize: 'var(--fs-sm)',
+          color: completed ? 'var(--color-accent)' : 'var(--color-muted)',
+        }}
         onClick={() => toggle.mutate({ id: taskId, completed: !completed })}
       >
         <span
@@ -131,10 +136,16 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
         onBlur={onSave}
         rows={1}
         className="w-full resize-none bg-transparent font-head outline-none"
-        style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)', color: 'var(--color-text)' }}
+        style={{
+          fontSize: 'var(--fs-title)',
+          fontWeight: 'var(--title-weight)',
+          color: 'var(--color-text)',
+        }}
       />
 
-      <h2 className={sectionH} style={sectionStyle}>Due</h2>
+      <h2 className={sectionH} style={sectionStyle}>
+        Due
+      </h2>
       <div className="flex items-center gap-2">
         <input
           type="datetime-local"
@@ -145,13 +156,22 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
           style={fieldStyle}
         />
         {due && (
-          <button className="text-muted" style={{ fontSize: 'var(--fs-sm)' }} onClick={() => { setDue(''); setTimeout(onSave, 0); }}>
+          <button
+            className="text-muted"
+            style={{ fontSize: 'var(--fs-sm)' }}
+            onClick={() => {
+              setDue('');
+              setTimeout(onSave, 0);
+            }}
+          >
             Clear
           </button>
         )}
       </div>
 
-      <h2 className={sectionH} style={sectionStyle}>Priority</h2>
+      <h2 className={sectionH} style={sectionStyle}>
+        Priority
+      </h2>
       <button
         onClick={() => {
           setPriority((p) => (p === 'high' ? 'none' : 'high'));
@@ -167,10 +187,15 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
         <span>⚑</span> {priority === 'high' ? 'High priority' : 'Flag as priority'}
       </button>
 
-      <h2 className={sectionH} style={sectionStyle}>Repeat</h2>
+      <h2 className={sectionH} style={sectionStyle}>
+        Repeat
+      </h2>
       <select
         value={freq}
-        onChange={(e) => { setFreq(e.target.value as Freq | ''); setTimeout(onSave, 0); }}
+        onChange={(e) => {
+          setFreq(e.target.value as Freq | '');
+          setTimeout(onSave, 0);
+        }}
         className={fieldClass}
         style={fieldStyle}
       >
@@ -183,14 +208,20 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
 
       {members.length > 1 && (
         <>
-          <h2 className={sectionH} style={sectionStyle}>Assignee</h2>
+          <h2 className={sectionH} style={sectionStyle}>
+            Assignee
+          </h2>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => { setAssigneeId(null); setTimeout(onSave, 0); }}
+              onClick={() => {
+                setAssigneeId(null);
+                setTimeout(onSave, 0);
+              }}
               className="rounded-full px-3 py-1.5 font-semibold"
               style={{
                 fontSize: 'var(--fs-sm)',
-                background: assigneeId === null ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                background:
+                  assigneeId === null ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
                 color: assigneeId === null ? 'var(--color-accent)' : 'var(--color-muted)',
               }}
             >
@@ -199,11 +230,15 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
             {members.map((m) => (
               <button
                 key={m.id}
-                onClick={() => { setAssigneeId(m.id); setTimeout(onSave, 0); }}
+                onClick={() => {
+                  setAssigneeId(m.id);
+                  setTimeout(onSave, 0);
+                }}
                 className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-semibold"
                 style={{
                   fontSize: 'var(--fs-sm)',
-                  background: assigneeId === m.id ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                  background:
+                    assigneeId === m.id ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
                   color: assigneeId === m.id ? 'var(--color-accent)' : 'var(--color-text)',
                 }}
               >
@@ -215,7 +250,9 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
         </>
       )}
 
-      <h2 className={sectionH} style={sectionStyle}>Notes</h2>
+      <h2 className={sectionH} style={sectionStyle}>
+        Notes
+      </h2>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -226,10 +263,17 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
         style={fieldStyle}
       />
 
-      <h2 className={sectionH} style={sectionStyle}>Reminders</h2>
+      <h2 className={sectionH} style={sectionStyle}>
+        Reminders
+      </h2>
       {reminders.map((r) => (
-        <div key={r.id} className="mb-d2 flex items-center gap-2 rounded-card bg-surface p-d3 shadow-card">
-          <span style={{ fontSize: 'var(--fs-base)' }}>⏰ {reminderLabel(r.sendAt as unknown as string, fromLocalInput(due))}</span>
+        <div
+          key={r.id}
+          className="mb-d2 flex items-center gap-2 rounded-card bg-surface p-d3 shadow-card"
+        >
+          <span style={{ fontSize: 'var(--fs-base)' }}>
+            ⏰ {reminderLabel(r.sendAt as unknown as string, fromLocalInput(due))}
+          </span>
           <button
             className="ml-auto text-muted"
             style={{ fontSize: 'var(--fs-sm)' }}
@@ -247,14 +291,22 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
             const unusable =
               !at ||
               at.getTime() < Date.now() ||
-              reminders.some((r) => new Date(r.sendAt as unknown as string).getTime() === at.getTime());
+              reminders.some(
+                (r) => new Date(r.sendAt as unknown as string).getTime() === at.getTime(),
+              );
             return (
               <button
                 key={o.mins}
                 disabled={unusable || addReminder.isPending}
-                onClick={() => at && addReminder.mutate({ taskId, sendAt: at.toISOString(), channel: 'email' })}
+                onClick={() =>
+                  at && addReminder.mutate({ taskId, sendAt: at.toISOString(), channel: 'email' })
+                }
                 className="rounded-full px-3 py-1.5 font-semibold disabled:opacity-40"
-                style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-chip-bg)', color: 'var(--color-text)' }}
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: 'var(--color-chip-bg)',
+                  color: 'var(--color-text)',
+                }}
               >
                 ＋ {o.label}
               </button>
@@ -330,7 +382,9 @@ const REMINDER_OFFSETS = [
 function reminderLabel(sendAtIso: string, dueIso: string | null | undefined) {
   const abs = formatDateTime(sendAtIso);
   if (!dueIso) return abs;
-  const diffMins = Math.round((new Date(dueIso).getTime() - new Date(sendAtIso).getTime()) / 60_000);
+  const diffMins = Math.round(
+    (new Date(dueIso).getTime() - new Date(sendAtIso).getTime()) / 60_000,
+  );
   if (diffMins < 0) return abs;
   if (diffMins === 0) return `At due time · ${abs}`;
   const rel =

@@ -213,6 +213,16 @@ export const sendToShoppingListSchema = z.object({
   to: planDateSchema,
 });
 
+/**
+ * Fill a week from the one before it. `from`/`to` bound the week being filled;
+ * the source week is the seven days immediately preceding `from`.
+ */
+export const copyWeekSchema = z.object({
+  planId: z.string().uuid(),
+  from: planDateSchema,
+  to: planDateSchema,
+});
+
 export const requestMagicLinkSchema = z.object({
   email: emailSchema,
 });

@@ -7,7 +7,7 @@ import { trpc } from '../lib/trpc';
  * the shared `MealWeek` and this app's tRPC client. The Android app supplies the
  * same shape against on-device storage.
  */
-export function MealsScreen() {
+export function MealsScreen({ weekStartsOn = 1 }: { weekStartsOn?: 0 | 1 }) {
   const utils = trpc.useUtils();
 
   const adapter = useMemo<MealPlannerAdapter>(
@@ -39,6 +39,7 @@ export function MealsScreen() {
       },
       sendToShoppingList: (planId, from, to) =>
         utils.client.mealPlan.sendToShoppingList.mutate({ planId, from, to }),
+      copyWeek: (planId, from, to) => utils.client.mealPlan.copyWeek.mutate({ planId, from, to }),
       invite: async (planId, email) => {
         await utils.client.mealPlan.invite.mutate({ planId, email });
       },
@@ -48,6 +49,7 @@ export function MealsScreen() {
 
   return (
     <MealWeek
+      weekStartsOn={weekStartsOn}
       adapter={adapter}
       // The shopping push writes into a tRPC-backed list the shared component
       // knows nothing about, so this app refreshes those views itself.

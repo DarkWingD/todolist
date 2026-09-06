@@ -32,7 +32,11 @@ export function SignInScreen() {
         </div>
         <h1
           className="font-head"
-          style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+          style={{
+            fontSize: 'var(--fs-big)',
+            fontWeight: 'var(--title-weight)',
+            letterSpacing: 'var(--title-tracking)',
+          }}
         >
           ToDoList
         </h1>

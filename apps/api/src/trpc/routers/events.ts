@@ -6,7 +6,11 @@ import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 async function eventListId(id: string): Promise<string | null> {
-  const rows = await db.select({ listId: event.listId }).from(event).where(eq(event.id, id)).limit(1);
+  const rows = await db
+    .select({ listId: event.listId })
+    .from(event)
+    .where(eq(event.id, id))
+    .limit(1);
   return rows[0]?.listId ?? null;
 }
 
@@ -39,7 +43,9 @@ export const eventsRouter = router({
       return db
         .select()
         .from(event)
-        .where(and(eq(event.listId, input.listId), isNull(event.deletedAt), gte(event.endAt, cutoff)))
+        .where(
+          and(eq(event.listId, input.listId), isNull(event.deletedAt), gte(event.endAt, cutoff)),
+        )
         .orderBy(asc(event.startAt));
     }),
 

@@ -52,9 +52,17 @@ export function TodayScreen({
   // items from visually merging into the overdue list.
   const hasOverdue = sections.some((s) => s.overdue);
 
-  const today = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = new Date().toLocaleDateString([], {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
-  const sectionH = (color: string) => ({ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em', color });
+  const sectionH = (color: string) => ({
+    fontSize: 'var(--fs-xs)',
+    letterSpacing: '0.09em',
+    color,
+  });
 
   return (
     <>
@@ -62,11 +70,17 @@ export function TodayScreen({
         <div>
           <h1
             className="font-head"
-            style={{ fontSize: 'var(--fs-big)', fontWeight: 'var(--title-weight)', letterSpacing: 'var(--title-tracking)' }}
+            style={{
+              fontSize: 'var(--fs-big)',
+              fontWeight: 'var(--title-weight)',
+              letterSpacing: 'var(--title-tracking)',
+            }}
           >
             Today
           </h1>
-          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>{today}</div>
+          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            {today}
+          </div>
         </div>
         <button aria-label="Profile & settings" onClick={onOpenYou}>
           <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
@@ -74,7 +88,9 @@ export function TodayScreen({
       </header>
 
       {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>Loading…</p>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Loading…
+        </p>
       ) : !hasAnything ? (
         <div className="mt-8 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           <div className="mb-2 text-4xl">🌤️</div>
@@ -88,7 +104,13 @@ export function TodayScreen({
                 ⚑ Priority
               </h2>
               {flagged.map((t) => (
-                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDelete} />
+                <TaskRow
+                  key={t.id}
+                  task={toTaskRow(t, { withLeadEmoji: true })}
+                  onToggle={onToggle}
+                  onOpen={onOpenTask}
+                  onDelete={onDelete}
+                />
               ))}
             </section>
           )}
@@ -104,9 +126,17 @@ export function TodayScreen({
                 </h2>
               )}
               {/* keep spacing above today's headerless block when a Priority section precedes it */}
-              {section.key === 'today' && !hasOverdue && flagged.length > 0 && <div className="mt-d3" />}
+              {section.key === 'today' && !hasOverdue && flagged.length > 0 && (
+                <div className="mt-d3" />
+              )}
               {section.tasks.map((t) => (
-                <TaskRow key={t.id} task={toTaskRow(t, { withLeadEmoji: true })} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDelete} />
+                <TaskRow
+                  key={t.id}
+                  task={toTaskRow(t, { withLeadEmoji: true })}
+                  onToggle={onToggle}
+                  onOpen={onOpenTask}
+                  onDelete={onDelete}
+                />
               ))}
             </section>
           ))}

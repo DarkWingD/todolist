@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MealDayCard, type MealEntry } from '../components/MealDayCard';
-import { addDays, sameDay, startOfWeekMon, WEEKDAY_SHORT } from '../lib/caldate';
+import { addDays, sameDay, startOfWeek, weekdayShort } from '../lib/caldate';
 import type { MealPlannerAdapter } from '../adapter';
 
 /** Local calendar day as "YYYY-MM-DD" — never via toISOString, which shifts by UTC. */
@@ -25,12 +25,15 @@ const fmtDay = (d: Date) => d.toLocaleDateString([], { day: 'numeric', month: 's
 export function MealWeek({
   adapter,
   onSent,
+  weekStartsOn = 1,
 }: {
   adapter: MealPlannerAdapter;
   onSent?: () => void;
+  /** 1 = Monday, 0 = Sunday. Comes from the host app's preferences. */
+  weekStartsOn?: 0 | 1;
 }) {
   const qc = useQueryClient();
-  const [weekStart, setWeekStart] = useState(() => startOfWeekMon(new Date()));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), weekStartsOn));
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -93,6 +96,11 @@ export function MealWeek({
       setSharing(false);
     },
   });
+  const copyWeek = useMutation({
+    mutationFn: (v: { planId: string; from: string; to: string }) =>
+      adapter.copyWeek!(v.planId, v.from, v.to),
+    onSuccess: invalidate,
+  });
   const toShopping = useMutation({
     mutationFn: (v: { planId: string; from: string; to: string }) =>
       adapter.sendToShoppingList(v.planId, v.from, v.to),
@@ -111,7 +119,14 @@ export function MealWeek({
     return m;
   }, [entries]);
 
-  const showingThisWeek = sameDay(weekStart, startOfWeekMon(today));
+  const showingThisWeek = sameDay(weekStart, startOfWeek(today, weekStartsOn));
+  const dayNames = weekdayShort(weekStartsOn);
+
+  // Changing the setting mid-session should move the board, not leave it on a
+  // week that no longer starts where the labels say it does.
+  useEffect(() => {
+    setWeekStart((w) => startOfWeek(w, weekStartsOn));
+  }, [weekStartsOn]);
 
   // Cards vary in height, so a drop lands on whichever day's box centre is
   // nearest — which stays correct however tall the neighbours happen to be.
@@ -258,7 +273,7 @@ export function MealWeek({
           {!showingThisWeek && (
             <button
               type="button"
-              onClick={() => setWeekStart(startOfWeekMon(new Date()))}
+              onClick={() => setWeekStart(startOfWeek(new Date(), weekStartsOn))}
               className="flex-none rounded-full px-3 py-1 font-bold"
               style={{
                 background: 'var(--color-accent-soft)',
@@ -270,6 +285,27 @@ export function MealWeek({
             </button>
           )}
         </div>
+
+        {/* Only where the adapter can do it, and only on a week with room to fill:
+
+
+            offering "copy" on a full week is offering nothing. */}
+
+        {adapter.copyWeek && entries.length < 7 && (
+          <button
+            type="button"
+
+            disabled={!planId || copyWeek.isPending}
+
+            onClick={() => planId && copyWeek.mutate({ planId, from, to })}
+
+            className="hidden flex-none rounded-full px-4 py-2 font-bold text-muted disabled:opacity-50 md:inline-flex"
+
+            style={{ background: 'var(--color-chip-bg)', fontSize: 'var(--fs-sm)' }}
+          >
+            {copyWeek.isPending ? 'Copying…' : '⧉ Copy last week'}
+          </button>
+        )}
 
         {/* Desktop only. The phone keeps the full-width button at the foot of
             the list, which is where your thumb already is after reading the
@@ -329,7 +365,7 @@ export function MealWeek({
                       className="block font-bold uppercase"
                       style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.07em' }}
                     >
-                      {WEEKDAY_SHORT[i]}
+                      {dayNames[i]}
                     </span>
                     <span
                       className={clsx('block font-bold', !sameDay(d, today) && 'text-text')}
@@ -349,7 +385,7 @@ export function MealWeek({
                   )}
                 >
                   <MealDayCard
-                    weekday={WEEKDAY_SHORT[i]!}
+                    weekday={dayNames[i]!}
                     dayNum={d.getDate()}
                     isToday={sameDay(d, today)}
                     isWeekend={i >= 5}
@@ -379,15 +415,6 @@ export function MealWeek({
                       } else {
                         clearDay.mutate({ planId, date: key });
                       }
-                      setOpenDate(null);
-                    }}
-                    onPushNextWeek={() => {
-                      if (!planId || !entry) return;
-                      moveDay.mutate({
-                        planId,
-                        from: anchor,
-                        to: toKey(addDays(new Date(`${anchor}T00:00:00`), 7)),
-                      });
                       setOpenDate(null);
                     }}
                     onEditMeal={(v) => editMeal.mutate(v)}
