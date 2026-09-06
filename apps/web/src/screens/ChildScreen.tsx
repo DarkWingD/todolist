@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BackButton } from '../components/BackButton';
 import { trpc } from '../lib/trpc';
 import { ChildSetup } from './ChildSetup';
@@ -41,7 +41,16 @@ function dayHeading(d: Date): string {
   return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => void }) {
+export function ChildScreen({
+  listId,
+  onBack,
+  addSignal,
+}: {
+  listId: string;
+  onBack: () => void;
+  /** Bumped when the floating + is tapped, so it opens this form. */
+  addSignal?: number;
+}) {
   const utils = trpc.useUtils();
   const { data: child, isLoading } = trpc.children.get.useQuery({ listId });
   const [setupOpen, setSetupOpen] = useState(false);
@@ -60,6 +69,22 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [weekly, setWeekly] = useState(false);
+
+  const todayInput = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Opened by the floating +, but only when it is actually tapped — not on
+  // mount, which would spring the form open every time you enter the screen.
+  const lastAddSignal = useRef(addSignal);
+  useEffect(() => {
+    if (addSignal !== lastAddSignal.current) {
+      lastAddSignal.current = addSignal;
+      setDate((d) => d || todayInput());
+      setAdding(true);
+    }
+  }, [addSignal]);
 
   const closeAdd = () => {
     setAdding(false);
@@ -436,10 +461,7 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
         <button
           type="button"
           onClick={() => {
-            const d = new Date();
-            setDate(
-              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-            );
+            setDate((d) => d || todayInput());
             setAdding(true);
           }}
           className="mb-d3 w-full rounded-card border border-dashed border-border py-3 font-semibold text-muted"
