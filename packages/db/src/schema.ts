@@ -272,6 +272,11 @@ export const event = pgTable(
     startAt: timestamp('start_at', { withTimezone: true }).notNull(),
     endAt: timestamp('end_at', { withTimezone: true }).notNull(),
     allDay: boolean('all_day').notNull().default(false),
+    // An RRULE string, e.g. "FREQ=WEEKLY;BYDAY=TH". Unlike a recurring task —
+    // which spawns its next instance when you complete it — a recurring event
+    // is never completed, so occurrences are expanded when a date range is read
+    // rather than materialised as rows.
+    recurrenceRule: text('recurrence_rule'),
     // Whose event it is (drives the per-person colour on the calendar).
     assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
     createdBy: text('created_by')

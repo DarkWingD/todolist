@@ -12,6 +12,7 @@ export interface EditableEvent {
   endAt: string;
   allDay: boolean;
   assigneeId: string | null;
+  recurrenceRule?: string | null;
 }
 
 interface Props {
@@ -39,6 +40,12 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
   const [start, setStart] = useState(() => toLocalInput(event.startAt));
   const [end, setEnd] = useState(() => toLocalInput(event.endAt));
   const [assignee, setAssignee] = useState<string | null>(event.assigneeId);
+  // Weekly is the only repeat worth offering here: swimming, music, sport. A
+  // full recurrence editor is a different feature, and none of the events
+  // people attach to a child need one.
+  const [repeats, setRepeats] = useState(Boolean(event.recurrenceRule));
+  const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const [confirmDel, setConfirmDel] = useState(false);
 
   const field = 'w-full rounded-lg border border-border bg-surface px-3 py-2 outline-none';
@@ -147,6 +154,13 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
           </>
         )}
 
+        <label className="mb-3 block" style={{ fontSize: 'var(--fs-sm)' }}>
+          <input type="checkbox" checked={repeats} onChange={(e) => setRepeats(e.target.checked)} />{' '}
+          Repeats weekly
+          {repeats && start && (
+            <span className="text-muted"> · every {DAY_LONG[new Date(start).getDay()]}</span>
+          )}
+        </label>
         <button
           disabled={!title.trim() || update.isPending}
           className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
@@ -163,6 +177,9 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
               endAt: e,
               allDay,
               assigneeId: assignee,
+              // Anchored to the day the event actually starts, so moving the
+              // event moves the whole series with it.
+              recurrenceRule: repeats ? `FREQ=WEEKLY;BYDAY=${DAYS[new Date(s).getDay()]}` : null,
             });
           }}
         >

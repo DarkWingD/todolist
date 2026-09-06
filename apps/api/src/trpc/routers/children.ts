@@ -19,6 +19,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
+import { expandEvent } from '../../lib/recurrence.js';
 
 /** Local calendar day as "YYYY-MM-DD" — never via toISOString, which shifts by UTC. */
 function todayKey(): string {
@@ -196,6 +197,7 @@ export const childrenRouter = router({
             startAt: event.startAt,
             endAt: event.endAt,
             allDay: event.allDay,
+            recurrenceRule: event.recurrenceRule,
           })
           .from(event)
           .where(and(eq(event.listId, input.listId), isNull(event.deletedAt)))
@@ -213,7 +215,22 @@ export const childrenRouter = router({
         periods,
         profile: profile[0] ?? null,
         tasks,
-        events,
+        events: (() => {
+          const from = new Date();
+          from.setHours(0, 0, 0, 0);
+          const to = new Date(from);
+          to.setDate(to.getDate() + 120);
+          return events
+            .flatMap((ev) =>
+              expandEvent(ev, from, to).map((o) => ({
+                ...ev,
+                id: o.occurrenceId,
+                startAt: o.start,
+                endAt: o.end,
+              })),
+            )
+            .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+        })(),
         today: {
           date: day,
           place: status.attending ? (todayDay?.place ?? null) : null,

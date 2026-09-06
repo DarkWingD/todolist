@@ -5,11 +5,22 @@ import { z } from 'zod';
 import { assertListAccess } from '../access.js';
 import { protectedProcedure, router } from '../trpc.js';
 
+/**
+ * An occurrence of a recurring event is identified as "<seriesId>:<startISO>",
+ * because the occurrence itself has no row. Editing or deleting one edits the
+ * series — which is what people mean by changing a weekly lesson — so the id is
+ * normalised here rather than trusting every caller to send the right half.
+ */
+export function seriesId(id: string): string {
+  const cut = id.indexOf(':');
+  return cut === -1 ? id : id.slice(0, cut);
+}
+
 async function eventListId(id: string): Promise<string | null> {
   const rows = await db
     .select({ listId: event.listId })
     .from(event)
-    .where(eq(event.id, id))
+    .where(eq(event.id, seriesId(id)))
     .limit(1);
   return rows[0]?.listId ?? null;
 }
@@ -27,6 +38,7 @@ export const eventsRouter = router({
         endAt: new Date(input.endAt),
         allDay: input.allDay,
         assigneeId: input.assigneeId,
+        recurrenceRule: input.recurrenceRule,
         createdBy: ctx.user.id,
       })
       .returning();
@@ -63,7 +75,7 @@ export const eventsRouter = router({
         ...(endAt !== undefined ? { endAt: new Date(endAt) } : {}),
         updatedAt: new Date(),
       })
-      .where(eq(event.id, id));
+      .where(eq(event.id, seriesId(id)));
     return { ok: true };
   }),
 
@@ -73,7 +85,10 @@ export const eventsRouter = router({
       const listId = await eventListId(input.id);
       if (!listId) return { ok: false };
       await assertListAccess(ctx.user.id, listId);
-      await db.update(event).set({ deletedAt: new Date() }).where(eq(event.id, input.id));
+      await db
+        .update(event)
+        .set({ deletedAt: new Date() })
+        .where(eq(event.id, seriesId(input.id)));
       return { ok: true };
     }),
 });

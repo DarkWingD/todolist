@@ -106,6 +106,9 @@ export const createEventSchema = z.object({
   endAt: z.string().datetime(),
   allDay: z.boolean().default(false),
   assigneeId: z.string().min(1).optional(),
+  // A weekly swimming lesson is an event, not a task — nobody completes it, so
+  // it cannot use the task model where finishing one spawns the next.
+  recurrenceRule: recurrenceSchema.optional(),
 });
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 
@@ -117,6 +120,7 @@ export const updateEventSchema = createEventSchema
     // Moving an event to another list is allowed; access to the target is checked server-side.
     listId: z.string().uuid().optional(),
     assigneeId: z.string().min(1).nullable().optional(),
+    recurrenceRule: recurrenceSchema.nullable().optional(),
   });
 
 export const createBirthdaySchema = z.object({

@@ -1,7 +1,8 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { db, event, list, listMember, task, user } from '@todolist/db';
 import { calendarRangeSchema } from '@todolist/shared';
 import { protectedProcedure, router } from '../trpc.js';
+import { expandEvent } from '../../lib/recurrence.js';
 
 const withAssignee = {
   assigneeId: task.assigneeId,
@@ -52,6 +53,7 @@ export const calendarRouter = router({
         startAt: event.startAt,
         endAt: event.endAt,
         allDay: event.allDay,
+        recurrenceRule: event.recurrenceRule,
         listColor: list.color,
         assigneeId: event.assigneeId,
         assigneeName: user.name,
@@ -66,12 +68,27 @@ export const calendarRouter = router({
         and(
           eq(listMember.userId, ctx.user.id),
           isNull(event.deletedAt),
-          lt(event.startAt, to),
-          gte(event.endAt, from),
+          or(
+            and(lt(event.startAt, to), gte(event.endAt, from)),
+            // Recurring series are filtered by expansion below, not by date:
+            // a weekly lesson that began in February belongs in September.
+            isNotNull(event.recurrenceRule),
+          ),
         ),
       );
 
-    return { tasks, events };
+    // One row becomes many occurrences, each carrying the series it came from.
+    const expanded = events.flatMap((ev) =>
+      expandEvent(ev, from, to).map((o) => ({
+        ...ev,
+        id: o.occurrenceId,
+        seriesId: ev.id,
+        startAt: o.start,
+        endAt: o.end,
+      })),
+    );
+
+    return { tasks, events: expanded };
   }),
 
   // The set of people across the user's lists — used for the calendar filter chips.
