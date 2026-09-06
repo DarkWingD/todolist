@@ -52,6 +52,64 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
   };
   const toggleTask = trpc.tasks.toggle.useMutation({ onSuccess: refresh });
 
+  // Capture lives on the screen, not only behind the floating button — and the
+  // presence of a time decides task or event, rather than asking. Nobody
+  // holding a note from school wants to answer a taxonomy question first.
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [weekly, setWeekly] = useState(false);
+
+  const closeAdd = () => {
+    setAdding(false);
+    setTitle('');
+    setDate('');
+    setTime('');
+    setWeekly(false);
+  };
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => {
+      refresh();
+      closeAdd();
+    },
+  });
+  const createEvent = trpc.events.create.useMutation({
+    onSuccess: () => {
+      refresh();
+      closeAdd();
+    },
+  });
+  const saving = createTask.isPending || createEvent.isPending;
+
+  function save() {
+    const t = title.trim();
+    if (!t || !date) return;
+    if (time) {
+      // A time makes it an event, and an event can repeat weekly.
+      const start = new Date(`${date}T${time}`);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      const RR = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+      createEvent.mutate({
+        listId,
+        title: t,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+        allDay: false,
+        ...(weekly ? { recurrenceRule: `FREQ=WEEKLY;BYDAY=${RR[start.getDay()]}` } : {}),
+      });
+      return;
+    }
+    createTask.mutate({
+      listId,
+      title: t,
+      dueAt: new Date(`${date}T09:00`).toISOString(),
+      ...(weekly
+        ? { recurrenceRule: `FREQ=WEEKLY;BYDAY=${RRULE_DAYS[new Date(`${date}T09:00`).getDay()]}` }
+        : {}),
+    });
+  }
+
   // Dated one-offs and events interleave by date. A weekly recurring task would
   // otherwise generate a dozen identical rows a term and drown every real one,
   // so recurring items surface only on the day they actually fire.
@@ -310,6 +368,85 @@ export function ChildScreen({ listId, onBack }: { listId: string; onBack: () => 
             </div>
           ))}
         </div>
+      )}
+
+      {adding ? (
+        <div className="mb-d3 flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card">
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={`Something for ${child.name}…`}
+            className="rounded-check border border-border bg-bg px-3 py-2 outline-none focus:border-accent"
+            style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              aria-label="Date"
+              className="min-w-0 flex-1 rounded-check border border-border bg-bg px-2 py-2 outline-none focus:border-accent"
+              style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+            />
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Time, if it has one"
+              className="min-w-0 flex-1 rounded-check border border-border bg-bg px-2 py-2 outline-none focus:border-accent"
+              style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+            />
+          </div>
+          <label className="flex items-center gap-2" style={{ fontSize: 'var(--fs-sm)' }}>
+            <input
+              type="checkbox"
+              checked={weekly}
+              onChange={(e) => setWeekly(e.target.checked)}
+              style={{ accentColor: 'var(--color-accent)', width: 16, height: 16 }}
+            />
+            Repeats weekly
+          </label>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+            {time
+              ? 'With a time it goes on the calendar as an event.'
+              : 'With no time it is a task you can tick off.'}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeAdd}
+              className="text-muted"
+              style={{ fontSize: 'var(--fs-sm)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!title.trim() || !date || saving}
+              onClick={save}
+              className="rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
+              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            const d = new Date();
+            setDate(
+              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+            );
+            setAdding(true);
+          }}
+          className="mb-d3 w-full rounded-card border border-dashed border-border py-3 font-semibold text-muted"
+          style={{ fontSize: 'var(--fs-sm)' }}
+        >
+          + Add for {child.name}
+        </button>
       )}
 
       {/* Everything setup built, folded away once it has been answered. */}

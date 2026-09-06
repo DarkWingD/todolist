@@ -154,6 +154,11 @@ function AuthedApp({ me }: { me: SessionUser }) {
     setView('main');
     setSelectedList(null);
   }
+  function openChild(id: string) {
+    setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
+    setView('child');
+  }
+
   function openList(l: MinList) {
     setSelectedList(l);
     setView(l.type === 'child' ? 'child' : 'listDetail');
@@ -191,7 +196,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
             : tab;
   const showFab =
     (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
-    view === 'listDetail';
+    view === 'listDetail' ||
+    view === 'child';
 
   let content;
   if (view === 'taskDetail' && selectedTaskId) {
@@ -224,10 +230,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
         onOpenTask={openTask}
         onOpenYou={() => navigate('you')}
         showKids={showKids}
-        onOpenChild={(id) => {
-          setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
-          setView('child');
-        }}
+        onOpenChild={openChild}
       />
     );
   } else if (tab === 'lists') {
