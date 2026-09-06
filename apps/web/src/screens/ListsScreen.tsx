@@ -16,7 +16,7 @@ function ListCard({
   return (
     <button
       onClick={() => onOpen(l)}
-      className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+      className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card md:mb-0"
     >
       <span
         className="grid h-10 w-10 flex-none place-items-center rounded-emoji text-xl"
@@ -116,7 +116,7 @@ export function ListsScreen({
 
       {/* Search lives here rather than in its own tab — it is nearly always a
           list or a task inside one that you are looking for. */}
-      <div className="mb-d3 flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card">
+      <div className="mb-d3 flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card md:max-w-lg">
         <span className="text-muted" style={{ fontSize: 16 }}>
           ⌕
         </span>
@@ -209,7 +209,7 @@ export function ListsScreen({
       ) : (
         <>
           {creating && (
-            <div className="mb-d3 rounded-card bg-surface p-4 shadow-card">
+            <div className="mb-d3 rounded-card bg-surface p-4 shadow-card md:max-w-lg">
               <input
                 autoFocus
                 value={name}
@@ -282,44 +282,49 @@ export function ListsScreen({
             </div>
           )}
 
-          {remindersList && !remindersList.hidden && (
-            <ListCard
-              list={remindersList}
-              subtitle={`${remindersList.remaining} upcoming`}
-              onOpen={onOpenList}
-            />
-          )}
-
-          {shoppingList && !shoppingList.hidden && (
-            <ListCard
-              list={shoppingList}
-              // Says which Shopping list this is: nothing else distinguishes it
-              // from one you made yourself with the same name and icon.
-              subtitle={`${shoppingList.remaining} left · from your meal plan`}
-              onOpen={onOpenList}
-            />
-          )}
-
           {isLoading ? (
             <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
               Loading…
             </p>
-          ) : lists.length === 0 && !creating ? (
+          ) : lists.length === 0 && !creating && !remindersList && !shoppingList ? (
             <div className="mt-8 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
               <div className="mb-2 text-4xl">🗂️</div>
               No lists yet. Tap + to make your first.
             </div>
           ) : (
-            lists.map((l) => (
-              <ListCard
-                key={l.id}
-                list={l}
-                subtitle={`${l.remaining} ${l.type === 'checklist' ? 'left' : 'to do'}${
-                  l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''
-                }`}
-                onOpen={onOpenList}
-              />
-            ))
+            /* A list card is a compact row, not prose, so it tiles rather than
+               stretches. The cards keep a readable size and the window's width
+               buys more of them on screen instead of longer lines. */
+            <div className="md:grid md:grid-cols-2 md:items-start md:gap-d2 xl:grid-cols-3">
+              {remindersList && !remindersList.hidden && (
+                <ListCard
+                  list={remindersList}
+                  subtitle={`${remindersList.remaining} upcoming`}
+                  onOpen={onOpenList}
+                />
+              )}
+
+              {shoppingList && !shoppingList.hidden && (
+                <ListCard
+                  list={shoppingList}
+                  // Says which Shopping list this is: nothing else distinguishes
+                  // it from one you made yourself with the same name and icon.
+                  subtitle={`${shoppingList.remaining} left · from your meal plan`}
+                  onOpen={onOpenList}
+                />
+              )}
+
+              {lists.map((l) => (
+                <ListCard
+                  key={l.id}
+                  list={l}
+                  subtitle={`${l.remaining} ${l.type === 'checklist' ? 'left' : 'to do'}${
+                    l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''
+                  }`}
+                  onOpen={onOpenList}
+                />
+              ))}
+            </div>
           )}
         </>
       )}

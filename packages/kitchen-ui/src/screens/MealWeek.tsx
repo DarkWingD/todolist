@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MealDayCard, type MealEntry } from '../components/MealDayCard';
 import { addDays, sameDay, startOfWeekMon, WEEKDAY_SHORT } from '../lib/caldate';
 import type { MealPlannerAdapter } from '../adapter';
@@ -116,6 +116,29 @@ export function MealWeek({
   // Cards vary in height, so a drop lands on whichever day's box centre is
   // nearest — which stays correct however tall the neighbours happen to be.
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // On the board the editor floats over the week, so clicking the board behind
+  // it should put it away — that's what a panel hovering over content implies.
+  // Escape closes it too, which the card's own input already handles but the
+  // rest of the panel did not.
+  useEffect(() => {
+    if (!openDate) return;
+    const onDown = (e: MouseEvent) => {
+      const open = slotRefs.current.find((el) => el?.dataset.date === openDate);
+      if (open && !open.contains(e.target as Node)) setOpenDate(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenDate(null);
+    };
+    // Pointerdown rather than click: a click that started inside the panel and
+    // ended outside it (dragging to select text) should not count as leaving.
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [openDate]);
   function onDropFrom(index: number, offsetY: number) {
     if (!planId) return;
     const source = slotRefs.current[index];
@@ -282,6 +305,8 @@ export function MealWeek({
                 ref={(el) => {
                   slotRefs.current[i] = el;
                 }}
+                // Lets the outside-click handler find the open day's box.
+                data-date={key}
                 // The cell keeps its place in the week while its editor is open:
                 // a min-height holds the column open, and the editor floats
                 // above as a popover. Spanning the row instead would push the
