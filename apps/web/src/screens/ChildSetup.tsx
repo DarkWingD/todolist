@@ -44,6 +44,24 @@ function describeDays(days: number[]): string {
     .join(', ');
 }
 
+type Profile = {
+  className: string | null;
+  room: string | null;
+  teacher: string | null;
+  officePhone: string | null;
+  medicalNotes: string | null;
+};
+
+function profileDraft(p: Profile | null) {
+  return {
+    className: p?.className ?? '',
+    room: p?.room ?? '',
+    teacher: p?.teacher ?? '',
+    officePhone: p?.officePhone ?? '',
+    medicalNotes: p?.medicalNotes ?? '',
+  };
+}
+
 type ChildData = {
   days: { weekday: number; place: string; startTime: string | null; endTime: string | null }[];
   periods: {
@@ -90,6 +108,11 @@ export function ChildSetup({
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [editingPlace, setEditingPlace] = useState<string | null>(null);
+
+  const [draft, setDraft] = useState(() => profileDraft(child.profile));
+  const detailsDirty = (
+    ['className', 'room', 'teacher', 'officePhone', 'medicalNotes'] as const
+  ).some((k) => (draft[k] ?? '') !== (child.profile?.[k] ?? ''));
 
   // Period form
   const [periodOpen, setPeriodOpen] = useState(false);
@@ -543,12 +566,8 @@ export function ChildSetup({
                 {label}
               </span>
               <input
-                defaultValue={child.profile?.[key] ?? ''}
-                onBlur={(e) => {
-                  const value = e.target.value.trim();
-                  if (value === (child.profile?.[key] ?? '')) return;
-                  updateProfile.mutate({ listId, [key]: value || null });
-                }}
+                value={draft[key] ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                 className={field}
                 style={fieldStyle}
               />
@@ -562,14 +581,10 @@ export function ChildSetup({
               Medical &amp; allergies
             </span>
             <textarea
-              defaultValue={child.profile?.medicalNotes ?? ''}
+              value={draft.medicalNotes ?? ''}
               rows={3}
               placeholder="Anything a carer would need in a hurry"
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                if (value === (child.profile?.medicalNotes ?? '')) return;
-                updateProfile.mutate({ listId, medicalNotes: value || null });
-              }}
+              onChange={(e) => setDraft((d) => ({ ...d, medicalNotes: e.target.value }))}
               className={field}
               style={fieldStyle}
             />
@@ -577,6 +592,40 @@ export function ChildSetup({
               Shown at the top of this screen, never hidden behind a tap.
             </span>
           </label>
+
+          {/* Explicit Save and Cancel rather than save-on-blur: blurring a field
+              gives no sign that anything was committed, and none at all when the
+              server refuses it. */}
+          {detailsDirty && (
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDraft(profileDraft(child.profile))}
+                className="text-muted"
+                style={{ fontSize: 'var(--fs-sm)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updateProfile.isPending}
+                onClick={() =>
+                  updateProfile.mutate({
+                    listId,
+                    className: draft.className || null,
+                    room: draft.room || null,
+                    teacher: draft.teacher || null,
+                    officePhone: draft.officePhone || null,
+                    medicalNotes: draft.medicalNotes || null,
+                  })
+                }
+                className="rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
+                style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+              >
+                {updateProfile.isPending ? 'Saving…' : 'Save details'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
