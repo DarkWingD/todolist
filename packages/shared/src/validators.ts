@@ -239,7 +239,7 @@ export const pushSubscribeSchema = z.object({
 export const weekdaySchema = z.number().int().min(0).max(6);
 
 /** "HH:MM", 24-hour. Times are local to the family; no timezone is stored. */
-export const timeOfDaySchema = z.string().regex(/^([01]d|2[0-3]):[0-5]d$/, 'Must be HH:MM');
+export const timeOfDaySchema = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, 'Must be HH:MM');
 
 export const createChildSchema = z.object({
   name: z.string().trim().min(1).max(120),

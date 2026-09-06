@@ -71,10 +71,17 @@ export function ChildSetup({
   listId: string;
   onChanged: () => void;
 }) {
-  const setDays = trpc.children.setDays.useMutation({ onSuccess: onChanged });
-  const upsertPeriod = trpc.children.upsertPeriod.useMutation({ onSuccess: onChanged });
-  const removePeriod = trpc.children.removePeriod.useMutation({ onSuccess: onChanged });
-  const updateProfile = trpc.children.updateProfile.useMutation({ onSuccess: onChanged });
+  const [error, setError] = useState<string | null>(null);
+  const onErr = (e: { message: string }) => setError(e.message);
+  const ok = () => {
+    setError(null);
+    onChanged();
+  };
+
+  const setDays = trpc.children.setDays.useMutation({ onSuccess: ok, onError: onErr });
+  const upsertPeriod = trpc.children.upsertPeriod.useMutation({ onSuccess: ok, onError: onErr });
+  const removePeriod = trpc.children.removePeriod.useMutation({ onSuccess: ok, onError: onErr });
+  const updateProfile = trpc.children.updateProfile.useMutation({ onSuccess: ok, onError: onErr });
 
   // Place sheet
   const [placeOpen, setPlaceOpen] = useState(false);
@@ -126,16 +133,20 @@ export function ChildSetup({
       startTime: from || null,
       endTime: to || null,
     }));
-    setDays.mutate({
-      listId,
-      days: [...kept, ...mine].map((d) => ({
-        weekday: d.weekday,
-        place: d.place,
-        startTime: d.startTime,
-        endTime: d.endTime,
-      })),
-    });
-    setPlaceOpen(false);
+    setDays.mutate(
+      {
+        listId,
+        days: [...kept, ...mine].map((d) => ({
+          weekday: d.weekday,
+          place: d.place,
+          startTime: d.startTime,
+          endTime: d.endTime,
+        })),
+      },
+      // Only close once it has actually saved — closing regardless is what made
+      // the earlier failure invisible.
+      { onSuccess: () => setPlaceOpen(false) },
+    );
   }
 
   function clearPlace(name: string) {
@@ -159,6 +170,18 @@ export function ChildSetup({
 
   return (
     <div className="mb-d4 flex flex-col gap-d4 rounded-card bg-surface p-d3">
+      {error && (
+        <p
+          className="rounded-card p-d2"
+          style={{
+            background: 'var(--color-danger-soft)',
+            color: 'var(--color-danger)',
+            fontSize: 'var(--fs-sm)',
+          }}
+        >
+          {error}
+        </p>
+      )}
       {/* ── the week ── */}
       <div>
         <h3
