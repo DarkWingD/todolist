@@ -124,16 +124,18 @@ export const childrenRouter = router({
     const day = todayKey();
     const weekday = new Date().getDay();
 
-    const [days, periods] = await Promise.all([
+    const [days, periods, profiles] = await Promise.all([
       db
         .select()
         .from(childDay)
         .where(and(inArray(childDay.listId, ids), eq(childDay.weekday, weekday))),
       db.select().from(schoolPeriod).where(inArray(schoolPeriod.listId, ids)),
+      db.select().from(childProfile).where(inArray(childProfile.listId, ids)),
     ]);
 
     return lists.map((l) => {
       const today = days.find((d) => d.listId === l.id) ?? null;
+      const profile = profiles.find((p) => p.listId === l.id) ?? null;
       const status = statusFor(
         periods.filter((p) => p.listId === l.id),
         day,
@@ -146,6 +148,16 @@ export const childrenRouter = router({
         startTime: status.attending ? (today?.startTime ?? null) : null,
         endTime: status.attending ? (today?.endTime ?? null) : null,
         offReason: status.attending ? null : status.reason,
+        // The details you otherwise hunt for in an email, one tap from Today.
+        profile: profile
+          ? {
+              className: profile.className,
+              room: profile.room,
+              teacher: profile.teacher,
+              officePhone: profile.officePhone,
+              medicalNotes: profile.medicalNotes,
+            }
+          : null,
       };
     });
   }),

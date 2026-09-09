@@ -8,6 +8,7 @@ import { useSession } from './lib/auth';
 import { trpc } from './lib/trpc';
 import { DESKTOP_QUERY, useMediaQuery } from './lib/useMediaQuery';
 import { AccountScreen } from './screens/AccountScreen';
+import { ActivityScreen } from './screens/ActivityScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
 import { CalScreen } from './screens/CalScreen';
 import { ChildScreen } from './screens/ChildScreen';
@@ -131,6 +132,7 @@ export function App() {
 type View =
   | 'main'
   | 'listDetail'
+  | 'activity'
   | 'you'
   | 'appearance'
   | 'taskDetail'
@@ -348,6 +350,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
           selectedId={selectedList?.id ?? null}
           onSelect={openList}
           onOpenTask={openTask}
+          onOpenChild={openChild}
           onNewList={() => setCreatingList(true)}
           searchRef={searchRef}
         />
@@ -388,6 +391,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
         focusAddSignal={focusAddSignal}
       />
     );
+  } else if (view === 'activity') {
+    content = <ActivityScreen onBack={() => setView('main')} />;
   } else if (view === 'you') {
     content = (
       <>
@@ -419,12 +424,18 @@ function AuthedApp({ me }: { me: SessionUser }) {
         me={me}
         onOpenTask={openTask}
         onOpenYou={() => setView('you')}
+        onOpenActivity={() => setView('activity')}
+        onOpenCal={() => navigate('cal')}
+        onOpenMeals={() => navigate('meals')}
         showKids={showKids}
+        showMeals={showMeals}
         onOpenChild={openChild}
       />
     );
   } else if (tab === 'lists') {
-    content = <ListsScreen onOpenList={openList} createSignal={createListSignal} />;
+    content = (
+      <ListsScreen onOpenList={openList} onOpenTask={openTask} createSignal={createListSignal} />
+    );
   } else if (tab === 'cal') {
     content = (
       <CalScreen onOpenTask={openTask} createSignal={calCreateSignal} weekStartsOn={weekStartsOn} />
@@ -437,6 +448,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
         me={me}
         onOpenYou={() => setView('you')}
         onOpenChild={openChild}
+        onOpenActivity={() => setView('activity')}
         addSignal={familyAddSignal}
       />
     );

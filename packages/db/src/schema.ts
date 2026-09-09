@@ -141,6 +141,9 @@ export const userPrefs = pgTable('user_prefs', {
   // the calendar alike; two different first-days in one app would be worse than
   // either choice.
   weekStartsOn: smallint('week_starts_on').notNull().default(1),
+  // When this person last looked at what the family has been doing. Anything
+  // newer, done by someone else, is "new" on Today.
+  activitySeenAt: timestamp('activity_seen_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -252,6 +255,34 @@ export const householdInvite = pgTable(
     index('household_invite_household_idx').on(t.householdId),
     index('household_invite_email_idx').on(t.email),
   ],
+);
+
+/**
+ * What people in the household have done: a task ticked, a dinner planned, a
+ * child added. Written by the routers at the moment of change, read as a feed.
+ * Rows on a list are only shown to that list's members, so a private list's
+ * comings and goings stay private.
+ */
+export const activity = pgTable(
+  'activity',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => household.id, { onDelete: 'cascade' }),
+    actorId: uuid('actor_id').references(() => person.id, { onDelete: 'set null' }),
+    // e.g. 'task.completed', 'event.created', 'meal.planned', 'child.added'
+    kind: text('kind').notNull(),
+    listId: uuid('list_id').references(() => list.id, { onDelete: 'cascade' }),
+    // The task/event/person the row is about, if any. Not a foreign key: the
+    // row should outlive what it describes.
+    targetId: uuid('target_id'),
+    // What to show: a title, and a small JSON bag of extras (date, assignee…).
+    title: text('title').notNull(),
+    meta: text('meta'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('activity_household_created_idx').on(t.householdId, t.createdAt)],
 );
 
 export const listMember = pgTable(

@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { createChild } from '../household.js';
+import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -90,6 +91,14 @@ export const householdRouter = router({
       { userId: ctx.user.id, householdId: ctx.person.householdId },
       input,
     );
+    await logActivity({
+      householdId: ctx.person.householdId,
+      actorId: ctx.person.id,
+      kind: 'child.added',
+      targetId: kid.id,
+      title: kid.name,
+      meta: { emoji: kid.avatarEmoji, color: kid.avatarColor, listId: created.id },
+    });
     return { personId: kid.id, listId: created.id };
   }),
 

@@ -3,6 +3,7 @@ import { db, event } from '@todolist/db';
 import { createEventSchema, updateEventSchema } from '@todolist/shared';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
+import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 /**
@@ -42,6 +43,20 @@ export const eventsRouter = router({
         createdBy: ctx.user.id,
       })
       .returning();
+    if (created)
+      await logActivity({
+        householdId: ctx.person.householdId,
+        actorId: ctx.person.id,
+        kind: 'event.created',
+        listId: input.listId,
+        targetId: created.id,
+        title: created.title,
+        meta: {
+          startAt: created.startAt.toISOString(),
+          allDay: created.allDay,
+          assigneeId: created.assigneeId,
+        },
+      });
     return created;
   }),
 
@@ -76,6 +91,21 @@ export const eventsRouter = router({
         updatedAt: new Date(),
       })
       .where(eq(event.id, seriesId(id)));
+    const [after] = await db
+      .select({ title: event.title, startAt: event.startAt, allDay: event.allDay })
+      .from(event)
+      .where(eq(event.id, seriesId(id)))
+      .limit(1);
+    if (after)
+      await logActivity({
+        householdId: ctx.person.householdId,
+        actorId: ctx.person.id,
+        kind: 'event.updated',
+        listId,
+        targetId: seriesId(id),
+        title: after.title,
+        meta: { startAt: after.startAt.toISOString(), allDay: after.allDay },
+      });
     return { ok: true };
   }),
 
@@ -85,10 +115,24 @@ export const eventsRouter = router({
       const listId = await eventListId(input.id);
       if (!listId) return { ok: false };
       await assertListAccess(ctx.user.id, listId);
+      const [gone] = await db
+        .select({ title: event.title })
+        .from(event)
+        .where(eq(event.id, seriesId(input.id)))
+        .limit(1);
       await db
         .update(event)
         .set({ deletedAt: new Date() })
         .where(eq(event.id, seriesId(input.id)));
+      if (gone)
+        await logActivity({
+          householdId: ctx.person.householdId,
+          actorId: ctx.person.id,
+          kind: 'event.deleted',
+          listId,
+          targetId: seriesId(input.id),
+          title: gone.title,
+        });
       return { ok: true };
     }),
 });

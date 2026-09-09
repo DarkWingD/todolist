@@ -33,11 +33,13 @@ export function FamilyScreen({
   me,
   onOpenYou,
   onOpenChild,
+  onOpenActivity,
   addSignal,
 }: {
   me: SessionUser;
   onOpenYou: () => void;
   onOpenChild: (listId: string) => void;
+  onOpenActivity: () => void;
   addSignal?: number;
 }) {
   const utils = trpc.useUtils();
@@ -197,6 +199,29 @@ export function FamilyScreen({
         </p>
       ) : (
         <>
+          <button
+            type="button"
+            onClick={onOpenActivity}
+            className="mb-d3 flex w-full items-center gap-d3 rounded-card bg-surface px-3.5 py-3 text-left shadow-card"
+          >
+            <span
+              className="grid h-10 w-10 place-items-center rounded-full"
+              style={{ background: 'var(--color-accent-soft)', fontSize: 18 }}
+            >
+              ✎
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                What's been happening
+              </span>
+              <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                Everything the family has ticked off, planned and added
+              </span>
+            </span>
+            <span className="text-muted" style={{ fontSize: 18 }}>
+              ›
+            </span>
+          </button>
           <h2 className={sectionH} style={{ ...sectionStyle, marginTop: 0 }}>
             Grown-ups
           </h2>

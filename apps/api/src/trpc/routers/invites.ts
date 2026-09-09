@@ -14,6 +14,7 @@ import {
 import { acceptInviteSchema } from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
 import { joinHousehold } from '../household.js';
+import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 /**
@@ -122,6 +123,13 @@ export const invitesRouter = router({
         .update(householdInvite)
         .set({ status: 'accepted' })
         .where(eq(householdInvite.id, inv.id));
+      await logActivity({
+        householdId: inv.targetId,
+        actorId: ctx.person.id,
+        kind: 'person.joined',
+        targetId: ctx.person.id,
+        title: ctx.user.name,
+      });
       return { kind: 'household' as const, id: inv.targetId };
     }
 

@@ -1,5 +1,6 @@
 import { router } from './trpc.js';
 import { accountRouter } from './routers/account.js';
+import { activityRouter } from './routers/activity.js';
 import { birthdaysRouter } from './routers/birthdays.js';
 import { calendarRouter } from './routers/calendar.js';
 import { childrenRouter } from './routers/children.js';
@@ -29,6 +30,7 @@ export const appRouter = router({
   birthdays: birthdaysRouter,
   account: accountRouter,
   push: pushRouter,
+  activity: activityRouter,
 });
 
 export type AppRouter = typeof appRouter;

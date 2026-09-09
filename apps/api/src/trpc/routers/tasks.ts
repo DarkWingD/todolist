@@ -4,6 +4,7 @@ import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
+import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 // Task columns plus the assignee's identity (nullable).
@@ -113,6 +114,24 @@ export const tasksRouter = router({
         createdBy: ctx.user.id,
       })
       .returning();
+    // Shopping-list lines are added by the dozen; the feed would drown.
+    // Keep the meal headings (top-level rows) and every ordinary task.
+    const [parent] = await db
+      .select({ type: list.type })
+      .from(list)
+      .where(eq(list.id, input.listId))
+      .limit(1);
+    if (created && !(parent?.type === 'checklist' && input.parentTaskId)) {
+      await logActivity({
+        householdId: ctx.person.householdId,
+        actorId: ctx.person.id,
+        kind: 'task.created',
+        listId: input.listId,
+        targetId: created.id,
+        title: created.title,
+        meta: input.assigneeId ? { assigneeId: input.assigneeId } : undefined,
+      });
+    }
     return created;
   }),
 
@@ -120,7 +139,12 @@ export const tasksRouter = router({
     .input(z.object({ id: z.string().uuid(), completed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const rows = await db
-        .select({ listId: task.listId, listType: list.type })
+        .select({
+          listId: task.listId,
+          listType: list.type,
+          title: task.title,
+          parentTaskId: task.parentTaskId,
+        })
         .from(task)
         .innerJoin(list, eq(list.id, task.listId))
         .where(eq(task.id, input.id))
@@ -129,6 +153,16 @@ export const tasksRouter = router({
       if (!found) return { ok: false };
       await assertListAccess(ctx.user.id, found.listId);
       const completedAt = input.completed ? new Date() : null;
+      if (!(found.listType === 'checklist' && found.parentTaskId)) {
+        await logActivity({
+          householdId: ctx.person.householdId,
+          actorId: ctx.person.id,
+          kind: input.completed ? 'task.completed' : 'task.reopened',
+          listId: found.listId,
+          targetId: input.id,
+          title: found.title,
+        });
+      }
       await db
         .update(task)
         .set({ completedAt, updatedAt: new Date() })
@@ -147,7 +181,7 @@ export const tasksRouter = router({
 
   update: protectedProcedure.input(updateTaskSchema).mutation(async ({ ctx, input }) => {
     const rows = await db
-      .select({ listId: task.listId })
+      .select({ listId: task.listId, title: task.title, assigneeId: task.assigneeId })
       .from(task)
       .where(eq(task.id, input.id))
       .limit(1);
@@ -155,6 +189,17 @@ export const tasksRouter = router({
     if (!found) return { ok: false };
     await assertListAccess(ctx.user.id, found.listId);
     const { id, dueAt, completed, tagIds: _tagIds, ...rest } = input;
+    if (rest.assigneeId !== undefined && rest.assigneeId !== found.assigneeId && rest.assigneeId) {
+      await logActivity({
+        householdId: ctx.person.householdId,
+        actorId: ctx.person.id,
+        kind: 'task.assigned',
+        listId: found.listId,
+        targetId: id,
+        title: rest.title ?? found.title,
+        meta: { assigneeId: rest.assigneeId },
+      });
+    }
     await db
       .update(task)
       .set({
@@ -171,7 +216,12 @@ export const tasksRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const rows = await db
-        .select({ listId: task.listId, listType: list.type })
+        .select({
+          listId: task.listId,
+          listType: list.type,
+          title: task.title,
+          parentTaskId: task.parentTaskId,
+        })
         .from(task)
         .innerJoin(list, eq(list.id, task.listId))
         .where(eq(task.id, input.id))
@@ -180,6 +230,16 @@ export const tasksRouter = router({
       if (!found) return { ok: false };
       await assertListAccess(ctx.user.id, found.listId);
       await db.update(task).set({ deletedAt: new Date() }).where(eq(task.id, input.id));
+      if (found.listType !== 'checklist') {
+        await logActivity({
+          householdId: ctx.person.householdId,
+          actorId: ctx.person.id,
+          kind: 'task.deleted',
+          listId: found.listId,
+          targetId: input.id,
+          title: found.title,
+        });
+      }
       // Deleting a meal heading takes its ingredients with it, rather than
       // stranding them at the top level. Same recurrence guard as `toggle`.
       if (found.listType === 'checklist') {

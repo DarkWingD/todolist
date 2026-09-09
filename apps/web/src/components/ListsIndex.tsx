@@ -7,6 +7,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (list: ListSummary) => void;
   onOpenTask: (id: string) => void;
+  onOpenChild: (listId: string) => void;
   onNewList: () => void;
   /** Handed in so the workspace can focus search from a keyboard shortcut. */
   searchRef: RefObject<HTMLInputElement>;
@@ -105,7 +106,14 @@ function Group({ label }: { label: string }) {
  * search at the top and New list at the foot. ↑/↓ move the selection while
  * nothing has keyboard focus.
  */
-export function ListsIndex({ selectedId, onSelect, onOpenTask, onNewList, searchRef }: Props) {
+export function ListsIndex({
+  selectedId,
+  onSelect,
+  onOpenTask,
+  onOpenChild,
+  onNewList,
+  searchRef,
+}: Props) {
   const [q, setQ] = useState('');
   const query = q.trim();
   const { data: results, isFetching } = trpc.search.query.useQuery(
@@ -290,10 +298,80 @@ export function ListsIndex({ selectedId, onSelect, onOpenTask, onNewList, search
                   ))}
                 </>
               )}
+              {(results?.events.length ?? 0) > 0 && (
+                <>
+                  <Group label="Events" />
+                  {results!.events.map((ev) => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => {
+                        const full = byId(ev.listId);
+                        if (full) onSelect(full);
+                      }}
+                      className="flex w-full items-start gap-2.5 rounded-card px-2.5 py-2 text-left"
+                    >
+                      <span style={{ fontSize: 16, lineHeight: '22px' }}>📅</span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate font-semibold"
+                          style={{ fontSize: 'var(--fs-sm)' }}
+                        >
+                          {ev.title}
+                        </span>
+                        <span
+                          className="block truncate text-muted"
+                          style={{ fontSize: 'var(--fs-xs)' }}
+                        >
+                          {new Date(ev.startAt as unknown as string).toLocaleDateString([], {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                          {' · '}
+                          {ev.listEmoji} {ev.listName}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {(results?.people.length ?? 0) > 0 && (
+                <>
+                  <Group label="People" />
+                  {results!.people.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      disabled={!p.childListId}
+                      onClick={() => p.childListId && onOpenChild(p.childListId)}
+                      className="flex w-full items-start gap-2.5 rounded-card px-2.5 py-2 text-left"
+                    >
+                      <span style={{ fontSize: 16, lineHeight: '22px' }}>{p.avatarEmoji}</span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate font-semibold"
+                          style={{ fontSize: 'var(--fs-sm)' }}
+                        >
+                          {p.name}
+                        </span>
+                        <span
+                          className="block truncate text-muted"
+                          style={{ fontSize: 'var(--fs-xs)' }}
+                        >
+                          {p.snippet ?? (p.kind === 'child' ? 'Child' : 'Grown-up')}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
               {results &&
                 results.lists.length === 0 &&
                 results.tasks.length === 0 &&
-                results.notes.length === 0 && (
+                results.notes.length === 0 &&
+                results.events.length === 0 &&
+                results.people.length === 0 && (
                   <p className="p-3 text-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
                     No matches for “{query}”.
                   </p>

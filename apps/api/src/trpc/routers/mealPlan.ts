@@ -29,6 +29,7 @@ import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertMealPlanAccess } from '../access.js';
 import { householdUserIds } from '../household.js';
+import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -310,6 +311,19 @@ export const mealPlanRouter = router({
         target: [mealPlanDay.planId, mealPlanDay.date],
         set: { mealId, cookSpan: input.cookSpan, updatedAt: new Date() },
       });
+    const [named] = await db
+      .select({ name: meal.name })
+      .from(meal)
+      .where(eq(meal.id, mealId))
+      .limit(1);
+    await logActivity({
+      householdId: ctx.person.householdId,
+      actorId: ctx.person.id,
+      kind: 'meal.planned',
+      targetId: mealId,
+      title: named?.name ?? input.name ?? 'dinner',
+      meta: { date: input.date },
+    });
     return { ok: true };
   }),
 
@@ -317,9 +331,23 @@ export const mealPlanRouter = router({
     .input(z.object({ planId: z.string().uuid(), date: planDateSchema }))
     .mutation(async ({ ctx, input }) => {
       await assertMealPlanAccess(ctx.user.id, input.planId);
+      const [was] = await db
+        .select({ name: meal.name })
+        .from(mealPlanDay)
+        .innerJoin(meal, eq(meal.id, mealPlanDay.mealId))
+        .where(and(eq(mealPlanDay.planId, input.planId), eq(mealPlanDay.date, input.date)))
+        .limit(1);
       await db
         .delete(mealPlanDay)
         .where(and(eq(mealPlanDay.planId, input.planId), eq(mealPlanDay.date, input.date)));
+      if (was)
+        await logActivity({
+          householdId: ctx.person.householdId,
+          actorId: ctx.person.id,
+          kind: 'meal.cleared',
+          title: was.name,
+          meta: { date: input.date },
+        });
       return { ok: true };
     }),
 

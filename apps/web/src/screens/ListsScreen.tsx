@@ -54,11 +54,21 @@ interface MinimalList {
   type?: ListType;
 }
 
+function fmtWhen(iso: unknown, allDay: boolean): string {
+  const d = new Date(iso as string);
+  const day = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  return allDay
+    ? day
+    : `${day} · ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 export function ListsScreen({
   onOpenList,
+  onOpenTask,
   createSignal,
 }: {
   onOpenList: (list: MinimalList) => void;
+  onOpenTask?: (id: string) => void;
   createSignal?: number;
 }) {
   const [q, setQ] = useState('');
@@ -84,10 +94,14 @@ export function ListsScreen({
     }
   }, [createSignal]);
 
-  const hitRow = (l: { id: string; name: string; emojiIcon: string }, sub?: string) => (
+  const hitRow = (
+    l: { id: string; name: string; emojiIcon: string },
+    sub?: string,
+    onClick?: () => void,
+  ) => (
     <button
       key={l.id}
-      onClick={() => onOpenList(l)}
+      onClick={onClick ?? (() => onOpenList(l))}
       className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
     >
       <span
@@ -183,9 +197,11 @@ export function ListsScreen({
               <>
                 {sectionH('Tasks')}
                 {results!.tasks.map((t) => (
-                  <div
+                  <button
                     key={t.id}
-                    className="mb-d2 flex items-center gap-d3 rounded-card bg-surface p-d3 shadow-card"
+                    type="button"
+                    onClick={() => onOpenTask?.(t.id)}
+                    className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
                   >
                     <span>{t.listEmoji}</span>
                     <span
@@ -194,14 +210,48 @@ export function ListsScreen({
                     >
                       {t.title}
                     </span>
-                  </div>
+                  </button>
                 ))}
+              </>
+            )}
+            {(results?.events.length ?? 0) > 0 && (
+              <>
+                {sectionH('Events')}
+                {results!.events.map((ev) =>
+                  hitRow(
+                    { id: ev.id, name: ev.title, emojiIcon: '📅' },
+                    `${fmtWhen(ev.startAt, ev.allDay)}${ev.recurrenceRule ? ' · repeats' : ''} · ${ev.listEmoji} ${ev.listName}`,
+                    () => onOpenList({ id: ev.listId, name: ev.listName, emojiIcon: ev.listEmoji }),
+                  ),
+                )}
+              </>
+            )}
+            {(results?.people.length ?? 0) > 0 && (
+              <>
+                {sectionH('People')}
+                {results!.people.map((p) =>
+                  hitRow(
+                    { id: p.id, name: p.name, emojiIcon: p.avatarEmoji },
+                    p.snippet ?? (p.kind === 'child' ? 'Child' : 'Grown-up'),
+                    p.childListId
+                      ? () =>
+                          onOpenList({
+                            id: p.childListId!,
+                            name: p.name,
+                            emojiIcon: p.avatarEmoji,
+                            type: 'child',
+                          })
+                      : undefined,
+                  ),
+                )}
               </>
             )}
             {results &&
               results.lists.length === 0 &&
               results.tasks.length === 0 &&
-              results.notes.length === 0 && (
+              results.notes.length === 0 &&
+              results.events.length === 0 &&
+              results.people.length === 0 && (
                 <p className="mt-6 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
                   No matches for “{query}”.
                 </p>

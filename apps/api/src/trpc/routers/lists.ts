@@ -13,6 +13,7 @@ import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertListAccess } from '../access.js';
 import { shareListWithHousehold, unshareListFromHousehold } from '../household.js';
+import { logActivity, logNoteEdit } from '../activity.js';
 import { groceriesListId } from './mealPlan.js';
 import { remindersListId } from './reminders.js';
 import { protectedProcedure, router } from '../trpc.js';
@@ -130,6 +131,15 @@ export const listsRouter = router({
     // Shared with the household by default: every adult gets a seat now, and
     // anyone who joins later gets one on arrival.
     if (!isPrivate) await shareListWithHousehold(created.id, ctx.person.householdId);
+    await logActivity({
+      householdId: ctx.person.householdId,
+      actorId: ctx.person.id,
+      kind: 'list.created',
+      listId: created.id,
+      targetId: created.id,
+      title: created.name,
+      meta: { type: created.type, emoji: created.emojiIcon },
+    });
     return created;
   }),
 
@@ -207,6 +217,18 @@ export const listsRouter = router({
         set: { body: input.body, updatedBy: ctx.user.id, updatedAt: now },
       });
     await db.update(list).set({ updatedAt: now }).where(eq(list.id, input.listId));
+    const [meta] = await db
+      .select({ name: list.name })
+      .from(list)
+      .where(eq(list.id, input.listId))
+      .limit(1);
+    await logNoteEdit({
+      householdId: ctx.person.householdId,
+      actorId: ctx.person.id,
+      listId: input.listId,
+      targetId: input.listId,
+      title: meta?.name ?? 'a note',
+    });
     return { updatedAt: now };
   }),
 
