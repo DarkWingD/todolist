@@ -43,7 +43,11 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
   // Weekly is the only repeat worth offering here: swimming, music, sport. A
   // full recurrence editor is a different feature, and none of the events
   // people attach to a child need one.
-  const [repeats, setRepeats] = useState(Boolean(event.recurrenceRule));
+  // 0 never, 1 weekly, 2 fortnightly: weekly with an interval of two.
+  const [repeatEvery, setRepeatEvery] = useState<0 | 1 | 2>(() => {
+    if (!event.recurrenceRule) return 0;
+    return /INTERVAL=2/.test(event.recurrenceRule) ? 2 : 1;
+  });
   const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const [confirmDel, setConfirmDel] = useState(false);
@@ -154,13 +158,39 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
           </>
         )}
 
-        <label className="mb-3 block" style={{ fontSize: 'var(--fs-sm)' }}>
-          <input type="checkbox" checked={repeats} onChange={(e) => setRepeats(e.target.checked)} />{' '}
-          Repeats weekly
-          {repeats && start && (
-            <span className="text-muted"> · every {DAY_LONG[new Date(start).getDay()]}</span>
-          )}
+        <label className={label} style={labelStyle}>
+          Repeats
         </label>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {(
+            [
+              { v: 0, l: 'Never' },
+              { v: 1, l: 'Weekly' },
+              { v: 2, l: 'Fortnightly' },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => setRepeatEvery(o.v)}
+              className="rounded-full px-3 py-1.5 font-semibold"
+              style={{
+                fontSize: 'var(--fs-sm)',
+                background:
+                  repeatEvery === o.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                color: repeatEvery === o.v ? 'var(--color-accent)' : 'var(--color-text)',
+              }}
+            >
+              {o.l}
+            </button>
+          ))}
+          {repeatEvery > 0 && start && (
+            <span className="self-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+              every {repeatEvery === 2 ? 'second ' : ''}
+              {DAY_LONG[new Date(start).getDay()]}
+            </span>
+          )}
+        </div>
         <button
           disabled={!title.trim() || update.isPending}
           className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
@@ -179,7 +209,10 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
               assigneeId: assignee,
               // Anchored to the day the event actually starts, so moving the
               // event moves the whole series with it.
-              recurrenceRule: repeats ? `FREQ=WEEKLY;BYDAY=${DAYS[new Date(s).getDay()]}` : null,
+              recurrenceRule:
+                repeatEvery > 0
+                  ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
+                  : null,
             });
           }}
         >
