@@ -88,6 +88,25 @@ export function CalScreen({
   const to = gridEnd > listEnd ? gridEnd : listEnd;
 
   const { data: people = [] } = trpc.calendar.people.useQuery();
+  // Grown-ups' working patterns, so a day someone is off can be shaded.
+  const { data: patterns } = trpc.household.workPatterns.useQuery();
+  const offOn = (day: Date) => {
+    if (!patterns || patterns.adults.length === 0) return [];
+    const a = Date.parse(`${patterns.anchor}T00:00:00Z`);
+    const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    const d = Date.parse(`${key}T00:00:00Z`);
+    const parity = (((Math.floor((d - a) / (7 * 86_400_000)) % 2) + 2) % 2) as 0 | 1;
+    const wd = day.getDay();
+    return patterns.adults.filter(
+      (p) => !p.days.some((x) => x.weekday === wd && x.week === (p.fortnightly ? parity : 0)),
+    );
+  };
+  // Shade a weekday off, not weekends: those are already tinted, and every
+  // grown-up is off on most of them.
+  const offTint = (day: Date) =>
+    offOn(day).length > 0 && day.getDay() !== 0 && day.getDay() !== 6
+      ? 'var(--color-accent-soft)'
+      : null;
   const { data: birthdays = [] } = trpc.birthdays.list.useQuery();
   const { data: lists = [] } = trpc.lists.mine.useQuery();
   const { data: range } = trpc.calendar.range.useQuery({
@@ -228,7 +247,9 @@ export function CalScreen({
           style={{
             borderColor: 'var(--color-border)',
             padding: '1px 2px 2px',
-            background: isWeekendCol(col) ? 'var(--color-weekend, transparent)' : 'transparent',
+            background:
+              offTint(day) ??
+              (isWeekendCol(col) ? 'var(--color-weekend, transparent)' : 'transparent'),
           }}
         >
           <span
@@ -250,6 +271,17 @@ export function CalScreen({
           >
             {day.getDate()}
           </span>
+          {offOn(day).length > 0 && (
+            <span
+              className="flex gap-px"
+              style={{ fontSize: 'calc(9px * var(--text-scale))', lineHeight: 1 }}
+              title="Day off"
+            >
+              {offOn(day).map((p) => (
+                <span key={p.id}>{p.avatarEmoji}</span>
+              ))}
+            </span>
+          )}
           {items.map((it) =>
             it.kind === 'task' ? (
               <div
@@ -351,6 +383,19 @@ export function CalScreen({
             <span className="font-bold uppercase text-muted" style={{ fontSize: 11 }}>
               {day.toLocaleDateString([], { weekday: 'long' })}
             </span>
+            {offOn(day).map((p) => (
+              <span
+                key={p.id}
+                className="rounded-full px-2 py-0.5 font-bold"
+                style={{
+                  fontSize: 10,
+                  background: 'var(--color-accent-soft)',
+                  color: 'var(--color-accent)',
+                }}
+              >
+                {p.avatarEmoji} {p.name.split(' ')[0]} off
+              </span>
+            ))}
           </div>
           {items.length ? (
             items.map(evtRow)
@@ -383,9 +428,8 @@ export function CalScreen({
           style={{
             background: isSel
               ? 'var(--color-accent-soft)'
-              : isWeekendCol(col)
-                ? 'var(--color-weekend, transparent)'
-                : 'transparent',
+              : (offTint(day) ??
+                (isWeekendCol(col) ? 'var(--color-weekend, transparent)' : 'transparent')),
           }}
         >
           <span

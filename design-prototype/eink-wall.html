@@ -1,0 +1,224 @@
+<title>Sorted Wall Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Quicksand:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  /* The surround is the app's palette; the panel itself is e-ink: black, white,
+     and four greys, no colour, because the screen can't show any. */
+  :root { --page-bg: #f3e9e2; --page-text: #3a302c; --page-muted: #8a7a72; --frame: #1b1b1f;
+    --ink: #111; --ink2: #3a3a3a; --ink3: #7a7a7a; --ink4: #b8b8b8; --ink5: #e2e2e2; --paper: #f7f7f4; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; } }
+  :root[data-theme="dark"] { --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page-bg); color: var(--page-text); font-family: Nunito, system-ui, sans-serif; font-weight: 600; padding: 32px 24px 70px; }
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  h1 { font-family: Quicksand, system-ui, sans-serif; font-size: 26px; font-weight: 700; }
+  .lede { color: var(--page-muted); font-size: 14px; margin-top: 4px; max-width: 70ch; }
+  .stage { margin-top: 22px; overflow-x: auto; }
+  /* 1872×1404 panel, scaled to fit; a 10.3" e-ink at 4:3 */
+  .bezel { width: 1872px; height: 1404px; transform-origin: top left; background: var(--frame); padding: 34px; border-radius: 22px; }
+  .scaler { width: 100%; }
+  .panel { width: 1804px; height: 1336px; background: var(--paper); color: var(--ink); display: grid;
+    grid-template-columns: 600px 1fr 520px; grid-template-rows: 112px 1fr; overflow: hidden; }
+  .top { grid-column: 1 / -1; display: flex; align-items: flex-end; justify-content: space-between; padding: 30px 44px 18px; border-bottom: 4px solid var(--ink); }
+  .top .date { font-family: Quicksand; font-size: 58px; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
+  .top .date small { font-size: 30px; color: var(--ink3); font-weight: 600; margin-left: 14px; }
+  .top .right { text-align: right; font-size: 26px; color: var(--ink2); line-height: 1.25; }
+  .top .right b { color: var(--ink); }
+  .col { padding: 26px 40px 30px; display: flex; flex-direction: column; gap: 22px; min-height: 0; }
+  .col + .col { border-left: 3px solid var(--ink4); }
+  h2 { font-family: Nunito; font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: .12em; color: var(--ink2); padding-bottom: 8px; border-bottom: 2px solid var(--ink4); }
+  h2 .n { float: right; font-weight: 800; color: var(--ink3); letter-spacing: 0; }
+
+  /* left: today */
+  .who { display: flex; flex-direction: column; gap: 10px; }
+  .who .row { display: flex; align-items: center; gap: 16px; font-size: 27px; }
+  .who .av { width: 52px; height: 52px; border-radius: 50%; border: 3px solid var(--ink); display: grid; place-items: center; font-size: 26px; flex: none; }
+  .who .av.kid { border-style: dashed; }
+  .who .name { font-weight: 900; width: 130px; flex: none; }
+  .who .where { color: var(--ink2); }
+  .who .off .where { color: var(--ink3); font-style: italic; }
+  .list { display: flex; flex-direction: column; gap: 12px; }
+  .item { display: flex; align-items: baseline; gap: 16px; font-size: 27px; line-height: 1.25; }
+  .item .t { width: 110px; flex: none; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .item .t.dim { color: var(--ink3); font-weight: 700; }
+  .item .who2 { color: var(--ink3); font-size: 22px; }
+  .dinner { border: 3px solid var(--ink); border-radius: 18px; padding: 16px 20px; display: flex; align-items: center; gap: 18px; }
+  .dinner .k { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; color: var(--ink3); }
+  .dinner .v { font-size: 30px; font-weight: 900; }
+  .dinner .s { font-size: 20px; color: var(--ink3); margin-left: auto; }
+  .todo { display: flex; flex-direction: column; gap: 10px; }
+  .todo .row { display: flex; align-items: center; gap: 14px; font-size: 26px; }
+  .box { width: 30px; height: 30px; border: 3px solid var(--ink); border-radius: 7px; flex: none; }
+  .box.done { background: var(--ink); position: relative; }
+  .box.done::after { content: ''; position: absolute; left: 9px; top: 3px; width: 8px; height: 14px; border: solid var(--paper); border-width: 0 4px 4px 0; transform: rotate(45deg); }
+  .row.done { color: var(--ink3); text-decoration: line-through; }
+
+  /* centre: the week */
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; flex: 1; min-height: 0; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; }
+  .day { padding: 12px 10px; border-right: 2px solid var(--ink4); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .day:last-child { border-right: 0; }
+  .day.today { background: var(--ink5); }
+  .day.off { background: repeating-linear-gradient(135deg, transparent 0 9px, var(--ink5) 9px 12px); }
+  .day.today.off { background: var(--ink5); }
+  .day .h { font-family: Quicksand; font-weight: 700; font-size: 22px; line-height: 1; display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; border-bottom: 2px solid var(--ink4); }
+  .day .h b { font-size: 34px; }
+  .day.today .h b { background: var(--ink); color: var(--paper); border-radius: 999px; padding: 4px 10px; align-self: flex-start; }
+  .ev { font-size: 19px; line-height: 1.2; padding: 6px 8px; border-radius: 8px; border: 2px solid var(--ink); font-weight: 800; }
+  .ev.kid { border-style: dashed; }
+  .ev.task { border: 0; padding-left: 0; font-weight: 700; color: var(--ink2); display: flex; gap: 6px; align-items: baseline; }
+  .ev.task::before { content: ''; width: 14px; height: 14px; border: 2px solid var(--ink2); border-radius: 4px; flex: none; transform: translateY(1px); }
+  .ev .tm { display: block; font-size: 15px; color: var(--ink3); font-weight: 700; }
+  .ev .p { display: block; font-size: 15px; color: var(--ink3); font-weight: 700; }
+  .offtag { font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; color: var(--ink3); }
+  .legend { display: flex; gap: 22px; font-size: 17px; color: var(--ink3); align-items: center; }
+  .legend .sw { display: inline-block; width: 26px; height: 16px; border: 2px solid var(--ink); border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+  .legend .sw.dash { border-style: dashed; }
+  .legend .sw.hatch { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--ink5) 5px 7px); border-color: var(--ink4); }
+
+  /* right: kids */
+  .kidhead { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 900; margin-top: 4px; }
+  .kidhead .av { width: 40px; height: 40px; border: 3px dashed var(--ink); border-radius: 50%; display: grid; place-items: center; font-size: 20px; }
+  .up { display: flex; flex-direction: column; gap: 10px; }
+  .up .row { display: grid; grid-template-columns: 96px 1fr; gap: 14px; font-size: 24px; line-height: 1.25; align-items: baseline; }
+  .up .d { font-weight: 900; font-variant-numeric: tabular-nums; }
+  .up .d small { display: block; font-size: 16px; color: var(--ink3); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .up .w { color: var(--ink2); }
+  .up .w b { color: var(--ink); font-weight: 900; }
+  .chores { display: flex; flex-direction: column; gap: 9px; }
+  .chores .row { display: flex; align-items: center; gap: 14px; font-size: 25px; }
+  .foot { margin-top: auto; font-size: 16px; color: var(--ink3); display: flex; justify-content: space-between; }
+
+  .notes { margin-top: 26px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px 40px; font-size: 14px; color: var(--page-muted); }
+  .notes h4 { font-family: Quicksand; font-size: 15px; color: var(--page-text); margin-bottom: 8px; }
+  .notes p + p { margin-top: 6px; }
+  .notes b { color: var(--page-text); }
+</style>
+
+<div class="wrap">
+  <h1>Sorted on the wall</h1>
+  <p class="lede">A 10.3-inch e-ink panel, 1872×1404, landscape. Three columns: today, this week, the kids. Black, white and four greys only, since that's all the screen has; type sized to read from across the kitchen.</p>
+
+  <div class="stage">
+    <div class="scaler"><div class="bezel" id="bezel">
+      <div class="panel">
+        <div class="top">
+          <div class="date">Tuesday 9 September <small>Week 9 · Term 3</small></div>
+          <div class="right"><b>Bins tonight</b> · recycling<br>Sunset 5:52 pm</div>
+        </div>
+
+        <!-- LEFT: today -->
+        <div class="col">
+          <div>
+            <h2>Where everyone is</h2>
+            <div class="who" style="margin-top:14px">
+              <div class="row"><span class="av">🦊</span><span class="name">Danie</span><span class="where">Work · 8:30 – 5:00</span></div>
+              <div class="row off"><span class="av">🐧</span><span class="name">Sam</span><span class="where">Day off</span></div>
+              <div class="row"><span class="av kid">🧒</span><span class="name">Bertie</span><span class="where">School · 8:45 – 3:15</span></div>
+              <div class="row"><span class="av kid">👧</span><span class="name">Maisie</span><span class="where">Kinder · 9:00 – 2:30</span></div>
+            </div>
+          </div>
+          <div>
+            <h2>On today</h2>
+            <div class="list" style="margin-top:14px">
+              <div class="item"><span class="t">4:00 pm</span><span>Swimming <span class="who2">· Bertie</span></span></div>
+              <div class="item"><span class="t">6:30 pm</span><span>Parent–teacher call <span class="who2">· Danie</span></span></div>
+              <div class="item"><span class="t dim">All day</span><span>🎂 Nan turns 74</span></div>
+            </div>
+          </div>
+          <div class="dinner"><span class="k">Dinner</span><span class="v">Spag bol</span><span class="s">Sam cooking</span></div>
+          <div>
+            <h2>Due today <span class="n">3</span></h2>
+            <div class="todo" style="margin-top:14px">
+              <div class="row"><span class="box"></span>Book the dentist</div>
+              <div class="row"><span class="box"></span>Return library books</div>
+              <div class="row done"><span class="box done"></span>Water the plants</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTRE: the week -->
+        <div class="col">
+          <h2>This week <span class="n">8 – 14 Sep</span></h2>
+          <div class="week">
+            <div class="day"><div class="h">Mon<b>8</b></div><div class="ev task">Pay rates</div><div class="ev">Council pickup<span class="tm">All day</span></div></div>
+            <div class="day today"><div class="h">Tue<b>9</b></div><div class="ev kid">Swimming<span class="tm">4:00 · Bertie</span></div><div class="ev">P–T call<span class="tm">6:30 · Danie</span></div><div class="ev">🎂 Nan</div></div>
+            <div class="day off"><div class="h">Wed<b>10</b></div><span class="offtag">🐧 Sam off</span><div class="ev kid">Library day<span class="tm">Bertie</span></div></div>
+            <div class="day"><div class="h">Thu<b>11</b></div><div class="ev kid">Assembly<span class="tm">9:15 · Maisie</span></div><div class="ev task">Fix gate latch</div></div>
+            <div class="day off"><div class="h">Fri<b>12</b></div><span class="offtag">🦊 Danie off</span><div class="ev">Dentist<span class="tm">10:30 · kids</span></div><div class="ev task">Library books</div></div>
+            <div class="day"><div class="h">Sat<b>13</b></div><div class="ev kid">Footy<span class="tm">9:00 · Bertie</span></div><div class="ev">Lunch at Nan's<span class="tm">12:30</span></div></div>
+            <div class="day"><div class="h">Sun<b>14</b></div><div class="ev">Green-waste out<span class="tm">Evening</span></div></div>
+          </div>
+          <div class="legend"><span><span class="sw"></span>Event</span><span><span class="sw dash"></span>Kids' event</span><span><span class="sw hatch"></span>Grown-up's day off</span><span>☐ Task due</span></div>
+        </div>
+
+        <!-- RIGHT: kids -->
+        <div class="col">
+          <div>
+            <h2>Coming up for the kids <span class="n">3 weeks</span></h2>
+            <div class="up" style="margin-top:14px">
+              <div class="row"><span class="d">Thu 11<small>this week</small></span><span class="w"><b>Assembly</b> · Maisie's class presenting</span></div>
+              <div class="row"><span class="d">Fri 12</span><span class="w"><b>Dentist</b> · both kids, 10:30</span></div>
+              <div class="row"><span class="d">Tue 16<small>next week</small></span><span class="w"><b>Swimming carnival</b> · Bertie, pack togs + towel</span></div>
+              <div class="row"><span class="d">Fri 19</span><span class="w"><b>Pupil-free day</b> · no school</span></div>
+              <div class="row"><span class="d">Mon 22<small>in 2 weeks</small></span><span class="w"><b>Book Week parade</b> · costumes</span></div>
+              <div class="row"><span class="d">Sat 27</span><span class="w"><b>School holidays begin</b></span></div>
+            </div>
+          </div>
+          <div>
+            <div class="kidhead"><span class="av">🧒</span>Bertie's jobs</div>
+            <div class="chores" style="margin-top:10px">
+              <div class="row"><span class="box done"></span><s style="color:var(--ink3)">Feed the dog</s></div>
+              <div class="row"><span class="box"></span>Pack swimming bag</div>
+              <div class="row"><span class="box"></span>Reader signed</div>
+            </div>
+          </div>
+          <div>
+            <div class="kidhead"><span class="av">👧</span>Maisie's jobs</div>
+            <div class="chores" style="margin-top:10px">
+              <div class="row"><span class="box"></span>Tidy toys before dinner</div>
+              <div class="row"><span class="box"></span>Kinder bag by the door</div>
+            </div>
+          </div>
+          <div class="foot"><span>Updated 7:02 am</span><span>Next refresh 7:30</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="notes">
+    <div>
+      <h4>Why it's laid out like this</h4>
+      <p><b>Left is now.</b> Where everyone is, what's on, dinner, what's due. It's the Today screen with the chrome removed and the type tripled.</p>
+      <p><b>Centre is the week.</b> Seven columns, always Monday to Sunday, today filled grey, grown-ups' days off hatched. Kids' events are dashed so a child can find their own at a glance.</p>
+      <p><b>Right is the kids.</b> Their next three weeks (carnival, pupil-free day, holidays) and their jobs with real checkboxes, tall enough that a seven-year-old can read them.</p>
+    </div>
+    <div>
+      <h4>E-ink rules the design follows</h4>
+      <p><b>No colour, no thin lines.</b> Everything is 2px or heavier, and meaning is carried by weight, dashes and hatching rather than hue.</p>
+      <p><b>Big type.</b> Body text is 24–27px on an 1872px panel, about 4 mm tall on a 10-inch screen: readable from two metres.</p>
+      <p><b>Static by design.</b> Nothing animates, nothing scrolls. The page is a snapshot the panel refreshes every half hour; the footer says when.</p>
+      <p><b>Ticking a chore</b> would happen on a phone; the wall just shows it done at the next refresh. A touch panel could tick in place later.</p>
+    </div>
+    <div>
+      <h4>How it would be built</h4>
+      <p>A <b>/wall</b> route in the web app that renders this page from the same API (Today, calendar range, kids' events, kids' tasks), with a device token instead of a sign-in. The panel's controller fetches it as a screenshot on a timer; most e-ink frames (Inkplate, Kindle mods, Visionect) do exactly this.</p>
+      <p>The 1872×1404 size is the common 10.3" panel. The layout is a grid, so a 7.5" or 13.3" panel is a scale change, not a redesign.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var bezel = document.getElementById('bezel');
+    var scaler = bezel.parentElement;
+    function fit() {
+      var w = scaler.clientWidth;
+      var s = Math.min(1, w / 1872);
+      bezel.style.transform = 'scale(' + s + ')';
+      scaler.style.height = 1404 * s + 'px';
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  })();
+</script>

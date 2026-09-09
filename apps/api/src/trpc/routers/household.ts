@@ -291,6 +291,53 @@ export const householdRouter = router({
       });
   }),
 
+  /** Every grown-up's pattern at once, for shading the calendar. */
+  workPatterns: protectedProcedure.query(async ({ ctx }) => {
+    const [hh] = await db
+      .select({ anchor: household.fortnightAnchor })
+      .from(household)
+      .where(eq(household.id, ctx.person.householdId))
+      .limit(1);
+    const adults = await db
+      .select({
+        id: person.id,
+        name: person.name,
+        avatarEmoji: person.avatarEmoji,
+        avatarColor: person.avatarColor,
+        userId: person.userId,
+      })
+      .from(person)
+      .where(and(eq(person.householdId, ctx.person.householdId), eq(person.kind, 'adult')))
+      .orderBy(asc(person.createdAt));
+    if (adults.length === 0) return { anchor: hh?.anchor ?? '2026-01-05', adults: [] };
+    const rows = await db
+      .select({
+        personId: personWorkday.personId,
+        week: personWorkday.week,
+        weekday: personWorkday.weekday,
+      })
+      .from(personWorkday)
+      .where(
+        inArray(
+          personWorkday.personId,
+          adults.map((a) => a.id),
+        ),
+      );
+    return {
+      anchor: hh?.anchor ?? '2026-01-05',
+      adults: adults
+        .filter((a) => rows.some((r) => r.personId === a.id))
+        .map((a) => {
+          const mine = rows.filter((r) => r.personId === a.id);
+          return {
+            ...a,
+            fortnightly: mine.some((r) => r.week === 1),
+            days: mine.map((r) => ({ week: r.week, weekday: r.weekday })),
+          };
+        }),
+    };
+  }),
+
   /** Remove a child. Their list is put away, not destroyed; tasks they held stay, unassigned. */
   removePerson: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
