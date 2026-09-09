@@ -290,20 +290,22 @@ export function FamilyScreen({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setInviting(true)}
-                className="flex w-full items-center gap-d3 px-3.5 py-3 text-left font-bold text-accent"
-                style={{ fontSize: 'var(--fs-base)' }}
-              >
-                <span
-                  className="grid h-10 w-10 place-items-center rounded-full"
-                  style={{ background: 'var(--color-accent-soft)', fontSize: 20 }}
+              <div className="flex items-center gap-d3 px-3.5 py-3">
+                <button
+                  type="button"
+                  onClick={() => setInviting(true)}
+                  className="flex min-w-0 flex-1 items-center gap-d3 text-left font-bold text-accent"
+                  style={{ fontSize: 'var(--fs-base)' }}
                 >
-                  ＋
-                </span>
-                Invite a grown-up
-              </button>
+                  <span
+                    className="grid h-10 w-10 flex-none place-items-center rounded-full"
+                    style={{ background: 'var(--color-accent-soft)', fontSize: 20, lineHeight: 1 }}
+                  >
+                    ＋
+                  </span>
+                  Invite a grown-up
+                </button>
+              </div>
             )}
           </div>
           <p className="mt-2 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
@@ -328,20 +330,22 @@ export function FamilyScreen({
                 />
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="flex w-full items-center gap-d3 px-3.5 py-3 text-left font-bold text-accent"
-                style={{ fontSize: 'var(--fs-base)' }}
-              >
-                <span
-                  className="grid h-10 w-10 place-items-center rounded-full"
-                  style={{ background: 'var(--color-accent-soft)', fontSize: 20 }}
+              <div className="flex items-center gap-d3 px-3.5 py-3">
+                <button
+                  type="button"
+                  onClick={() => setAdding(true)}
+                  className="flex min-w-0 flex-1 items-center gap-d3 text-left font-bold text-accent"
+                  style={{ fontSize: 'var(--fs-base)' }}
                 >
-                  ＋
-                </span>
-                Add a child
-              </button>
+                  <span
+                    className="grid h-10 w-10 flex-none place-items-center rounded-full"
+                    style={{ background: 'var(--color-accent-soft)', fontSize: 20, lineHeight: 1 }}
+                  >
+                    ＋
+                  </span>
+                  Add a child
+                </button>
+              </div>
             )}
           </div>
           <h2 className={sectionH} style={sectionStyle}>
