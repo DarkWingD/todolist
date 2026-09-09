@@ -18,9 +18,9 @@ export default defineConfig({
         importScripts: ['/push-handler.js'],
       },
       manifest: {
-        name: 'ToDoList',
-        short_name: 'ToDoList',
-        description: 'A calm, collaborative to-do app and weekly meal planner.',
+        name: 'Sorted',
+        short_name: 'Sorted',
+        description: 'The family, sorted: shared lists, calendar, meals and the kids’ weeks.',
         theme_color: '#FF6B5E',
         background_color: '#FFF9F5',
         display: 'standalone',

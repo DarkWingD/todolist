@@ -342,7 +342,7 @@ export const listsRouter = router({
     const url = `${env.WEB_ORIGIN}/invite/${token}`;
     await sendEmail({
       to: input.email,
-      subject: `You've been invited to a list on ToDoList`,
+      subject: `You've been invited to a list on Sorted`,
       text: `Open this link to join the list: ${url}`,
       html: `<p>You've been invited to collaborate on a list.</p><p><a href="${url}">Accept the invite</a></p>`,
     });

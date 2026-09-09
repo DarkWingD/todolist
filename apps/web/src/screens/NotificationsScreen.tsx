@@ -163,7 +163,7 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
             </p>
           )}
           <p className="mt-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            On iPhone/iPad, add ToDoList to your Home Screen first — iOS only allows notifications
+            On iPhone/iPad, add Sorted to your Home Screen first — iOS only allows notifications
             for installed apps.
           </p>
         </>

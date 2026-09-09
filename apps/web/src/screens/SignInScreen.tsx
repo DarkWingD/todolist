@@ -38,7 +38,7 @@ export function SignInScreen() {
             letterSpacing: 'var(--title-tracking)',
           }}
         >
-          ToDoList
+          Sorted
         </h1>
         <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Sign in with a magic link — no password.

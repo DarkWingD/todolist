@@ -34,11 +34,11 @@ export async function sendEmail({ to, subject, html, text }: SendArgs) {
 /** Minimal, themeable-later magic-link email. */
 export function magicLinkEmail(url: string): { subject: string; html: string; text: string } {
   return {
-    subject: 'Your ToDoList sign-in link',
-    text: `Sign in to ToDoList: ${url}\n\nThis link expires shortly. If you didn't request it, ignore this email.`,
+    subject: 'Your Sorted sign-in link',
+    text: `Sign in to Sorted: ${url}\n\nThis link expires shortly. If you didn't request it, ignore this email.`,
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 440px; margin: 0 auto; padding: 24px;">
-        <h1 style="font-size: 20px;">Sign in to ToDoList</h1>
+        <h1 style="font-size: 20px;">Sign in to Sorted</h1>
         <p style="color: #555; font-size: 15px;">Tap the button below to sign in. This link expires shortly.</p>
         <a href="${url}" style="display: inline-block; margin: 16px 0; background: #FF6B5E; color: #fff; text-decoration: none; padding: 12px 22px; border-radius: 12px; font-weight: 700;">Sign in</a>
         <p style="color: #999; font-size: 13px;">If you didn't request this, you can safely ignore it.</p>

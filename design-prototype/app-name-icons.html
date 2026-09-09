@@ -1,0 +1,157 @@
+<title>Family App Names</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --font-head: 'Quicksand', system-ui, sans-serif;
+    --font-body: 'Nunito', system-ui, sans-serif;
+    --accent: #ff6b5e; --accent-deep: #e85a4e; --accent-soft: #ffeae6; --cream: #ffecc7;
+    --page-bg: #f3e9e2; --page-text: #3a302c; --page-muted: #8a7a72; --page-rule: #e6d8cf;
+    --surface: #ffffff; --phone: #fff9f5; --phone-text: #2b2422;
+    --shadow: 0 18px 40px -24px rgba(80,40,30,.35), 0 0 0 1px rgba(80,40,30,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; --page-rule: #2c2321;
+      --surface: #2c2320; --phone: #211a18; --phone-text: #fbefe9; --accent-soft: #3a2823;
+      --shadow: 0 18px 40px -24px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; --page-rule: #2c2321;
+    --surface: #2c2320; --phone: #211a18; --phone-text: #fbefe9; --accent-soft: #3a2823;
+    --shadow: 0 18px 40px -24px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page-bg); color: var(--page-text); font-family: var(--font-body); font-weight: 600; line-height: 1.5; padding: 36px 24px 80px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-family: var(--font-head); font-size: 28px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+  .lede { color: var(--page-muted); margin-top: 6px; max-width: 64ch; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; margin-top: 28px; }
+  .card { background: var(--surface); border-radius: 22px; padding: 22px 22px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; }
+  .card.pick { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .head { display: flex; align-items: center; gap: 14px; }
+  .head .big { width: 72px; height: 72px; flex: none; border-radius: 18px; overflow: hidden; }
+  .head .big svg { width: 100%; height: 100%; display: block; }
+  .name { font-family: var(--font-head); font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .tag { color: var(--page-muted); font-size: 13px; margin-top: 3px; }
+  .why { font-size: 14px; color: var(--page-text); }
+  .why b { font-weight: 800; }
+  .sizes { display: flex; align-items: flex-end; gap: 18px; padding: 14px; background: var(--phone); border-radius: 16px; color: var(--phone-text); }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10.5px; color: var(--page-muted); }
+  .slot .lbl { font-family: var(--font-body); font-weight: 800; font-size: 11px; color: var(--phone-text); letter-spacing: .01em; }
+  .ic { border-radius: 22%; overflow: hidden; display: block; }
+  .ic svg { width: 100%; height: 100%; display: block; }
+  .rec { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 9px; margin-left: 8px; vertical-align: middle; }
+  .notes { margin-top: 30px; max-width: 70ch; font-size: 14px; color: var(--page-muted); }
+  .notes p + p { margin-top: 8px; }
+  .notes b { color: var(--page-text); font-weight: 800; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><symbol id="n-sorted" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M12 30 L32 13 L52 30 V49 a4 4 0 0 1 -4 4 H16 a4 4 0 0 1 -4 -4 Z" fill="#fff"/><path d="M23 37l6 6 12-13" fill="none" stroke="#ff6b5e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="n-homeward" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M12 30 L32 13 L52 30 V49 a4 4 0 0 1 -4 4 H16 a4 4 0 0 1 -4 -4 Z" fill="#fff"/><path d="M8 41h22" stroke="#ffd166" stroke-width="5" stroke-linecap="round"/><path d="M24 34l8 7-8 7" fill="none" stroke="#ffd166" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="n-kith" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><circle cx="25" cy="32" r="14" fill="#fff"/><circle cx="41" cy="32" r="14" fill="#fff" opacity=".85"/><path d="M33 20.2a14 14 0 0 1 0 23.6 14 14 0 0 1 0-23.6z" fill="#ffd166"/></symbol><symbol id="n-snug" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M14 34 Q14 22 32 14 Q50 22 50 34 V46 a8 8 0 0 1 -8 8 H22 a8 8 0 0 1 -8 -8 Z" fill="#fff"/><rect x="26" y="34" width="12" height="10" rx="4" fill="#ffd166"/><path d="M14 46 q9 -5 18 0 t18 0" fill="none" stroke="#ff6b5e" stroke-width="2.5" stroke-linecap="round"/></symbol><symbol id="n-hubbub" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M12 22a8 8 0 0 1 8-8h16a8 8 0 0 1 8 8v8a8 8 0 0 1-8 8H24l-8 7v-7a8 8 0 0 1-4-8z" fill="#fff"/><path d="M30 34a7 7 0 0 1 7-7h10a7 7 0 0 1 7 7v6a7 7 0 0 1-7 7h-1v6l-7-6h-2a7 7 0 0 1-7-7z" fill="#ffd166"/></symbol><symbol id="n-keep" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M16 54V20h6v6h6v-6h8v6h6v-6h6v34z" fill="#fff"/><rect x="28" y="38" width="8" height="16" rx="4" fill="#ff6b5e"/><rect x="28" y="26" width="8" height="6" rx="1.5" fill="#ffd166"/></symbol><symbol id="n-rota" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><circle cx="32" cy="32" r="19" fill="none" stroke="#fff" stroke-width="7" stroke-dasharray="14.5 2.6" stroke-dashoffset="4"/><path d="M32 19v13l8 5" fill="none" stroke="#ffd166" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="n-beacon" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ff6b5e"/><path d="M24 54l3-30h10l3 30z" fill="#fff"/><rect x="24" y="16" width="16" height="8" rx="2" fill="#fff"/><rect x="27" y="10" width="10" height="6" rx="2" fill="#ffd166"/><path d="M8 14l14 4M56 14l-14 4M6 24h14M58 24H44" stroke="#ffd166" stroke-width="4" stroke-linecap="round"/><path d="M18 54h28" stroke="#fff" stroke-width="5" stroke-linecap="round"/></symbol></defs>
+</svg>
+
+<div class="wrap">
+  <h1>Names from the job the app does</h1>
+  <p class="lede">Reset. Purpose-driven words, or single evocative ones like Hearth. Coral and amber only, at real sizes.</p>
+  <div class="grid">
+    <div class="card pick">
+      <div class="head">
+        <span class="big"><svg><use href="#n-sorted"/></svg></span>
+        <div><div class="name">Sorted <span class="rec">Suggested</span></div><div class="tag">sorted.dansownsite.com</div></div>
+      </div>
+      <p class="why">“It’s sorted.” The job the app does, in the word an Australian would use for it. A house with a tick, which is the old icon grown up.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-sorted"/></svg></span><span class="lbl">Sorted</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-sorted"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-sorted"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-homeward"/></svg></span>
+        <div><div class="name">Homeward</div><div class="tag">homeward.dansownsite.com</div></div>
+      </div>
+      <p class="why">The direction everyone is heading at the end of the day. Unique as a name, warm as Hearth, no fire. Arrow into the door.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-homeward"/></svg></span><span class="lbl">Homeward</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-homeward"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-homeward"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-kith"/></svg></span>
+        <div><div class="name">Kith</div><div class="tag">kith.dansownsite.com</div></div>
+      </div>
+      <p class="why">Kith and kin: the people you belong with. One old syllable nobody else is using. Two circles, the overlap in amber.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-kith"/></svg></span><span class="lbl">Kith</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-kith"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-kith"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-snug"/></svg></span>
+        <div><div class="name">Snug</div><div class="tag">snug.dansownsite.com</div></div>
+      </div>
+      <p class="why">Cosy, and a snug is the small room where the family gathers. Rounded house, a blanket line along the bottom.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-snug"/></svg></span><span class="lbl">Snug</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-snug"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-snug"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-hubbub"/></svg></span>
+        <div><div class="name">Hubbub</div><div class="tag">hubbub.dansownsite.com</div></div>
+      </div>
+      <p class="why">The noise of a full house. Two speech bubbles, one amber. The most playful; says the family, not the admin.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-hubbub"/></svg></span><span class="lbl">Hubbub</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-hubbub"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-hubbub"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-keep"/></svg></span>
+        <div><div class="name">Keep</div><div class="tag">keep.dansownsite.com</div></div>
+      </div>
+      <p class="why">Keep house, keep track, the keep of a castle. Short and sturdy. A tower with a lit window.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-keep"/></svg></span><span class="lbl">Keep</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-keep"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-keep"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-rota"/></svg></span>
+        <div><div class="name">Rota</div><div class="tag">rota.dansownsite.com</div></div>
+      </div>
+      <p class="why">The family rota: who’s doing what, when. Most literal about the calendar and lists. A week-ring with a clock hand.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-rota"/></svg></span><span class="lbl">Rota</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-rota"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-rota"/></svg></span>favicon</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">
+        <span class="big"><svg><use href="#n-beacon"/></svg></span>
+        <div><div class="name">Beacon</div><div class="tag">beacon.dansownsite.com</div></div>
+      </div>
+      <p class="why">What guides everyone home. A lighthouse with its beam. Long-ish, and a little grand.</p>
+      <div class="sizes">
+        <div class="slot"><span class="ic" style="width:60px;height:60px"><svg><use href="#n-beacon"/></svg></span><span class="lbl">Beacon</span>home screen</div>
+        <div class="slot"><span class="ic" style="width:32px;height:32px"><svg><use href="#n-beacon"/></svg></span>tab</div>
+        <div class="slot"><span class="ic" style="width:16px;height:16px;border-radius:4px"><svg><use href="#n-beacon"/></svg></span>favicon</div>
+      </div>
+    </div>
+  </div>
+</div>

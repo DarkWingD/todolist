@@ -79,9 +79,9 @@ export const householdRouter = router({
     const url = `${env.WEB_ORIGIN}/invite/${token}`;
     await sendEmail({
       to: input.email,
-      subject: `${ctx.user.name} invited you to their family on ToDoList`,
+      subject: `${ctx.user.name} invited you to their family on Sorted`,
       text: `Open this link to join: ${url}`,
-      html: `<p>${ctx.user.name} has invited you to join their family on ToDoList — shared lists, the calendar, the meal plan and the kids' weeks, all in one place.</p><p><a href="${url}">Accept the invite</a></p>`,
+      html: `<p>${ctx.user.name} has invited you to join their family on Sorted — shared lists, the calendar, the meal plan and the kids' weeks, all in one place.</p><p><a href="${url}">Accept the invite</a></p>`,
     });
     return { ok: true };
   }),

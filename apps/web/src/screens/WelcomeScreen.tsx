@@ -71,7 +71,7 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
               letterSpacing: 'var(--title-tracking)',
             }}
           >
-            Welcome to ToDoList
+            Welcome to Sorted
           </h1>
           <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-base)' }}>
             Lists, reminders and the week's meals, shared with whoever you invite.

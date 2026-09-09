@@ -21,7 +21,7 @@ export function InviteAcceptScreen({ token }: { token: string }) {
           <div className="text-4xl">🔗</div>
           <p style={{ fontSize: 'var(--fs-base)' }}>This invite link isn’t valid.</p>
           <button className="font-semibold text-accent" onClick={goHome}>
-            Go to ToDoList
+            Go to Sorted
           </button>
         </>
       ) : info.expired || info.status !== 'pending' ? (
@@ -31,7 +31,7 @@ export function InviteAcceptScreen({ token }: { token: string }) {
             This invite has {info.status !== 'pending' ? 'already been used' : 'expired'}.
           </p>
           <button className="font-semibold text-accent" onClick={goHome}>
-            Go to ToDoList
+            Go to Sorted
           </button>
         </>
       ) : (

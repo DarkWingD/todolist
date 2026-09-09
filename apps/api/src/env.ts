@@ -8,7 +8,7 @@ const schema = z.object({
   // Optional: when unset, emails are logged to the console instead of sent
   // (magic-link URLs are printed so you can sign in without Resend configured).
   RESEND_API_KEY: z.string().min(1).optional(),
-  EMAIL_FROM: z.string().min(1).default('ToDoList <onboarding@resend.dev>'),
+  EMAIL_FROM: z.string().min(1).default('Sorted <onboarding@resend.dev>'),
   // Web push (VAPID). When unset, push is simply unavailable.
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),

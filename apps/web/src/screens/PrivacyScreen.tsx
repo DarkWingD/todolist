@@ -30,7 +30,7 @@ export function PrivacyScreen({ onBack }: { onBack: () => void }) {
       </h1>
 
       <P>
-        ToDoList is a private, self-hosted app run by its owner — not a big company. Here’s exactly
+        Sorted is a private, self-hosted app run by its owner — not a big company. Here’s exactly
         how your data is handled.
       </P>
 

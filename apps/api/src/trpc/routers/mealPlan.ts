@@ -528,7 +528,7 @@ export const mealPlanRouter = router({
     const url = `${env.WEB_ORIGIN}/invite/${token}`;
     await sendEmail({
       to: input.email,
-      subject: `You've been invited to a meal plan on ToDoList`,
+      subject: `You've been invited to a meal plan on Sorted`,
       text: `Open this link to join the meal plan: ${url}`,
       html: `<p>You've been invited to share a meal plan.</p><p><a href="${url}">Accept the invite</a></p>`,
     });

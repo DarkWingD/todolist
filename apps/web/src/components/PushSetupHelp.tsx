@@ -32,7 +32,7 @@ const COPY: Record<string, { title: string; blurb: string; steps: ReactNode[] }>
       <>
         Choose <Strong>Add to Home Screen</Strong>, then <Strong>Add</Strong>.
       </>,
-      <>Open ToDoList from the new icon, and turn notifications on there.</>,
+      <>Open Sorted from the new icon, and turn notifications on there.</>,
     ],
   },
   'ios-needs-safari': {
@@ -49,7 +49,7 @@ const COPY: Record<string, { title: string; blurb: string; steps: ReactNode[] }>
       <>
         Choose <Strong>Add to Home Screen</Strong>, then <Strong>Add</Strong>.
       </>,
-      <>Open ToDoList from the new icon, and turn notifications on there.</>,
+      <>Open Sorted from the new icon, and turn notifications on there.</>,
     ],
   },
   'android-needs-chrome': {
