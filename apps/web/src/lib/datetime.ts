@@ -13,17 +13,22 @@ export function fromLocalInput(local: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-const FREQS = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] as const;
+// FORTNIGHTLY is ours: it is stored as weekly with an interval of two, which
+// is what bins, pay and shared custody actually run on.
+const FREQS = ['DAILY', 'WEEKLY', 'FORTNIGHTLY', 'MONTHLY', 'YEARLY'] as const;
 export type Freq = (typeof FREQS)[number];
 
 export function ruleToFreq(rule: string | null | undefined): Freq | '' {
   const m = /FREQ=(\w+)/.exec(rule ?? '');
   const f = m?.[1];
+  const interval = Number(/INTERVAL=(\d+)/.exec(rule ?? '')?.[1] ?? 1);
+  if (f === 'WEEKLY' && interval === 2) return 'FORTNIGHTLY';
   return (FREQS as readonly string[]).includes(f ?? '') ? (f as Freq) : '';
 }
 
 export function freqToRule(freq: Freq | ''): string | null {
-  return freq ? `FREQ=${freq}` : null;
+  if (!freq) return null;
+  return freq === 'FORTNIGHTLY' ? 'FREQ=WEEKLY;INTERVAL=2' : `FREQ=${freq}`;
 }
 
 export function formatDateTime(iso: string | Date): string {

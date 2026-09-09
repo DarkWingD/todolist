@@ -224,6 +224,7 @@ export function TaskDetailScreen({
         <option value="">Never</option>
         <option value="DAILY">Daily</option>
         <option value="WEEKLY">Weekly</option>
+        <option value="FORTNIGHTLY">Fortnightly</option>
         <option value="MONTHLY">Monthly</option>
         <option value="YEARLY">Yearly</option>
       </select>

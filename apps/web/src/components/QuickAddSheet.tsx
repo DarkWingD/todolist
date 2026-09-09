@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Avatar } from './Avatar';
 import { trpc } from '../lib/trpc';
+import { freqToRule, type Freq } from '../lib/datetime';
+
+const REPEATS: { v: Freq | ''; label: string }[] = [
+  { v: '', label: 'Once' },
+  { v: 'DAILY', label: 'Daily' },
+  { v: 'WEEKLY', label: 'Weekly' },
+  { v: 'FORTNIGHTLY', label: 'Fortnightly' },
+  { v: 'MONTHLY', label: 'Monthly' },
+];
 import type { ListSummary } from '../types';
 
 type DuePreset = 'none' | 'today' | 'tomorrow';
@@ -30,6 +39,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const [due, setDue] = useState<DuePreset>('none');
   const [priority, setPriority] = useState<'none' | 'high'>('none');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState<Freq | ''>('');
 
   const { data: household } = trpc.household.get.useQuery();
   const members = household?.people ?? [];
@@ -52,18 +62,21 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
       setTitle('');
       setPriority('none');
       setAssigneeId(null);
+      setRepeat('');
       onClose();
     },
   });
 
   function submit() {
     if (!title.trim() || !listId) return;
+    // A repeat needs a first date to count from; today if none was picked.
     create.mutate({
       listId,
       title: title.trim(),
-      dueAt: dueFromPreset(due),
+      dueAt: dueFromPreset(due) ?? (repeat ? dueFromPreset('today') : undefined),
       priority,
       assigneeId: assigneeId ?? undefined,
+      recurrenceRule: freqToRule(repeat) ?? undefined,
     });
   }
 
@@ -134,6 +147,19 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
             }
           >
             📅 {due === 'none' ? 'No date' : due === 'today' ? 'Today' : 'Tomorrow'}
+          </button>
+          <button
+            className={optClass(repeat !== '')}
+            style={optStyle(repeat !== '')}
+            onClick={() =>
+              setRepeat((r) => {
+                const i = REPEATS.findIndex((o) => o.v === r);
+                return REPEATS[(i + 1) % REPEATS.length]!.v;
+              })
+            }
+            title="Repeats"
+          >
+            ↻ {REPEATS.find((o) => o.v === repeat)?.label}
           </button>
           <button
             className={optClass(priority === 'high')}

@@ -39,6 +39,12 @@ export function formatDue(iso: string | null | undefined): DueInfo | null {
 export function recurrenceLabel(rule: string | null | undefined): string | null {
   if (!rule) return null;
   const freq = /FREQ=(\w+)/.exec(rule)?.[1];
+  const interval = Number(/INTERVAL=(\d+)/.exec(rule)?.[1] ?? 1);
+  if (interval > 1) {
+    if (freq === 'WEEKLY' && interval === 2) return 'Fortnightly';
+    const unit = { DAILY: 'days', WEEKLY: 'weeks', MONTHLY: 'months', YEARLY: 'years' }[freq ?? ''];
+    return unit ? `Every ${interval} ${unit}` : 'Repeats';
+  }
   switch (freq) {
     case 'DAILY':
       return 'Daily';
