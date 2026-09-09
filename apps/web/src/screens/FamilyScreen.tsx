@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
+import { WorkWeekSheet } from '../components/WorkWeekSheet';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
 
@@ -50,6 +51,7 @@ export function FamilyScreen({
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [editing, setEditing] = useState<Person | null>(null);
+  const [workFor, setWorkFor] = useState<Person | null>(null);
 
   const refresh = () => {
     utils.household.get.invalidate();
@@ -87,7 +89,9 @@ export function FamilyScreen({
   const personRow = (p: Person) => {
     const isMe = p.userId === me.id;
     const sub =
-      p.kind === 'child' ? 'Child · tap for their week' : isMe ? 'You' : (p.email ?? 'Adult');
+      p.kind === 'child'
+        ? 'Child · tap for their week'
+        : `${isMe ? 'You' : (p.email ?? 'Adult')} · tap for their work week`;
     return (
       <div
         key={p.id}
@@ -95,8 +99,10 @@ export function FamilyScreen({
       >
         <button
           type="button"
-          disabled={p.kind !== 'child' || !p.childListId}
-          onClick={() => p.childListId && onOpenChild(p.childListId)}
+          onClick={() => {
+            if (p.kind === 'child') p.childListId && onOpenChild(p.childListId);
+            else setWorkFor(p);
+          }}
           className="flex min-w-0 flex-1 items-center gap-d3 text-left"
         >
           <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={40} />
@@ -339,6 +345,13 @@ export function FamilyScreen({
         </>
       )}
 
+      {workFor && (
+        <WorkWeekSheet
+          person={workFor}
+          onClose={() => setWorkFor(null)}
+          onDone={() => setWorkFor(null)}
+        />
+      )}
       {editing && (
         <EditChildSheet
           person={editing}

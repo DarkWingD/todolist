@@ -69,6 +69,9 @@ export const household = pgTable('household', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull().default('Family'),
   createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+  // The Monday that starts a "week A" for anyone on a fortnightly work
+  // pattern. Any Monday will do; swapping A and B just moves it a week.
+  fortnightAnchor: date('fortnight_anchor', { mode: 'string' }).notNull().default('2026-01-05'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -226,6 +229,8 @@ export const person = pgTable(
     image: text('image'),
     // A child's list: their week, term dates and profile. Null for adults.
     childListId: uuid('child_list_id').references(() => list.id, { onDelete: 'set null' }),
+    // "WFH Fridays", "on call every third weekend": the bit a grid can't say.
+    note: text('note'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -233,6 +238,28 @@ export const person = pgTable(
     index('person_household_idx').on(t.householdId),
     uniqueIndex('person_user_idx').on(t.userId),
   ],
+);
+
+/**
+ * Where an adult is on each weekday: work, mostly. One row per working day
+ * over a fortnight, so a nine-day fortnight or alternating days both fit.
+ * Week 0 is the week starting on the household's fortnightAnchor.
+ */
+export const personWorkday = pgTable(
+  'person_workday',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id, { onDelete: 'cascade' }),
+    week: smallint('week').notNull().default(0),
+    // Date.getDay() numbering: 0 = Sunday.
+    weekday: smallint('weekday').notNull(),
+    place: text('place').notNull().default('Work'),
+    startTime: text('start_time'),
+    endTime: text('end_time'),
+  },
+  (t) => [uniqueIndex('person_workday_idx').on(t.personId, t.week, t.weekday)],
 );
 
 export const householdInvite = pgTable(

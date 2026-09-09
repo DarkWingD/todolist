@@ -64,6 +64,8 @@ export function TodayScreen({
   const { data: flagged = [] } = trpc.tasks.highPriority.useQuery();
   // Where each child is today, already crossed with term dates server-side.
   const { data: children = [] } = trpc.children.mine.useQuery(undefined, { enabled: showKids });
+  // Grown-ups with a work pattern: at work, or a day off.
+  const { data: adults = [] } = trpc.household.whereToday.useQuery();
   const { data: feed } = trpc.activity.recent.useQuery({ limit: 30 });
   const { data: household } = trpc.household.get.useQuery();
   const { data: range } = trpc.calendar.range.useQuery({
@@ -303,14 +305,34 @@ export function TodayScreen({
         </div>
       )}
 
-      {showKids && children.length > 0 && (
+      {((showKids && children.length > 0) || adults.length > 0) && (
         <div className="mb-d4">
           <h2 className="mb-d2 font-bold uppercase" style={sectionH('var(--color-muted)')}>
             Where everyone is
           </h2>
           <div className="flex flex-col gap-d2 md:grid md:grid-cols-2">
-            {children.map((c) => (
-              <KidCard key={c.id} child={c} onOpen={() => onOpenChild?.(c.id)} />
+            {showKids &&
+              children.map((c) => (
+                <KidCard key={c.id} child={c} onOpen={() => onOpenChild?.(c.id)} />
+              ))}
+            {adults.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center gap-d3 rounded-card bg-surface p-d3 shadow-card"
+              >
+                <Avatar emoji={a.avatarEmoji} color={a.avatarColor} image={a.image} size={36} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    {a.userId === me.id ? 'You' : a.name.split(' ')[0]}
+                  </span>
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    {a.off
+                      ? 'Day off'
+                      : `${a.place}${a.startTime ? ` · ${a.startTime}${a.endTime ? `–${a.endTime}` : ''}` : ''}`}
+                    {a.note ? ` · ${a.note}` : ''}
+                  </span>
+                </span>
+              </div>
             ))}
           </div>
         </div>

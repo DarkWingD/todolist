@@ -316,3 +316,22 @@ export const updatePersonSchema = z.object({
   emojiIcon: emojiSchema.optional(),
   color: hexColorSchema.nullable().optional(),
 });
+
+/** An adult's working pattern, replaced whole. Week 1 only matters when fortnightly. */
+export const setWorkWeekSchema = z.object({
+  personId: z.string().uuid(),
+  fortnightly: z.boolean(),
+  note: z.string().trim().max(200).nullable().optional(),
+  days: z
+    .array(
+      z.object({
+        week: z.union([z.literal(0), z.literal(1)]),
+        weekday: weekdaySchema,
+        place: z.string().trim().min(1).max(120).default('Work'),
+        startTime: timeOfDaySchema.nullable().optional(),
+        endTime: timeOfDaySchema.nullable().optional(),
+      }),
+    )
+    .max(14),
+});
+export type SetWorkWeekInput = z.infer<typeof setWorkWeekSchema>;
