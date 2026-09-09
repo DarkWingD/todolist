@@ -15,6 +15,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { expandEvent } from '../../lib/recurrence.js';
 import { kidsToday } from './children.js';
+import { doseStatusFor } from './doses.js';
 import { readRange } from './mealPlan.js';
 import { publicProcedure, router } from '../trpc.js';
 
@@ -249,6 +250,10 @@ export const wallRouter = router({
         .limit(1);
       const dinner = plan ? ((await readRange(plan.id, todayKey, todayKey))[0] ?? null) : null;
       const kidsWhere = await kidsToday(childLists);
+      const doses = await doseStatusFor(
+        hh.id,
+        kids.map((k) => k.id),
+      );
       const periods = childLists.length
         ? await db
             .select({
@@ -316,6 +321,13 @@ export const wallRouter = router({
           startTime: k.startTime,
           endTime: k.endTime,
           offReason: k.offReason,
+          doses: doses
+            .filter((d) => d.personId === people.find((p) => p.childListId === k.id)?.id)
+            .map((d) => ({
+              medicine: d.medicine,
+              givenAt: d.givenAt.toISOString(),
+              nextFrom: d.nextFrom ? d.nextFrom.toISOString() : null,
+            })),
         })),
         today: {
           events: occurrences

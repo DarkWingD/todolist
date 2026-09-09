@@ -317,6 +317,18 @@ export const updatePersonSchema = z.object({
   color: hexColorSchema.nullable().optional(),
 });
 
+export const logDoseSchema = z.object({
+  listId: z.string().uuid(),
+  medicine: z.string().trim().min(1).max(80),
+  amount: z.string().trim().max(40).nullable().optional(),
+  intervalHours: z.number().min(0.5).max(48).nullable().optional(),
+  givenAt: z.string().datetime().optional(),
+  note: z.string().trim().max(300).nullable().optional(),
+  // Set a reminder for the person logging it when the next dose is possible.
+  remind: z.boolean().optional(),
+});
+export type LogDoseInput = z.infer<typeof logDoseSchema>;
+
 /** An adult's working pattern, replaced whole. Week 1 only matters when fortnightly. */
 export const setWorkWeekSchema = z.object({
   personId: z.string().uuid(),

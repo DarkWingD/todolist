@@ -88,6 +88,10 @@ export function describeActivity(
       const d = dayWord(it.meta?.date);
       return { icon: '🍽️', text: d ? `took ${t} off ${d}` : `took ${t} off the plan` };
     }
+    case 'dose.given': {
+      const amt = typeof it.meta?.amount === 'string' && it.meta.amount ? ` (${it.meta.amount})` : '';
+      return { icon: '💊', text: `gave ${who(it.meta?.personId) || 'someone'} ${t}${amt}` };
+    }
     case 'child.added':
       return { icon: '🧒', text: `added ${t} to the family` };
     case 'person.joined':

@@ -66,6 +66,12 @@ export function TodayScreen({
   const { data: children = [] } = trpc.children.mine.useQuery(undefined, { enabled: showKids });
   // Grown-ups with a work pattern: at work, or a day off.
   const { data: adults = [] } = trpc.household.whereToday.useQuery();
+  // Anyone who has had medicine in the last day: last dose and when the next can be.
+  const { data: doses = [] } = trpc.doses.status.useQuery();
+  const dosesForList = (listId: string) => {
+    const pid = household?.people.find((p) => p.childListId === listId)?.id;
+    return pid ? doses.filter((d) => d.personId === pid) : [];
+  };
   const { data: feed } = trpc.activity.recent.useQuery({ limit: 30 });
   const { data: household } = trpc.household.get.useQuery();
   const { data: range } = trpc.calendar.range.useQuery({
@@ -313,7 +319,12 @@ export function TodayScreen({
           <div className="flex flex-col gap-d2 md:grid md:grid-cols-2">
             {showKids &&
               children.map((c) => (
-                <KidCard key={c.id} child={c} onOpen={() => onOpenChild?.(c.id)} />
+                <KidCard
+                  key={c.id}
+                  child={c}
+                  doses={dosesForList(c.id)}
+                  onOpen={() => onOpenChild?.(c.id)}
+                />
               ))}
             {adults.map((a) => (
               <div
@@ -419,7 +430,17 @@ interface KidToday {
  * A child on Today: where they are, and the details you'd otherwise dig out
  * of an email. The school's number is one tap; medical notes unfold in place.
  */
-function KidCard({ child: c, onOpen }: { child: KidToday; onOpen: () => void }) {
+function KidCard({
+  child: c,
+  doses,
+  onOpen,
+}: {
+  child: KidToday;
+  doses: { medicine: string; givenAt: unknown; nextFrom: unknown }[];
+  onOpen: () => void;
+}) {
+  const fmtT = (v: unknown) =>
+    new Date(v as string).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const [showMedical, setShowMedical] = useState(false);
   const p = c.profile;
   const bits = [p?.className, p?.room ? `Room ${p.room}` : null, p?.teacher].filter(
@@ -463,6 +484,24 @@ function KidCard({ child: c, onOpen }: { child: KidToday; onOpen: () => void }) 
                 {bits.join(' · ')}
               </span>
             )}
+            {doses.map((d) => {
+              const next = d.nextFrom ? new Date(d.nextFrom as string) : null;
+              const ok = !next || next <= new Date();
+              return (
+                <span
+                  key={d.medicine}
+                  className="mt-0.5 block truncate"
+                  style={{
+                    fontSize: 'var(--fs-xs)',
+                    color: ok ? 'var(--color-muted)' : 'var(--color-accent)',
+                    fontWeight: 700,
+                  }}
+                >
+                  💊 {d.medicine} {fmtT(d.givenAt)}
+                  {next ? (ok ? ' · next OK now' : ` · next from ${fmtT(d.nextFrom)}`) : ''}
+                </span>
+              );
+            })}
           </span>
         </button>
         {p?.medicalNotes && (

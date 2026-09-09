@@ -16,6 +16,7 @@ export type ActivityKind =
   | 'meal.planned'
   | 'meal.cleared'
   | 'child.added'
+  | 'dose.given'
   | 'person.joined';
 
 export interface ActivityInput {

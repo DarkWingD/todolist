@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BackButton } from '../components/BackButton';
 import { trpc } from '../lib/trpc';
 import { ChildSetup } from './ChildSetup';
+import { DoseSheet } from '../components/DoseSheet';
+import { relativeTime } from '../lib/activityText';
 
 /**
  * A child, on day 30 rather than day 1.
@@ -57,6 +59,14 @@ export function ChildScreen({
   const utils = trpc.useUtils();
   const { data: child, isLoading } = trpc.children.get.useQuery({ listId });
   const [setupOpen, setSetupOpen] = useState(false);
+  const [dosing, setDosing] = useState(false);
+  const { data: meds } = trpc.doses.recent.useQuery({ listId });
+  const removeDose = trpc.doses.remove.useMutation({
+    onSuccess: () => {
+      utils.doses.recent.invalidate({ listId });
+      utils.doses.status.invalidate();
+    },
+  });
 
   const refresh = () => {
     utils.children.get.invalidate({ listId });
@@ -301,6 +311,103 @@ export function ChildScreen({
         </div>
       )}
 
+      {/* Medicine: last dose, when the next can be, the week's history. */}
+      <div className="mb-d3">
+        <div className="mb-d2 flex items-baseline justify-between">
+          <h2
+            className="font-bold uppercase text-muted"
+            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+          >
+            Medicine
+          </h2>
+          <button
+            type="button"
+            onClick={() => setDosing(true)}
+            className="font-semibold text-accent"
+            style={{ fontSize: 'var(--fs-xs)' }}
+          >
+            ＋ Log a dose
+          </button>
+        </div>
+        {(meds?.status.length ?? 0) > 0 && (
+          <div className="mb-d2 flex flex-col gap-d2">
+            {meds!.status.map((s) => {
+              const next = s.nextFrom ? new Date(s.nextFrom as unknown as string) : null;
+              const ok = !next || next <= new Date();
+              return (
+                <div
+                  key={s.medicine}
+                  className="rounded-card p-d3"
+                  style={{
+                    background: ok ? 'var(--color-surface)' : 'var(--color-accent-soft)',
+                    boxShadow: 'var(--shadow-card)',
+                  }}
+                >
+                  <div className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    💊 {s.medicine}
+                    {s.amount ? ` · ${s.amount}` : ''}
+                    <span className="text-muted"> · {relativeTime(s.givenAt as unknown as string)}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 'var(--fs-sm)',
+                      color: ok ? 'var(--color-muted)' : 'var(--color-accent)',
+                    }}
+                  >
+                    {next
+                      ? ok
+                        ? 'Next dose can be given now'
+                        : `Next from ${next.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                      : 'No spacing entered'}
+                    {s.countToday > 1 ? ` · ${s.countToday} in the last 24 h` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {(meds?.doses.length ?? 0) > 0 ? (
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            {meds!.doses.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center gap-d3 border-b border-border px-3.5 py-2.5 last:border-0"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block" style={{ fontSize: 'var(--fs-sm)' }}>
+                    <b>{d.medicine}</b>
+                    {d.amount ? ` · ${d.amount}` : ''}
+                    {d.note ? <span className="text-muted"> · {d.note}</span> : null}
+                  </span>
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                    {new Date(d.givenAt as unknown as string).toLocaleString([], {
+                      weekday: 'short',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                    {d.givenByName ? ` · ${d.givenByName.split(' ')[0]}` : ''}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Remove this dose"
+                  onClick={() => removeDose.mutate({ id: d.id })}
+                  className="text-muted"
+                  style={{ fontSize: 16 }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Nothing in the last week. When {child.name.split(' ')[0]} is unwell, log each dose here
+            instead of texting, and everyone sees when the next can be.
+          </p>
+        )}
+      </div>
+
       {/* Today's routine: present, but calmer than the dated items. */}
       {todayRoutine.length > 0 && (
         <div className="mb-d3">
@@ -493,6 +600,21 @@ export function ChildScreen({
       </button>
 
       {setupOpen && <ChildSetup child={child} listId={listId} onChanged={refresh} />}
+      {dosing && (
+        <DoseSheet
+          listId={listId}
+          childName={child.name}
+          presets={meds?.presets ?? []}
+          onClose={() => setDosing(false)}
+          onDone={() => {
+            setDosing(false);
+            utils.doses.recent.invalidate({ listId });
+            utils.doses.status.invalidate();
+            utils.activity.recent.invalidate();
+            utils.children.get.invalidate({ listId });
+          }}
+        />
+      )}
     </>
   );
 }

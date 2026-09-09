@@ -265,6 +265,33 @@ export const personWorkday = pgTable(
   (t) => [uniqueIndex('person_workday_idx').on(t.personId, t.week, t.weekday)],
 );
 
+/**
+ * A dose of medicine given to someone in the household. Replaces the text
+ * message that says "gave her ibuprofen at 2". The spacing between doses is
+ * whatever the pack says, entered by a parent; the app only does the sums.
+ */
+export const dose = pgTable(
+  'dose',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => household.id, { onDelete: 'cascade' }),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id, { onDelete: 'cascade' }),
+    medicine: text('medicine').notNull(),
+    amount: text('amount'),
+    // Hours to wait before the next one, from the pack. Null if not entered.
+    intervalHours: doublePrecision('interval_hours'),
+    givenAt: timestamp('given_at', { withTimezone: true }).notNull(),
+    givenBy: uuid('given_by').references(() => person.id, { onDelete: 'set null' }),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('dose_person_given_idx').on(t.personId, t.givenAt)],
+);
+
 export const householdInvite = pgTable(
   'household_invite',
   {

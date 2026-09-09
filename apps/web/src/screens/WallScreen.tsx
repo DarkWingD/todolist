@@ -41,6 +41,8 @@ const css = `
 .wall .who .name{font-weight:900;width:150px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wall .who .where{color:#3a3a3a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wall .who .off .where{color:#7a7a7a;font-style:italic}
+.wall .who .dose{display:block;font-size:20px;font-weight:900;color:#111;font-style:normal;margin-top:2px}
+.wall .who .where{display:flex;flex-direction:column;min-width:0}
 .wall .list{display:flex;flex-direction:column;gap:12px}
 .wall .item{display:flex;align-items:baseline;gap:16px;font-size:26px;line-height:1.25}
 .wall .item .t{width:118px;flex:none;font-weight:900;font-variant-numeric:tabular-nums}
@@ -185,6 +187,16 @@ export function WallScreen({ token }: { token: string }) {
                           : k.place
                             ? `${k.place}${k.startTime ? ` · ${fmtRange(k.startTime, k.endTime)}` : ''}`
                             : 'Nothing on today'}
+                        {k.doses.map((d) => (
+                          <span key={d.medicine} className="dose">
+                            💊 {d.medicine} {fmtTime(d.givenAt)}
+                            {d.nextFrom
+                              ? new Date(d.nextFrom) <= new Date()
+                                ? ' · next OK now'
+                                : ` · next from ${fmtTime(d.nextFrom)}`
+                              : ''}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   ))}
@@ -337,9 +349,7 @@ export function WallScreen({ token }: { token: string }) {
                         <b>{e.title}</b>
                         {e.who ? ` · ${e.who}` : ''}
                         {e.time ? ` · ${fmtTime(e.time)}` : ''}
-                        {e.endDate && e.endDate !== e.date
-                          ? ` · until ${shortDay(e.endDate)}`
-                          : ''}
+                        {e.endDate && e.endDate !== e.date ? ` · until ${shortDay(e.endDate)}` : ''}
                       </span>
                     </div>
                   ))}

@@ -4,6 +4,7 @@ import { activityRouter } from './routers/activity.js';
 import { birthdaysRouter } from './routers/birthdays.js';
 import { calendarRouter } from './routers/calendar.js';
 import { childrenRouter } from './routers/children.js';
+import { dosesRouter } from './routers/doses.js';
 import { eventsRouter } from './routers/events.js';
 import { householdRouter } from './routers/household.js';
 import { invitesRouter } from './routers/invites.js';
@@ -33,6 +34,7 @@ export const appRouter = router({
   push: pushRouter,
   activity: activityRouter,
   wall: wallRouter,
+  doses: dosesRouter,
 });
 
 export type AppRouter = typeof appRouter;
