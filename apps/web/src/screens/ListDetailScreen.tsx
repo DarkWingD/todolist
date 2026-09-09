@@ -80,6 +80,7 @@ export function ListDetailScreen({
     { enabled: !isNote },
   );
   const { data: members = [] } = trpc.lists.members.useQuery({ listId: list.id });
+  const { data: household } = trpc.household.get.useQuery();
   const { data: allLists = [] } = trpc.lists.mine.useQuery();
   // Prefer live list data (reflects renames / type changes immediately).
   const live = allLists.find((l) => l.id === list.id);
@@ -659,7 +660,7 @@ export function ListDetailScreen({
                 assigneeId: ev.assigneeId,
               }}
               lists={allLists}
-              people={members}
+              people={household?.people ?? []}
               onClose={() => setEditEventId(null)}
               onDone={() => {
                 utils.events.byList.invalidate({ listId: list.id });

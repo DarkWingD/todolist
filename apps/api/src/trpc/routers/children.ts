@@ -18,6 +18,7 @@ import {
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
+import { createChild } from '../household.js';
 import { protectedProcedure, router } from '../trpc.js';
 import { expandEvent } from '../../lib/recurrence.js';
 
@@ -241,19 +242,12 @@ export const childrenRouter = router({
       };
     }),
 
+  // A child is a person in the household as well as a list; the helper makes both.
   create: protectedProcedure.input(createChildSchema).mutation(async ({ ctx, input }) => {
-    const [created] = await db
-      .insert(list)
-      .values({
-        ownerId: ctx.user.id,
-        name: input.name,
-        emojiIcon: input.emojiIcon,
-        color: input.color,
-        type: 'child',
-      })
-      .returning();
-    if (!created) throw new Error('Failed to create child');
-    await db.insert(listMember).values({ listId: created.id, userId: ctx.user.id, role: 'owner' });
+    const { list: created } = await createChild(
+      { userId: ctx.user.id, householdId: ctx.person.householdId },
+      input,
+    );
     return created;
   }),
 

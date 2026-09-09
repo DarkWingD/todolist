@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, type TabId } from './components/AppShell';
+import { BackButton } from './components/BackButton';
 import { CreateListForm } from './components/CreateListForm';
 import { ListsIndex } from './components/ListsIndex';
 import { QuickAddSheet } from './components/QuickAddSheet';
@@ -10,6 +11,7 @@ import { AccountScreen } from './screens/AccountScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
 import { CalScreen } from './screens/CalScreen';
 import { ChildScreen } from './screens/ChildScreen';
+import { FamilyScreen } from './screens/FamilyScreen';
 import { InviteAcceptScreen } from './screens/InviteAcceptScreen';
 import { PrivacyScreen } from './screens/PrivacyScreen';
 import { ListDetailScreen } from './screens/ListDetailScreen';
@@ -129,6 +131,7 @@ export function App() {
 type View =
   | 'main'
   | 'listDetail'
+  | 'you'
   | 'appearance'
   | 'taskDetail'
   | 'account'
@@ -136,6 +139,16 @@ type View =
   | 'manageLists'
   | 'notifications'
   | 'child';
+
+// Screens about this account, all reached through You.
+const YOU_VIEWS: ReadonlySet<View> = new Set<View>([
+  'you',
+  'appearance',
+  'account',
+  'privacy',
+  'manageLists',
+  'notifications',
+]);
 
 function AuthedApp({ me }: { me: SessionUser }) {
   const { theme, setPrefs } = useTheme();
@@ -160,6 +173,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [calCreateSignal, setCalCreateSignal] = useState(0);
   const [focusAddSignal, setFocusAddSignal] = useState(0);
   const [childAddSignal, setChildAddSignal] = useState(0);
+  const [familyAddSignal, setFamilyAddSignal] = useState(0);
   // Desktop only: the New list form takes the pane while this is set.
   const [creatingList, setCreatingList] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -175,26 +189,20 @@ function AuthedApp({ me }: { me: SessionUser }) {
     }
   }, [serverPrefs, setPrefs]);
 
-  const activeTab: TabId =
-    view === 'child'
+  // A child opens from Family or Today and returns to whichever it came from.
+  const activeTab: TabId = YOU_VIEWS.has(view)
+    ? 'family'
+    : view === 'listDetail'
       ? 'lists'
-      : view === 'appearance' ||
-          view === 'account' ||
-          view === 'privacy' ||
-          view === 'manageLists' ||
-          view === 'notifications'
-        ? 'you'
-        : view === 'listDetail'
+      : view === 'taskDetail'
+        ? taskReturn.view === 'listDetail'
           ? 'lists'
-          : view === 'taskDetail'
-            ? taskReturn.view === 'listDetail'
-              ? 'lists'
-              : taskReturn.tab
-            : tab;
+          : taskReturn.tab
+        : tab;
 
   // On a wide window, Lists is one screen: the index down the left and the open
   // list beside it. Everything under the Lists tab renders inside it.
-  const workspace = isDesktop && activeTab === 'lists';
+  const workspace = isDesktop && activeTab === 'lists' && view !== 'child';
   const inspectorOpen = workspace && view === 'taskDetail' && selectedTaskId !== null;
 
   function navigate(t: TabId) {
@@ -207,13 +215,12 @@ function AuthedApp({ me }: { me: SessionUser }) {
   function openChild(id: string) {
     setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
     setView('child');
-    writeLastListId(id);
   }
   const openList = useCallback((l: MinList) => {
     setSelectedList(l);
     setView(l.type === 'child' ? 'child' : 'listDetail');
     setCreatingList(false);
-    writeLastListId(l.id);
+    if (l.type !== 'child') writeLastListId(l.id);
   }, []);
   function openTask(id: string) {
     setSelectedTaskId(id);
@@ -235,11 +242,11 @@ function AuthedApp({ me }: { me: SessionUser }) {
   useEffect(() => {
     if (!workspace || selectedList || creatingList) return;
     const remembered = readLastListId();
+    const own = lists.filter((l) => l.type !== 'child');
     const pick =
-      lists.find((l) => l.id === remembered) ??
+      own.find((l) => l.id === remembered) ??
       (remindersList && remindersList.id === remembered ? remindersList : undefined) ??
-      lists.find((l) => l.type !== 'child') ??
-      lists[0] ??
+      own[0] ??
       remindersList;
     if (pick) openList(pick);
   }, [workspace, selectedList, creatingList, lists, remindersList, openList]);
@@ -268,20 +275,20 @@ function AuthedApp({ me }: { me: SessionUser }) {
   });
 
   // The + adds whatever the current screen is about: a list on Lists, an
-  // event/birthday on Cal, a reminder in the Reminders list, text in a note,
-  // otherwise a task. Meals has no +: you plan a dinner by tapping the day you
-  // want it on. In the workspace it adds to the open list; New list has its own
-  // button at the foot of the index.
+  // event/birthday on Cal, a child on Family, a reminder in the Reminders list,
+  // text in a note, otherwise a task. Meals has no +: you plan a dinner by
+  // tapping the day you want it on. In the workspace it adds to the open list;
+  // New list has its own button at the foot of the index.
   function onAdd() {
     if (workspace) {
       if (!selectedList) setCreatingList(true);
-      else if (selectedList.type === 'child') setChildAddSignal((n) => n + 1);
       else setFocusAddSignal((n) => n + 1);
       return;
     }
     if (view === 'child') setChildAddSignal((n) => n + 1);
     else if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
     else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
+    else if (view === 'main' && tab === 'family') setFamilyAddSignal((n) => n + 1);
     else if (
       view === 'listDetail' &&
       (selectedList?.systemKey === 'reminders' || selectedList?.type === 'note')
@@ -292,7 +299,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
 
   const showFab =
     !workspace &&
-    ((view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
+    ((view === 'main' &&
+      (tab === 'today' || tab === 'lists' || tab === 'cal' || tab === 'family')) ||
       view === 'listDetail' ||
       view === 'child');
 
@@ -314,16 +322,6 @@ function AuthedApp({ me }: { me: SessionUser }) {
             onCancel={() => setCreatingList(false)}
           />
         </div>
-      );
-    } else if (selectedList?.type === 'child') {
-      pane = (
-        <ChildScreen
-          key={selectedList.id}
-          listId={selectedList.id}
-          onBack={() => setSelectedList(null)}
-          addSignal={childAddSignal}
-          embedded
-        />
       );
     } else if (selectedList) {
       pane = (
@@ -376,7 +374,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = (
       <ChildScreen
         listId={selectedList.id}
-        onBack={() => navigate('lists')}
+        onBack={() => setView('main')}
         addSignal={childAddSignal}
       />
     );
@@ -390,22 +388,37 @@ function AuthedApp({ me }: { me: SessionUser }) {
         focusAddSignal={focusAddSignal}
       />
     );
+  } else if (view === 'you') {
+    content = (
+      <>
+        <BackButton label="Family" onClick={() => setView('main')} />
+        <YouScreen
+          me={me}
+          themeName={theme}
+          onOpenAppearance={() => setView('appearance')}
+          onOpenAccount={() => setView('account')}
+          onOpenPrivacy={() => setView('privacy')}
+          onOpenManageLists={() => setView('manageLists')}
+          onOpenNotifications={() => setView('notifications')}
+        />
+      </>
+    );
   } else if (view === 'appearance') {
-    content = <AppearanceScreen onBack={() => setView('main')} />;
+    content = <AppearanceScreen onBack={() => setView('you')} />;
   } else if (view === 'account') {
-    content = <AccountScreen me={me} onBack={() => setView('main')} />;
+    content = <AccountScreen me={me} onBack={() => setView('you')} />;
   } else if (view === 'privacy') {
-    content = <PrivacyScreen onBack={() => setView('main')} />;
+    content = <PrivacyScreen onBack={() => setView('you')} />;
   } else if (view === 'manageLists') {
-    content = <ManageListsScreen onBack={() => setView('main')} onOpenList={openList} />;
+    content = <ManageListsScreen onBack={() => setView('you')} onOpenList={openList} />;
   } else if (view === 'notifications') {
-    content = <NotificationsScreen onBack={() => setView('main')} />;
+    content = <NotificationsScreen onBack={() => setView('you')} />;
   } else if (tab === 'today') {
     content = (
       <TodayScreen
         me={me}
         onOpenTask={openTask}
-        onOpenYou={() => navigate('you')}
+        onOpenYou={() => setView('you')}
         showKids={showKids}
         onOpenChild={openChild}
       />
@@ -420,14 +433,11 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = <MealsScreen weekStartsOn={weekStartsOn} />;
   } else {
     content = (
-      <YouScreen
+      <FamilyScreen
         me={me}
-        themeName={theme}
-        onOpenAppearance={() => setView('appearance')}
-        onOpenAccount={() => setView('account')}
-        onOpenPrivacy={() => setView('privacy')}
-        onOpenManageLists={() => setView('manageLists')}
-        onOpenNotifications={() => setView('notifications')}
+        onOpenYou={() => setView('you')}
+        onOpenChild={openChild}
+        addSignal={familyAddSignal}
       />
     );
   }

@@ -103,9 +103,14 @@ export function CalScreen({
     }
   }, [createSignal]);
 
-  const colorFor = (id: string | null | undefined) =>
-    (id && people.find((p) => p.id === id)?.avatarColor) || NEUTRAL;
-  const isHidden = (id: string | null | undefined) => !!id && hidden.has(id);
+  // Assignees are people; a birthday links an account. Either way, one colour.
+  const personFor = (id: string | null | undefined) =>
+    id ? people.find((p) => p.id === id || p.userId === id) : undefined;
+  const colorFor = (id: string | null | undefined) => personFor(id)?.avatarColor || NEUTRAL;
+  const isHidden = (id: string | null | undefined) => {
+    const p = personFor(id);
+    return p ? hidden.has(p.id) : false;
+  };
   const toggleHidden = (id: string) =>
     setHidden((prev) => {
       const n = new Set(prev);

@@ -40,6 +40,8 @@ export const inviteStatusEnum = pgEnum('invite_status', [
   'revoked',
 ]);
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'push', 'in_app']);
+/** An adult signs in; a child is someone the family keeps track of. */
+export const personKindEnum = pgEnum('person_kind', ['adult', 'child']);
 export const calendarViewEnum = pgEnum('calendar_view', ['month', 'week', 'agenda', 'list']);
 
 // ─────────────────────────── auth ───────────────────────────
@@ -52,6 +54,21 @@ export const user = pgTable('user', {
   // App-specific identity used across shared lists / assignees.
   avatarEmoji: text('avatar_emoji').notNull().default('🙂'),
   avatarColor: text('avatar_color').notNull().default('#8B5CF6'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─────────────────────────── household ───────────────────────────
+/**
+ * The family. Everyone joins once; lists and the meal plan are shared with the
+ * whole household unless a list is marked private. Membership on a list is
+ * still recorded row by row in list_member — the household is what decides
+ * which rows get written, so every existing access check keeps working.
+ */
+export const household = pgTable('household', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().default('Family'),
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -141,6 +158,12 @@ export const list = pgTable(
     type: listTypeEnum('type').notNull().default('tasks'),
     // Marks an app-managed list (e.g. 'birthdays'); hidden from the normal Lists view.
     systemKey: text('system_key'),
+    // Whose household the list belongs to. Null only for rows older than the
+    // household model whose owner has since gone.
+    householdId: uuid('household_id').references(() => household.id, { onDelete: 'set null' }),
+    // A private list is shared only with the people explicitly added to it;
+    // otherwise every adult in the household is a member automatically.
+    private: boolean('private').notNull().default(false),
     // Lets someone tuck a built-in list away without deleting it. Only ever set
     // on system lists, which each user owns their own copy of — so it is
     // effectively per-user. Ordinary lists are shared, where a single flag would
@@ -176,6 +199,60 @@ export const listNote = pgTable('list_note', {
   updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Someone in the household. Adults link to a login through userId; children
+ * don't have one (yet), which is exactly why they need a row of their own: a
+ * task or an event can be theirs without them ever signing in.
+ *
+ * An adult's name and avatar are copied from their account and kept in step by
+ * the account router, so every screen that shows a person reads one table.
+ */
+export const person = pgTable(
+  'person',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => household.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    kind: personKindEnum('kind').notNull().default('adult'),
+    name: text('name').notNull(),
+    avatarEmoji: text('avatar_emoji').notNull().default('🙂'),
+    avatarColor: text('avatar_color').notNull().default('#8B5CF6'),
+    image: text('image'),
+    // A child's list: their week, term dates and profile. Null for adults.
+    childListId: uuid('child_list_id').references(() => list.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('person_household_idx').on(t.householdId),
+    uniqueIndex('person_user_idx').on(t.userId),
+  ],
+);
+
+export const householdInvite = pgTable(
+  'household_invite',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => household.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    token: text('token').notNull().unique(),
+    invitedBy: text('invited_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: inviteStatusEnum('status').notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('household_invite_household_idx').on(t.householdId),
+    index('household_invite_email_idx').on(t.email),
+  ],
+);
 
 export const listMember = pgTable(
   'list_member',
@@ -227,7 +304,8 @@ export const task = pgTable(
     dueAt: timestamp('due_at', { withTimezone: true }),
     priority: priorityEnum('priority').notNull().default('none'),
     completedAt: timestamp('completed_at', { withTimezone: true }),
-    assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
+    // A person, not an account: a child can own a task without a login.
+    assigneeId: uuid('assignee_id').references(() => person.id, { onDelete: 'set null' }),
     // iCal RRULE, e.g. "FREQ=WEEKLY;BYDAY=MO,WE,FR"
     recurrenceRule: text('recurrence_rule'),
     // For subtasks / recurrence instances.
@@ -293,8 +371,9 @@ export const event = pgTable(
     // is never completed, so occurrences are expanded when a date range is read
     // rather than materialised as rows.
     recurrenceRule: text('recurrence_rule'),
-    // Whose event it is (drives the per-person colour on the calendar).
-    assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
+    // Whose event it is (drives the per-person colour on the calendar). A
+    // person, so a child's swimming lesson is theirs.
+    assigneeId: uuid('assignee_id').references(() => person.id, { onDelete: 'set null' }),
     createdBy: text('created_by')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -392,6 +471,7 @@ export const mealPlan = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull().default('Meals'),
     emojiIcon: text('emoji_icon').notNull().default('🍽️'),
+    householdId: uuid('household_id').references(() => household.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -596,7 +676,7 @@ export const listMemberRelations = relations(listMember, ({ one }) => ({
 
 export const taskRelations = relations(task, ({ one, many }) => ({
   list: one(list, { fields: [task.listId], references: [list.id] }),
-  assignee: one(user, { fields: [task.assigneeId], references: [user.id] }),
+  assignee: one(person, { fields: [task.assigneeId], references: [person.id] }),
   tags: many(taskTag),
   reminders: many(reminder),
 }));

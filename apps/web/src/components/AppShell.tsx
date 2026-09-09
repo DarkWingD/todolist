@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import type { ReactNode } from 'react';
 import { NavIcon } from './NavIcon';
 
-export type TabId = 'today' | 'lists' | 'cal' | 'meals' | 'you';
+export type TabId = 'today' | 'lists' | 'cal' | 'meals' | 'family';
 
 // Mostly geometric glyphs, but Meals gets a real plate: a fourth square sat
 // next to the calendar's grid said nothing about food. Emoji is in keeping —
@@ -15,7 +15,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'lists', label: 'Lists' },
   { id: 'cal', label: 'Cal' },
   { id: 'meals', label: 'Meals' },
-  { id: 'you', label: 'You' },
+  { id: 'family', label: 'Family' },
 ];
 
 interface AppShellProps {

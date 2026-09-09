@@ -31,7 +31,8 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   const [priority, setPriority] = useState<'none' | 'high'>('none');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
 
-  const { data: members = [] } = trpc.lists.members.useQuery({ listId }, { enabled: !!listId });
+  const { data: household } = trpc.household.get.useQuery();
+  const members = household?.people ?? [];
 
   useEffect(() => {
     if (open) setListId(defaultListId ?? lists[0]?.id ?? '');

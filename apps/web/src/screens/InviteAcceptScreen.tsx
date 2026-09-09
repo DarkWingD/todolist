@@ -55,7 +55,11 @@ export function InviteAcceptScreen({ token }: { token: string }) {
             </h1>
             <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-base)' }}>
               {info.inviterName || 'Someone'} invited you to{' '}
-              {info.kind === 'mealPlan' ? 'share this meal plan.' : 'collaborate on this list.'}
+              {info.kind === 'household'
+                ? 'join their family: shared lists, calendar, meal plan and the kids\u2019 weeks.'
+                : info.kind === 'mealPlan'
+                  ? 'share this meal plan.'
+                  : 'collaborate on this list.'}
             </p>
           </div>
           <button

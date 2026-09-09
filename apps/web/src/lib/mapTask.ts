@@ -27,7 +27,12 @@ export function toTaskRow(t: ServerTask, opts: { withLeadEmoji?: boolean } = {})
     dueVariant: due?.variant,
     recurrence: recurrenceLabel(t.recurrenceRule) ?? undefined,
     assignee: t.assigneeId
-      ? { id: t.assigneeId, emoji: t.assigneeEmoji ?? '🙂', color: t.assigneeColor ?? '#888', image: t.assigneeImage }
+      ? {
+          id: t.assigneeId,
+          emoji: t.assigneeEmoji ?? '🙂',
+          color: t.assigneeColor ?? '#888',
+          image: t.assigneeImage,
+        }
       : undefined,
   };
 }

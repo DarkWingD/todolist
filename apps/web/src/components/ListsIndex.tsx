@@ -121,9 +121,9 @@ export function ListsIndex({ selectedId, onSelect, onOpenTask, onNewList, search
     for (const l of [reminders, shopping]) if (l && !l.hidden) out.push(l);
     return out;
   }, [reminders, shopping]);
+  // Child lists open from Family, not here.
   const mine = useMemo<ListSummary[]>(() => lists.filter((l) => l.type !== 'child'), [lists]);
-  const kids = useMemo<ListSummary[]>(() => lists.filter((l) => l.type === 'child'), [lists]);
-  const ordered = useMemo(() => [...builtIn, ...mine, ...kids], [builtIn, mine, kids]);
+  const ordered = useMemo(() => [...builtIn, ...mine], [builtIn, mine]);
 
   // Arrow keys walk the index in the order it is drawn.
   useEffect(() => {
@@ -323,14 +323,6 @@ export function ListsIndex({ selectedId, onSelect, onOpenTask, onNewList, search
               mine.map((l) => (
                 <Row key={l.id} list={l} selected={l.id === selectedId} onSelect={onSelect} />
               ))
-            )}
-            {kids.length > 0 && (
-              <>
-                <Group label="Kids" />
-                {kids.map((l) => (
-                  <Row key={l.id} list={l} selected={l.id === selectedId} onSelect={onSelect} />
-                ))}
-              </>
             )}
           </>
         )}

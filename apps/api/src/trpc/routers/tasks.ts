@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm';
-import { db, list, listMember, task, user } from '@todolist/db';
+import { db, list, listMember, person, task } from '@todolist/db';
 import { createTaskSchema, updateTaskSchema } from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -20,10 +20,10 @@ const taskWithAssignee = {
   parentTaskId: task.parentTaskId,
   sortOrder: task.sortOrder,
   assigneeId: task.assigneeId,
-  assigneeName: user.name,
-  assigneeEmoji: user.avatarEmoji,
-  assigneeColor: user.avatarColor,
-  assigneeImage: user.image,
+  assigneeName: person.name,
+  assigneeEmoji: person.avatarEmoji,
+  assigneeColor: person.avatarColor,
+  assigneeImage: person.image,
 };
 
 export const tasksRouter = router({
@@ -34,7 +34,7 @@ export const tasksRouter = router({
       return db
         .select(taskWithAssignee)
         .from(task)
-        .leftJoin(user, eq(user.id, task.assigneeId))
+        .leftJoin(person, eq(person.id, task.assigneeId))
         .where(and(eq(task.listId, input.listId), isNull(task.deletedAt)))
         .orderBy(asc(task.sortOrder), asc(task.createdAt));
     }),
@@ -50,7 +50,7 @@ export const tasksRouter = router({
         .from(task)
         .innerJoin(list, eq(list.id, task.listId))
         .innerJoin(listMember, eq(listMember.listId, list.id))
-        .leftJoin(user, eq(user.id, task.assigneeId))
+        .leftJoin(person, eq(person.id, task.assigneeId))
         .where(
           and(
             eq(listMember.userId, ctx.user.id),
@@ -69,7 +69,7 @@ export const tasksRouter = router({
       const rows = await db
         .select(taskWithAssignee)
         .from(task)
-        .leftJoin(user, eq(user.id, task.assigneeId))
+        .leftJoin(person, eq(person.id, task.assigneeId))
         .where(eq(task.id, input.id))
         .limit(1);
       const found = rows[0];
@@ -85,7 +85,7 @@ export const tasksRouter = router({
       .from(task)
       .innerJoin(list, eq(list.id, task.listId))
       .innerJoin(listMember, eq(listMember.listId, list.id))
-      .leftJoin(user, eq(user.id, task.assigneeId))
+      .leftJoin(person, eq(person.id, task.assigneeId))
       .where(
         and(
           eq(listMember.userId, ctx.user.id),

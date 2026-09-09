@@ -1,15 +1,15 @@
-import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from 'drizzle-orm';
-import { db, event, list, listMember, task, user } from '@todolist/db';
+import { and, asc, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { db, event, list, listMember, person, task } from '@todolist/db';
 import { calendarRangeSchema } from '@todolist/shared';
 import { protectedProcedure, router } from '../trpc.js';
 import { expandEvent } from '../../lib/recurrence.js';
 
 const withAssignee = {
   assigneeId: task.assigneeId,
-  assigneeName: user.name,
-  assigneeEmoji: user.avatarEmoji,
-  assigneeColor: user.avatarColor,
-  assigneeImage: user.image,
+  assigneeName: person.name,
+  assigneeEmoji: person.avatarEmoji,
+  assigneeColor: person.avatarColor,
+  assigneeImage: person.image,
 };
 
 export const calendarRouter = router({
@@ -33,7 +33,7 @@ export const calendarRouter = router({
       .from(task)
       .innerJoin(list, eq(list.id, task.listId))
       .innerJoin(listMember, eq(listMember.listId, list.id))
-      .leftJoin(user, eq(user.id, task.assigneeId))
+      .leftJoin(person, eq(person.id, task.assigneeId))
       .where(
         and(
           eq(listMember.userId, ctx.user.id),
@@ -56,14 +56,14 @@ export const calendarRouter = router({
         recurrenceRule: event.recurrenceRule,
         listColor: list.color,
         assigneeId: event.assigneeId,
-        assigneeName: user.name,
-        assigneeEmoji: user.avatarEmoji,
-        assigneeColor: user.avatarColor,
+        assigneeName: person.name,
+        assigneeEmoji: person.avatarEmoji,
+        assigneeColor: person.avatarColor,
       })
       .from(event)
       .innerJoin(list, eq(list.id, event.listId))
       .innerJoin(listMember, eq(listMember.listId, list.id))
-      .leftJoin(user, eq(user.id, event.assigneeId))
+      .leftJoin(person, eq(person.id, event.assigneeId))
       .where(
         and(
           eq(listMember.userId, ctx.user.id),
@@ -91,24 +91,22 @@ export const calendarRouter = router({
     return { tasks, events: expanded };
   }),
 
-  // The set of people across the user's lists — used for the calendar filter chips.
+  // Everyone in the household, kids included: the calendar's filter chips and
+  // every "who is this for" picker. userId lets a birthday linked to an
+  // account find its person's colour.
   people: protectedProcedure.query(async ({ ctx }) => {
-    const listRows = await db
-      .select({ id: listMember.listId })
-      .from(listMember)
-      .where(eq(listMember.userId, ctx.user.id));
-    const listIds = listRows.map((r) => r.id);
-    if (listIds.length === 0) return [];
     return db
-      .selectDistinct({
-        id: user.id,
-        name: user.name,
-        avatarEmoji: user.avatarEmoji,
-        avatarColor: user.avatarColor,
-        image: user.image,
+      .select({
+        id: person.id,
+        kind: person.kind,
+        userId: person.userId,
+        name: person.name,
+        avatarEmoji: person.avatarEmoji,
+        avatarColor: person.avatarColor,
+        image: person.image,
       })
-      .from(listMember)
-      .innerJoin(user, eq(user.id, listMember.userId))
-      .where(inArray(listMember.listId, listIds));
+      .from(person)
+      .where(eq(person.householdId, ctx.person.householdId))
+      .orderBy(asc(person.kind), asc(person.createdAt));
   }),
 });

@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertListAccess } from '../access.js';
+import { shareListWithHousehold, unshareListFromHousehold } from '../household.js';
 import { groceriesListId } from './mealPlan.js';
 import { remindersListId } from './reminders.js';
 import { protectedProcedure, router } from '../trpc.js';
@@ -111,6 +112,7 @@ export const listsRouter = router({
     }),
 
   create: protectedProcedure.input(createListSchema).mutation(async ({ ctx, input }) => {
+    const isPrivate = input.private ?? false;
     const [created] = await db
       .insert(list)
       .values({
@@ -119,10 +121,15 @@ export const listsRouter = router({
         emojiIcon: input.emojiIcon,
         color: input.color,
         type: input.type,
+        householdId: ctx.person.householdId,
+        private: isPrivate,
       })
       .returning();
     if (!created) throw new Error('Failed to create list');
     await db.insert(listMember).values({ listId: created.id, userId: ctx.user.id, role: 'owner' });
+    // Shared with the household by default: every adult gets a seat now, and
+    // anyone who joins later gets one on arrival.
+    if (!isPrivate) await shareListWithHousehold(created.id, ctx.person.householdId);
     return created;
   }),
 
@@ -144,10 +151,27 @@ export const listsRouter = router({
           message: 'A note can’t be turned into a task list, or the other way round.',
         });
     }
+    const before = await db
+      .select({ private: list.private, householdId: list.householdId, systemKey: list.systemKey })
+      .from(list)
+      .where(eq(list.id, listId))
+      .limit(1);
+    const prev = before[0];
+    if (rest.private !== undefined && prev?.systemKey)
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Built-in lists are always personal.' });
     await db
       .update(list)
       .set({ ...rest, updatedAt: new Date() })
       .where(eq(list.id, listId));
+    // Flipping private moves the household's seats on or off the list. A list
+    // from before households joins the actor's when it is first shared.
+    if (prev && rest.private !== undefined && rest.private !== prev.private) {
+      const hh = prev.householdId ?? ctx.person.householdId;
+      if (!prev.householdId)
+        await db.update(list).set({ householdId: hh }).where(eq(list.id, listId));
+      if (rest.private) await unshareListFromHousehold(listId, hh, ctx.user.id);
+      else await shareListWithHousehold(listId, hh);
+    }
     return { ok: true };
   }),
 

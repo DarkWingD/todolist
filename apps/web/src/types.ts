@@ -23,4 +23,6 @@ export interface ListSummary {
   systemKey?: string | null;
   // Opening text of a note list, for its row. Absent on every other type.
   notePreview?: string | null;
+  // Shared with the household unless set.
+  private?: boolean;
 }

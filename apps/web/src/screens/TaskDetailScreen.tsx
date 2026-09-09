@@ -39,10 +39,9 @@ export function TaskDetailScreen({
   const utils = trpc.useUtils();
   const { data: task, isLoading } = trpc.tasks.get.useQuery({ id: taskId });
   const { data: reminders = [] } = trpc.reminders.byTask.useQuery({ taskId });
-  const { data: members = [] } = trpc.lists.members.useQuery(
-    { listId: task?.listId ?? '' },
-    { enabled: !!task?.listId },
-  );
+  // Anyone in the household can hold a task, a child included.
+  const { data: household } = trpc.household.get.useQuery();
+  const members = household?.people ?? [];
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');

@@ -27,7 +27,13 @@ export async function remindersListId(userId: string): Promise<string> {
   if (rows[0]) return rows[0].id;
   const [created] = await db
     .insert(list)
-    .values({ ownerId: userId, name: 'Reminders', emojiIcon: '⏰', systemKey: 'reminders' })
+    .values({
+      ownerId: userId,
+      name: 'Reminders',
+      emojiIcon: '⏰',
+      systemKey: 'reminders',
+      private: true,
+    })
     .returning();
   await db.insert(listMember).values({ listId: created!.id, userId, role: 'owner' });
   return created!.id;

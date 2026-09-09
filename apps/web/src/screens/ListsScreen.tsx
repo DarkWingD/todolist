@@ -67,7 +67,9 @@ export function ListsScreen({
     { q: query },
     { enabled: query.length > 0 },
   );
-  const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
+  const { data: allLists = [], isLoading } = trpc.lists.mine.useQuery();
+  // Kids have their own tab now; their lists open from there.
+  const lists = allLists.filter((l) => l.type !== 'child');
   const { data: remindersList } = trpc.lists.reminders.useQuery();
   const { data: shoppingList } = trpc.lists.shopping.useQuery();
   const [creating, setCreating] = useState(false);

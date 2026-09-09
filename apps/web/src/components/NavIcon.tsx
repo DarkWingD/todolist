@@ -37,10 +37,13 @@ const PATHS: Record<TabId, JSX.Element> = {
       <path d="M17 3.5c1.5 1.5 1.8 4 1.4 6.2-.2 1-.9 1.6-1.9 1.6H16v9.2" />
     </>
   ),
-  you: (
+  // Two people, one a step behind: the household, not the account.
+  family: (
     <>
-      <circle cx="12" cy="8" r="3.75" />
-      <path d="M4.75 20.25a7.25 7.25 0 0 1 14.5 0" />
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M2.75 19.5a6.25 6.25 0 0 1 12.5 0" />
+      <circle cx="17" cy="9.5" r="2.5" />
+      <path d="M15.75 15.5a4.5 4.5 0 0 1 5.5 4" />
     </>
   ),
 };

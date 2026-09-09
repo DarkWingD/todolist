@@ -40,6 +40,8 @@ export const createListSchema = z.object({
   emojiIcon: emojiSchema,
   color: hexColorSchema.optional(),
   type: z.enum(LIST_TYPES).default('tasks'),
+  // Shared with the household unless asked otherwise.
+  private: z.boolean().optional(),
 });
 export type CreateListInput = z.infer<typeof createListSchema>;
 
@@ -49,6 +51,7 @@ export const updateListSchema = z.object({
   emojiIcon: emojiSchema.optional(),
   color: hexColorSchema.nullable().optional(),
   type: z.enum(LIST_TYPES).optional(),
+  private: z.boolean().optional(),
 });
 
 export const saveListNoteSchema = z.object({
@@ -70,8 +73,8 @@ export const createTaskSchema = z.object({
   notes: z.string().max(10_000).optional(),
   dueAt: z.string().datetime().optional(),
   priority: z.enum(PRIORITIES).default('none'),
-  // User IDs come from Better Auth and are NOT uuids.
-  assigneeId: z.string().min(1).optional(),
+  // A person id (household member, adult or child).
+  assigneeId: z.string().uuid().optional(),
   recurrenceRule: recurrenceSchema.optional(),
   tagIds: z.array(z.string().uuid()).max(20).optional(),
   // Groups an item under another, e.g. an ingredient under its meal on a
@@ -80,19 +83,16 @@ export const createTaskSchema = z.object({
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
-export const updateTaskSchema = createTaskSchema
-  .partial()
-  .omit({ listId: true })
-  .extend({
-    id: z.string().uuid(),
-    completed: z.boolean().optional(),
-    // Nullable so the UI can clear these fields.
-    dueAt: z.string().datetime().nullable().optional(),
-    assigneeId: z.string().min(1).nullable().optional(),
-    recurrenceRule: recurrenceSchema.nullable().optional(),
-    // Null promotes a checklist item back to a heading of its own.
-    parentTaskId: z.string().uuid().nullable().optional(),
-  });
+export const updateTaskSchema = createTaskSchema.partial().omit({ listId: true }).extend({
+  id: z.string().uuid(),
+  completed: z.boolean().optional(),
+  // Nullable so the UI can clear these fields.
+  dueAt: z.string().datetime().nullable().optional(),
+  assigneeId: z.string().uuid().nullable().optional(),
+  recurrenceRule: recurrenceSchema.nullable().optional(),
+  // Null promotes a checklist item back to a heading of its own.
+  parentTaskId: z.string().uuid().nullable().optional(),
+});
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
 export const acceptInviteSchema = z.object({ token: z.string().min(1) });
@@ -110,23 +110,20 @@ export const createEventSchema = z.object({
   startAt: z.string().datetime(),
   endAt: z.string().datetime(),
   allDay: z.boolean().default(false),
-  assigneeId: z.string().min(1).optional(),
+  assigneeId: z.string().uuid().optional(),
   // A weekly swimming lesson is an event, not a task — nobody completes it, so
   // it cannot use the task model where finishing one spawns the next.
   recurrenceRule: recurrenceSchema.optional(),
 });
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 
-export const updateEventSchema = createEventSchema
-  .partial()
-  .omit({ listId: true })
-  .extend({
-    id: z.string().uuid(),
-    // Moving an event to another list is allowed; access to the target is checked server-side.
-    listId: z.string().uuid().optional(),
-    assigneeId: z.string().min(1).nullable().optional(),
-    recurrenceRule: recurrenceSchema.nullable().optional(),
-  });
+export const updateEventSchema = createEventSchema.partial().omit({ listId: true }).extend({
+  id: z.string().uuid(),
+  // Moving an event to another list is allowed; access to the target is checked server-side.
+  listId: z.string().uuid().optional(),
+  assigneeId: z.string().uuid().nullable().optional(),
+  recurrenceRule: recurrenceSchema.nullable().optional(),
+});
 
 export const createBirthdaySchema = z.object({
   // No listId — birthdays go to the user's app-managed Birthdays list automatically.
@@ -299,4 +296,23 @@ export const updateChildProfileSchema = z.object({
   teacher: z.string().trim().max(120).nullable().optional(),
   officePhone: z.string().trim().max(40).nullable().optional(),
   medicalNotes: z.string().max(5000).nullable().optional(),
+});
+
+// ─────────────────────────── household ───────────────────────────
+export const renameHouseholdSchema = z.object({ name: z.string().trim().min(1).max(80) });
+
+export const inviteToHouseholdSchema = z.object({ email: emailSchema });
+
+export const addChildSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  emojiIcon: emojiSchema,
+  color: hexColorSchema.optional(),
+});
+export type AddChildInput = z.infer<typeof addChildSchema>;
+
+export const updatePersonSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(120).optional(),
+  emojiIcon: emojiSchema.optional(),
+  color: hexColorSchema.nullable().optional(),
 });

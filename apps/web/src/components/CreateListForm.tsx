@@ -15,7 +15,6 @@ const TYPE_OPTIONS: { v: ListType; label: string; emoji: string }[] = [
   { v: 'tasks', label: '✓ Tasks', emoji: '📝' },
   { v: 'checklist', label: '🛒 Shopping', emoji: '🛒' },
   { v: 'note', label: '📄 Note', emoji: '📄' },
-  { v: 'child', label: '🧒 Child', emoji: '🧒' },
 ];
 const DEFAULT_EMOJIS = new Set(TYPE_OPTIONS.map((o) => o.emoji));
 
@@ -38,27 +37,28 @@ export function CreateListForm({
   const [emoji, setEmoji] = useState('📝');
   const [color, setColor] = useState<string | null>(() => pickUnusedColor(usedColors));
   const [type, setType] = useState<ListType>('tasks');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const { data: household } = trpc.household.get.useQuery();
+  const others = (household?.people ?? []).filter((p) => p.kind === 'adult').length - 1;
 
   const done = (l: Created) => {
     utils.lists.mine.invalidate();
     onCreated(l);
   };
-  const createChild = trpc.children.create.useMutation({
-    onSuccess: (l) => {
-      utils.children.mine.invalidate();
-      done({ id: l.id, name: l.name, emojiIcon: l.emojiIcon, type: 'child' });
-    },
-  });
   const create = trpc.lists.create.useMutation({
     onSuccess: (l) => done({ id: l.id, name: l.name, emojiIcon: l.emojiIcon, type: l.type }),
   });
 
-  const pending = create.isPending || createChild.isPending;
+  const pending = create.isPending;
   function submit() {
     if (!name.trim() || pending) return;
-    const common = { name: name.trim(), emojiIcon: emoji, color: color ?? undefined };
-    if (type === 'child') createChild.mutate(common);
-    else create.mutate({ ...common, type });
+    create.mutate({
+      name: name.trim(),
+      emojiIcon: emoji,
+      color: color ?? undefined,
+      type,
+      private: isPrivate,
+    });
   }
 
   return (
@@ -108,6 +108,19 @@ export function CreateListForm({
         Calendar colour
       </div>
       <ColorPicker value={color} onChange={setColor} />
+      {others > 0 && (
+        <label
+          className="mt-3 flex items-center gap-2 text-muted"
+          style={{ fontSize: 'var(--fs-sm)' }}
+        >
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+          />
+          Just me — don't share this one with the family
+        </label>
+      )}
       <div className="mt-3 flex justify-end gap-2">
         <button
           type="button"

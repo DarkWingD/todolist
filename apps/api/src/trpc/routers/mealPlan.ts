@@ -28,6 +28,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { assertMealPlanAccess } from '../access.js';
+import { householdUserIds } from '../household.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -72,6 +73,7 @@ export async function groceriesListId(userId: string): Promise<string> {
       emojiIcon: '🛒',
       type: 'checklist',
       systemKey: 'groceries',
+      private: true,
     })
     .returning();
   await db.insert(listMember).values({ listId: created!.id, userId, role: 'owner' });
@@ -151,17 +153,49 @@ export const mealPlanRouter = router({
    */
   ensure: protectedProcedure.mutation(async ({ ctx }) => {
     const mine = await db
-      .select({ id: mealPlan.id })
+      .select({ id: mealPlan.id, householdId: mealPlan.householdId })
       .from(mealPlan)
       .innerJoin(mealPlanMember, eq(mealPlanMember.planId, mealPlan.id))
       .where(and(eq(mealPlanMember.userId, ctx.user.id), isNull(mealPlan.deletedAt)))
       .orderBy(asc(mealPlan.createdAt))
       .limit(1);
-    if (mine[0]) return mine[0];
-    const [created] = await db.insert(mealPlan).values({ ownerId: ctx.user.id }).returning();
+    if (mine[0]) {
+      if (!mine[0].householdId)
+        await db
+          .update(mealPlan)
+          .set({ householdId: ctx.person.householdId })
+          .where(eq(mealPlan.id, mine[0].id));
+      return { id: mine[0].id };
+    }
+    // The household's plan is the family's plan: join it rather than start a
+    // second one nobody else can see.
+    const theirs = await db
+      .select({ id: mealPlan.id })
+      .from(mealPlan)
+      .where(and(eq(mealPlan.householdId, ctx.person.householdId), isNull(mealPlan.deletedAt)))
+      .orderBy(asc(mealPlan.createdAt))
+      .limit(1);
+    if (theirs[0]) {
+      await db
+        .insert(mealPlanMember)
+        .values({ planId: theirs[0].id, userId: ctx.user.id, role: 'member' })
+        .onConflictDoNothing();
+      return { id: theirs[0].id };
+    }
+    const [created] = await db
+      .insert(mealPlan)
+      .values({ ownerId: ctx.user.id, householdId: ctx.person.householdId })
+      .returning();
     await db
       .insert(mealPlanMember)
       .values({ planId: created!.id, userId: ctx.user.id, role: 'owner' });
+    const adults = await householdUserIds(ctx.person.householdId);
+    const others = adults.filter((id) => id !== ctx.user.id);
+    if (others.length > 0)
+      await db
+        .insert(mealPlanMember)
+        .values(others.map((userId) => ({ planId: created!.id, userId, role: 'member' as const })))
+        .onConflictDoNothing();
     return { id: created!.id };
   }),
 

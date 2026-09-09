@@ -4,6 +4,7 @@ import { birthdaysRouter } from './routers/birthdays.js';
 import { calendarRouter } from './routers/calendar.js';
 import { childrenRouter } from './routers/children.js';
 import { eventsRouter } from './routers/events.js';
+import { householdRouter } from './routers/household.js';
 import { invitesRouter } from './routers/invites.js';
 import { listsRouter } from './routers/lists.js';
 import { mealPlanRouter } from './routers/mealPlan.js';
@@ -24,6 +25,7 @@ export const appRouter = router({
   calendar: calendarRouter,
   children: childrenRouter,
   events: eventsRouter,
+  household: householdRouter,
   birthdays: birthdaysRouter,
   account: accountRouter,
   push: pushRouter,

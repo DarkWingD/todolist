@@ -18,7 +18,10 @@ export function formatDue(iso: string | null | undefined): DueInfo | null {
   const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   if (d < startToday) {
-    return { label: `Overdue · ${d.toLocaleDateString([], { weekday: 'short' })}`, variant: 'over' };
+    return {
+      label: `Overdue · ${d.toLocaleDateString([], { weekday: 'short' })}`,
+      variant: 'over',
+    };
   }
   if (d < startTomorrow) {
     return { label: time, variant: d < now ? 'over' : 'due' };
