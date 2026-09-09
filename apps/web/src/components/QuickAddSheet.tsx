@@ -150,7 +150,6 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
           </button>
           <button
             className={optClass(repeat !== '')}
-            style={optStyle(repeat !== '')}
             onClick={() =>
               setRepeat((r) => {
                 const i = REPEATS.findIndex((o) => o.v === r);
@@ -158,6 +157,8 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
               })
             }
             title="Repeats"
+            // Sized for the longest label so cycling it never reflows the row.
+            style={{ ...optStyle(repeat !== ''), minWidth: '8.5em', justifyContent: 'center' }}
           >
             ↻ {REPEATS.find((o) => o.v === repeat)?.label}
           </button>
