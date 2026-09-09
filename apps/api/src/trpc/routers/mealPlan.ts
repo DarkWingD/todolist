@@ -30,7 +30,7 @@ import { sendEmail } from '../../email.js';
 import { assertMealPlanAccess } from '../access.js';
 import { householdUserIds } from '../household.js';
 import { logActivity } from '../activity.js';
-import { protectedProcedure, router } from '../trpc.js';
+import { mergeRouters, protectedProcedure, router } from '../trpc.js';
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
@@ -146,7 +146,7 @@ export interface MealPlanEntry {
   night: number;
 }
 
-export const mealPlanRouter = router({
+const mealPlanHead = router({
   /**
    * The plan the user lands on: their first membership, or a new plan if they
    * have none. Someone who accepted an invite gets that shared plan rather than
@@ -225,6 +225,14 @@ export const mealPlanRouter = router({
    */
   range: protectedProcedure.input(mealPlanRangeSchema).query(async ({ ctx, input }) => {
     await assertMealPlanAccess(ctx.user.id, input.planId);
+    return readRange(input.planId, input.from, input.to);
+  }),
+});
+
+/** Every day in [from, to] with leftovers expanded; see `range`. */
+export async function readRange(planId: string, from: string, to: string) {
+  const input = { planId, from, to };
+  {
     const lookback = addDays(input.from, -(COOK_SPAN_MAX - 1));
     const rows = await db
       .select({
@@ -281,8 +289,11 @@ export const mealPlanRouter = router({
       });
     }
     return out;
-  }),
+  }
+}
 
+// The procedures below are re-attached to the router by the export at the end.
+const _mealPlanRest = router({
   /** Plan a dinner. Naming a meal that isn't in the catalog adds it. */
   setDay: protectedProcedure.input(setMealDaySchema).mutation(async ({ ctx, input }) => {
     await assertMealPlanAccess(ctx.user.id, input.planId);
@@ -710,3 +721,5 @@ export const mealPlanRouter = router({
       return { listId, added: created.length + toAdd.length, headings: created.length };
     }),
 });
+
+export const mealPlanRouter = mergeRouters(mealPlanHead, _mealPlanRest);

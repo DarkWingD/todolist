@@ -338,6 +338,34 @@ export const householdRouter = router({
     };
   }),
 
+  /** The wall display's link, made on first ask. */
+  wallLink: protectedProcedure.query(async ({ ctx }) => {
+    const [hh] = await db
+      .select({ token: household.wallToken })
+      .from(household)
+      .where(eq(household.id, ctx.person.householdId))
+      .limit(1);
+    let token = hh?.token ?? null;
+    if (!token) {
+      token = crypto.randomUUID().replace(/-/g, '');
+      await db
+        .update(household)
+        .set({ wallToken: token, updatedAt: new Date() })
+        .where(eq(household.id, ctx.person.householdId));
+    }
+    return { url: `${env.WEB_ORIGIN}/wall?token=${token}` };
+  }),
+
+  /** A new link; the old one stops working. */
+  rotateWallToken: protectedProcedure.mutation(async ({ ctx }) => {
+    const token = crypto.randomUUID().replace(/-/g, '');
+    await db
+      .update(household)
+      .set({ wallToken: token, updatedAt: new Date() })
+      .where(eq(household.id, ctx.person.householdId));
+    return { url: `${env.WEB_ORIGIN}/wall?token=${token}` };
+  }),
+
   /** Remove a child. Their list is put away, not destroyed; tasks they held stay, unassigned. */
   removePerson: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))

@@ -14,6 +14,7 @@ import { pushRouter } from './routers/push.js';
 import { remindersRouter } from './routers/reminders.js';
 import { searchRouter } from './routers/search.js';
 import { tasksRouter } from './routers/tasks.js';
+import { wallRouter } from './routers/wall.js';
 
 export const appRouter = router({
   prefs: prefsRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   account: accountRouter,
   push: pushRouter,
   activity: activityRouter,
+  wall: wallRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -24,6 +24,7 @@ import { SignInScreen } from './screens/SignInScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 import { TaskDetailScreen } from './screens/TaskDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
+import { WallScreen } from './screens/WallScreen';
 import { YouScreen } from './screens/YouScreen';
 import { useTheme } from './theme/ThemeProvider';
 import type { ListType, SessionUser } from './types';
@@ -106,6 +107,13 @@ export function App() {
   const { data: session, isPending } = useSession();
   const inviteToken = window.location.pathname.match(/^\/invite\/(.+)$/)?.[1];
   const [welcomed, setWelcomed] = useState(hasSeenWelcome);
+
+  // The wall display carries its own token; no sign-in, no shell.
+  const wallToken =
+    window.location.pathname === '/wall'
+      ? new URLSearchParams(window.location.search).get('token')
+      : null;
+  if (wallToken) return <WallScreen token={wallToken} />;
 
   if (isPending) return <Splash />;
   if (!session) return <SignInScreen />;

@@ -52,6 +52,12 @@ export function FamilyScreen({
   const [email, setEmail] = useState('');
   const [editing, setEditing] = useState<Person | null>(null);
   const [workFor, setWorkFor] = useState<Person | null>(null);
+  const [showWall, setShowWall] = useState(false);
+  const { data: wall } = trpc.household.wallLink.useQuery(undefined, { enabled: showWall });
+  const rotateWall = trpc.household.rotateWallToken.useMutation({
+    onSuccess: () => utils.household.wallLink.invalidate(),
+  });
+  const [copied, setCopied] = useState(false);
 
   const refresh = () => {
     utils.household.get.invalidate();
@@ -338,6 +344,87 @@ export function FamilyScreen({
               </button>
             )}
           </div>
+          <h2 className={sectionH} style={sectionStyle}>
+            Wall display
+          </h2>
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            {showWall ? (
+              <div className="px-3.5 py-3">
+                <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                  Open this on a kitchen tablet or an e-ink frame. It shows the family's day without
+                  a sign-in, so treat the link like a key.
+                </p>
+                <div
+                  className="mt-2 break-all rounded-lg border border-border bg-bg px-3 py-2"
+                  style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text)' }}
+                >
+                  {wall?.url ?? 'Making a link…'}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!wall?.url}
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(wall!.url);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1500);
+                      } catch {
+                        /* the link is on screen to copy by hand */
+                      }
+                    }}
+                    className="rounded-full px-3 py-1.5 font-bold text-accent"
+                    style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+                  >
+                    {copied ? 'Copied' : 'Copy link'}
+                  </button>
+                  <a
+                    href={wall?.url ?? '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full px-3 py-1.5 font-bold text-accent"
+                    style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+                  >
+                    Open
+                  </a>
+                  <button
+                    type="button"
+                    disabled={rotateWall.isPending}
+                    onClick={() => rotateWall.mutate()}
+                    className="ml-auto font-semibold text-danger"
+                    style={{ fontSize: 'var(--fs-sm)' }}
+                  >
+                    New link
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowWall(true)}
+                className="flex w-full items-center gap-d3 px-3.5 py-3 text-left"
+              >
+                <span
+                  className="grid h-10 w-10 place-items-center rounded-full"
+                  style={{ background: 'var(--color-chip-bg)', fontSize: 18 }}
+                >
+                  🖼️
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    Show the family's day on a screen
+                  </span>
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    A link for a kitchen tablet or e-ink frame
+                  </span>
+                </span>
+                <span className="text-muted" style={{ fontSize: 18 }}>
+                  ›
+                </span>
+              </button>
+            )}
+          </div>
+
           <p className="mt-2 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
             Kids don't sign in. They can still be given tasks and events, and each has a page for
             their school week, term dates and the details you otherwise hunt for in an email.

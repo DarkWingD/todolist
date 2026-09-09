@@ -72,6 +72,9 @@ export const household = pgTable('household', {
   // The Monday that starts a "week A" for anyone on a fortnightly work
   // pattern. Any Monday will do; swapping A and B just moves it a week.
   fortnightAnchor: date('fortnight_anchor', { mode: 'string' }).notNull().default('2026-01-05'),
+  // Lets a wall display fetch the household's day without a sign-in. Rotate
+  // it from Family if a link gets out.
+  wallToken: text('wall_token').unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
