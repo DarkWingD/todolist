@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
-import { EmojiPicker } from '../components/EmojiPicker';
+import { CreateListForm } from '../components/CreateListForm';
+import { listSubtitle } from '../lib/listSubtitle';
 import { trpc } from '../lib/trpc';
-import type { ListSummary } from '../types';
+import type { ListSummary, ListType } from '../types';
 
 function ListCard({
   list: l,
@@ -35,7 +35,7 @@ function ListCard({
         <span className="block font-semibold" style={{ fontSize: 'var(--fs-lg)' }}>
           {l.name}
         </span>
-        <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+        <span className="block truncate text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
           {subtitle}
         </span>
       </span>
@@ -51,6 +51,7 @@ interface MinimalList {
   id: string;
   name: string;
   emojiIcon: string;
+  type?: ListType;
 }
 
 export function ListsScreen({
@@ -60,7 +61,6 @@ export function ListsScreen({
   onOpenList: (list: MinimalList) => void;
   createSignal?: number;
 }) {
-  const utils = trpc.useUtils();
   const [q, setQ] = useState('');
   const query = q.trim();
   const { data: results, isFetching } = trpc.search.query.useQuery(
@@ -71,10 +71,6 @@ export function ListsScreen({
   const { data: remindersList } = trpc.lists.reminders.useQuery();
   const { data: shoppingList } = trpc.lists.shopping.useQuery();
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('📝');
-  const [color, setColor] = useState<string | null>(null);
-  const [type, setType] = useState<'tasks' | 'checklist' | 'child'>('tasks');
 
   // The floating + button opens the create form — but only when actually tapped
   // (signal changes), not on mount when returning to the tab.
@@ -83,33 +79,42 @@ export function ListsScreen({
     if (createSignal !== lastCreateSignal.current) {
       lastCreateSignal.current = createSignal;
       setCreating(true);
-      // Auto-assign the least-used colour; the picker still allows overriding.
-      setColor(pickUnusedColor(lists.map((l) => l.color)));
     }
-  }, [createSignal, lists]);
+  }, [createSignal]);
 
-  const createChild = trpc.children.create.useMutation({
-    onSuccess: () => {
-      utils.lists.mine.invalidate();
-      utils.children.mine.invalidate();
-      setCreating(false);
-      setName('');
-      setEmoji('📝');
-      setColor(null);
-      setType('tasks');
-    },
-  });
+  const hitRow = (l: { id: string; name: string; emojiIcon: string }, sub?: string) => (
+    <button
+      key={l.id}
+      onClick={() => onOpenList(l)}
+      className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+    >
+      <span
+        className="grid h-9 w-9 flex-none place-items-center rounded-emoji text-lg"
+        style={{ background: 'var(--color-emoji-bg)' }}
+      >
+        {l.emojiIcon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+          {l.name}
+        </span>
+        {sub && (
+          <span className="block truncate text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            {sub}
+          </span>
+        )}
+      </span>
+    </button>
+  );
 
-  const create = trpc.lists.create.useMutation({
-    onSuccess: () => {
-      utils.lists.mine.invalidate();
-      setCreating(false);
-      setName('');
-      setEmoji('📝');
-      setColor(null);
-      setType('tasks');
-    },
-  });
+  const sectionH = (label: string, top?: boolean) => (
+    <h2
+      className={`mb-d2 font-bold uppercase text-muted ${top ? '' : 'mt-d3'}`}
+      style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
+    >
+      {label}
+    </h2>
+  );
 
   return (
     <>
@@ -135,8 +140,8 @@ export function ListsScreen({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search tasks and lists…"
-          aria-label="Search tasks and lists"
+          placeholder="Search tasks, lists and notes…"
+          aria-label="Search tasks, lists and notes"
           className="flex-1 bg-transparent outline-none"
           style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
         />
@@ -162,39 +167,19 @@ export function ListsScreen({
           <>
             {(results?.lists.length ?? 0) > 0 && (
               <>
-                <h2
-                  className="mb-d2 font-bold uppercase text-muted"
-                  style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-                >
-                  Lists
-                </h2>
-                {results!.lists.map((l) => (
-                  <button
-                    key={l.id}
-                    onClick={() => onOpenList(l)}
-                    className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
-                  >
-                    <span
-                      className="grid h-9 w-9 flex-none place-items-center rounded-emoji text-lg"
-                      style={{ background: 'var(--color-emoji-bg)' }}
-                    >
-                      {l.emojiIcon}
-                    </span>
-                    <span className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
-                      {l.name}
-                    </span>
-                  </button>
-                ))}
+                {sectionH('Lists', true)}
+                {results!.lists.map((l) => hitRow(l))}
+              </>
+            )}
+            {(results?.notes.length ?? 0) > 0 && (
+              <>
+                {sectionH('In notes')}
+                {results!.notes.map((n) => hitRow(n, n.snippet))}
               </>
             )}
             {(results?.tasks.length ?? 0) > 0 && (
               <>
-                <h2
-                  className="mb-d2 mt-d3 font-bold uppercase text-muted"
-                  style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-                >
-                  Tasks
-                </h2>
+                {sectionH('Tasks')}
                 {results!.tasks.map((t) => (
                   <div
                     key={t.id}
@@ -211,89 +196,25 @@ export function ListsScreen({
                 ))}
               </>
             )}
-            {results && results.lists.length === 0 && results.tasks.length === 0 && (
-              <p className="mt-6 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-                No matches for “{query}”.
-              </p>
-            )}
+            {results &&
+              results.lists.length === 0 &&
+              results.tasks.length === 0 &&
+              results.notes.length === 0 && (
+                <p className="mt-6 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+                  No matches for “{query}”.
+                </p>
+              )}
           </>
         )
       ) : (
         <>
           {creating && (
-            <div className="mb-d3 rounded-card bg-surface p-4 shadow-card md:max-w-lg">
-              <input
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="List name"
-                className="mb-3 w-full rounded-lg border border-border bg-bg px-3 py-2 outline-none"
-                style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+            <div className="mb-d3 md:max-w-lg">
+              <CreateListForm
+                usedColors={lists.map((l) => l.color)}
+                onCreated={() => setCreating(false)}
+                onCancel={() => setCreating(false)}
               />
-              <div
-                className="mb-3 flex rounded-lg p-0.5"
-                style={{ background: 'var(--color-chip-bg)' }}
-              >
-                {(
-                  [
-                    { v: 'tasks', label: '✓ Tasks' },
-                    { v: 'checklist', label: '🛒 Shopping' },
-                    { v: 'child', label: '🧒 Child' },
-                  ] as const
-                ).map((o) => (
-                  <button
-                    key={o.v}
-                    onClick={() => {
-                      setType(o.v);
-                      // Give a sensible default icon for a shopping list.
-                      if (o.v === 'checklist' && emoji === '📝') setEmoji('🛒');
-                      if (o.v === 'child' && (emoji === '📝' || emoji === '🛒')) setEmoji('🧒');
-                      if (o.v === 'tasks' && (emoji === '🛒' || emoji === '🧒')) setEmoji('📝');
-                    }}
-                    className="flex-1 rounded-md py-1.5 font-semibold"
-                    style={{
-                      fontSize: 'var(--fs-sm)',
-                      background: type === o.v ? 'var(--color-surface)' : 'transparent',
-                      color: type === o.v ? 'var(--color-text)' : 'var(--color-muted)',
-                    }}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-              <EmojiPicker value={emoji} onChange={setEmoji} />
-              <div
-                className="mb-1 mt-3 font-semibold text-muted"
-                style={{ fontSize: 'var(--fs-sm)' }}
-              >
-                Calendar colour
-              </div>
-              <ColorPicker value={color} onChange={setColor} />
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  className="text-muted"
-                  style={{ fontSize: 'var(--fs-sm)' }}
-                  onClick={() => setCreating(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={!name.trim() || create.isPending || createChild.isPending}
-                  className="rounded-lg px-4 py-2 font-bold text-accent-contrast disabled:opacity-50"
-                  style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-                  onClick={() => {
-                    const common = {
-                      name: name.trim(),
-                      emojiIcon: emoji,
-                      color: color ?? undefined,
-                    };
-                    if (type === 'child') createChild.mutate(common);
-                    else create.mutate({ ...common, type });
-                  }}
-                >
-                  Create
-                </button>
-              </div>
             </div>
           )}
 
@@ -314,7 +235,7 @@ export function ListsScreen({
               {remindersList && !remindersList.hidden && (
                 <ListCard
                   list={remindersList}
-                  subtitle={`${remindersList.remaining} upcoming`}
+                  subtitle={listSubtitle(remindersList)}
                   onOpen={onOpenList}
                 />
               )}
@@ -322,22 +243,13 @@ export function ListsScreen({
               {shoppingList && !shoppingList.hidden && (
                 <ListCard
                   list={shoppingList}
-                  // Says which Shopping list this is: nothing else distinguishes
-                  // it from one you made yourself with the same name and icon.
-                  subtitle={`${shoppingList.remaining} left · from your meal plan`}
+                  subtitle={listSubtitle(shoppingList)}
                   onOpen={onOpenList}
                 />
               )}
 
               {lists.map((l) => (
-                <ListCard
-                  key={l.id}
-                  list={l}
-                  subtitle={`${l.remaining} ${l.type === 'checklist' ? 'left' : 'to do'}${
-                    l.memberCount > 1 ? ` · Shared with ${l.memberCount}` : ''
-                  }`}
-                  onOpen={onOpenList}
-                />
+                <ListCard key={l.id} list={l} subtitle={listSubtitle(l)} onOpen={onOpenList} />
               ))}
             </div>
           )}

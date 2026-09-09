@@ -1,0 +1,442 @@
+<title>Lists Desktop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── Nudge theme tokens, copied from packages/kitchen-ui/styles/themes.css ── */
+  :root {
+    --font-head: 'Quicksand', system-ui, sans-serif;
+    --font-body: 'Nunito', system-ui, sans-serif;
+    --radius-emoji: 14px; --radius-card: 18px; --radius-check: 8px;
+    --bg: #fff9f5; --surface: #ffffff; --text: #2b2422; --muted: #9a8c85;
+    --accent: #ff6b5e; --accent-contrast: #ffffff; --accent-soft: #ffeae6;
+    --accent-glow: rgba(255,107,94,.45);
+    --border: #f6e9e1; --chip-bg: #fbf0ea; --emoji-bg: #ffecc7;
+    --danger: #e23d4b; --check-border: #e7d5cc;
+    --shadow-card: 0 2px 6px rgba(255,107,94,.06);
+    /* page (the surround, not the app) */
+    --page-bg: #f3e9e2; --page-text: #3a302c; --page-muted: #8a7a72; --page-rule: #e6d8cf;
+    --frame-shadow: 0 30px 60px -30px rgba(80,40,30,.35), 0 0 0 1px rgba(80,40,30,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #211a18; --surface: #2c2320; --text: #fbefe9; --muted: #b39c92;
+      --accent: #ff7a6e; --accent-contrast: #211a18; --accent-soft: #3a2823;
+      --accent-glow: rgba(255,122,110,.4);
+      --border: #362a26; --chip-bg: #33272e; --emoji-bg: #40301a;
+      --danger: #ff8a94; --check-border: #4a3a34; --shadow-card: none;
+      --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; --page-rule: #2c2321;
+      --frame-shadow: 0 30px 60px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #211a18; --surface: #2c2320; --text: #fbefe9; --muted: #b39c92;
+    --accent: #ff7a6e; --accent-contrast: #211a18; --accent-soft: #3a2823;
+    --accent-glow: rgba(255,122,110,.4);
+    --border: #362a26; --chip-bg: #33272e; --emoji-bg: #40301a;
+    --danger: #ff8a94; --check-border: #4a3a34; --shadow-card: none;
+    --page-bg: #151110; --page-text: #eadfd9; --page-muted: #9c8a82; --page-rule: #2c2321;
+    --frame-shadow: 0 30px 60px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page-bg); color: var(--page-text); font-family: var(--font-body); font-weight: 600; line-height: 1.5; padding: 36px 24px 90px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  .intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; margin-bottom: 22px; }
+  h1 { font-family: var(--font-head); font-size: 28px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+  .lede { color: var(--page-muted); margin-top: 6px; max-width: 62ch; font-size: 15px; }
+  .hint { font-size: 12.5px; color: var(--page-muted); text-align: right; }
+  .hint kbd { font: inherit; font-size: 11.5px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--page-rule); background: var(--surface); color: var(--text); }
+
+  /* ── The desktop frame ── */
+  .stage { overflow-x: auto; padding-bottom: 8px; }
+  .frame { width: 1280px; height: 780px; display: flex; background: var(--bg); color: var(--text);
+    border-radius: 14px; overflow: hidden; box-shadow: var(--frame-shadow); position: relative; isolation: isolate; }
+
+  /* rail — unchanged from AppShell */
+  .rail { width: 208px; flex: none; border-right: 1px solid var(--border); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .rail .add { display: flex; align-items: center; gap: 8px; border-radius: 999px; padding: 10px 16px; font-weight: 800; font-size: 14px; background: var(--accent); color: var(--accent-contrast); margin-bottom: 12px; }
+  .rail .add b { font-size: 18px; line-height: 1; font-weight: 600; }
+  .rail .nav { display: flex; align-items: center; gap: 12px; border-radius: var(--radius-card); padding: 10px 12px; font-size: 14px; color: var(--muted); text-align: left; }
+  .rail .nav svg { width: 20px; height: 20px; flex: none; }
+  .rail .nav[aria-current] { background: var(--accent-soft); color: var(--accent); font-weight: 800; }
+
+  /* index column — the "master" */
+  .index { width: 296px; flex: none; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .index-head { padding: 22px 16px 10px; }
+  .index-head h2 { font-family: var(--font-head); font-size: 26px; font-weight: 700; }
+  .search { margin: 8px 12px 6px; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; color: var(--muted); font-size: 14px; }
+  .search kbd { margin-left: auto; font: inherit; font-size: 11px; padding: 0 6px; border-radius: 5px; background: var(--chip-bg); }
+  .index-scroll { flex: 1; overflow-y: auto; padding: 4px 8px 8px; min-height: 0; }
+  .group { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 10px 6px; }
+  .row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; text-align: left; }
+  .row:hover { background: var(--chip-bg); }
+  .row[aria-current] { background: var(--accent-soft); }
+  .row[aria-current] .name { color: var(--accent); font-weight: 800; }
+  .tile { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 12px; font-size: 19px; background: var(--emoji-bg); }
+  .row .name { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .sub { display: block; font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row .count.hot { color: var(--accent); font-weight: 800; }
+  .index-foot { border-top: 1px solid var(--border); padding: 10px 12px; }
+  .index-foot button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; color: var(--accent); font-weight: 800; font-size: 14px; }
+  .index-foot button:hover { background: var(--accent-soft); }
+
+  /* detail pane */
+  .detail { flex: 1; min-width: 0; overflow-y: auto; position: relative; }
+  .pane { display: none; padding: 26px 32px 40px; max-width: 760px; }
+  .pane.on { display: block; }
+  .d-head { display: flex; align-items: center; gap: 14px; }
+  .d-head .tile { width: 52px; height: 52px; font-size: 28px; border-radius: 16px; }
+  .d-head h3 { font-family: var(--font-head); font-size: 26px; font-weight: 700; line-height: 1.15; }
+  .d-head .meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .d-head .spacer { flex: 1; }
+  .avatars { display: flex; }
+  .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; border: 2px solid var(--bg); margin-left: -8px; }
+  .av:first-child { margin-left: 0; }
+  .pill { border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 800; background: var(--accent-soft); color: var(--accent); }
+  .icon-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--chip-bg); color: var(--muted); font-size: 18px; }
+
+  .quick { margin-top: 20px; display: flex; align-items: center; gap: 10px; background: var(--surface); border-radius: var(--radius-card); padding: 12px 14px; box-shadow: var(--shadow-card); border: 1px solid var(--border); color: var(--muted); font-size: 15px; }
+  .quick .plus { color: var(--accent); font-size: 20px; line-height: 1; }
+  .quick kbd { margin-left: auto; font: inherit; font-size: 11px; padding: 0 6px; border-radius: 5px; background: var(--chip-bg); }
+
+  .tasks { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .task { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: var(--radius-card); padding: 11px 14px; box-shadow: var(--shadow-card); border: 1px solid var(--border); text-align: left; width: 100%; }
+  .task:hover { border-color: var(--check-border); }
+  .task.sel { border-color: var(--accent); }
+  .chk { width: 22px; height: 22px; flex: none; border-radius: var(--radius-check); border: 2px solid var(--check-border); }
+  .chk.done { background: var(--accent); border-color: var(--accent); position: relative; }
+  .chk.done::after { content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid var(--accent-contrast); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+  .task .t { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; }
+  .task .t.done { color: var(--muted); text-decoration: line-through; font-weight: 600; }
+  .task .t .bang { color: var(--danger); margin-right: 4px; }
+  .chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--chip-bg); color: var(--muted); white-space: nowrap; }
+  .chip.today { background: var(--accent-soft); color: var(--accent); }
+  .task .av { width: 24px; height: 24px; font-size: 12px; border-width: 0; margin-left: 0; }
+
+  .section { margin-top: 22px; display: flex; align-items: center; gap: 8px; font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--muted); }
+  .section .n { font-size: 12px; background: var(--chip-bg); border-radius: 999px; padding: 1px 8px; font-family: var(--font-body); }
+  .section .chev { margin-left: auto; font-size: 13px; }
+
+  /* shopping variant */
+  .heading-row { margin-top: 14px; display: flex; align-items: center; gap: 12px; padding: 6px 4px; font-size: 15px; font-weight: 800; }
+  .heading-row .sub { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .ingr { margin-left: 22px; border-left: 2px solid var(--border); padding-left: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .ingr .task { padding: 9px 12px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; align-items: start; }
+
+  /* note variant */
+  .note { margin-top: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 22px 24px; min-height: 420px; font-size: 16px; line-height: 1.65; white-space: pre-wrap; font-weight: 600; }
+  .note-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #3dbb7a; }
+
+  /* task inspector (slides over the detail pane) */
+  .inspector { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; background: var(--bg); border-left: 1px solid var(--border);
+    box-shadow: -18px 0 40px -24px rgba(0,0,0,.35); padding: 22px 22px 26px; overflow-y: auto; transform: translateX(100%); transition: transform .22s ease; z-index: 3; }
+  .inspector.open { transform: none; }
+  .ins-top { display: flex; align-items: center; gap: 10px; }
+  .ins-top .close { margin-left: auto; }
+  .ins-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; margin-top: 16px; line-height: 1.25; }
+  .field { margin-top: 16px; }
+  .field label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+  .field .v { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; font-size: 14px; display: flex; align-items: center; gap: 8px; min-height: 40px; }
+  .field .v.muted { color: var(--muted); }
+  .ins-actions { display: flex; gap: 8px; margin-top: 24px; }
+  .ins-actions .pill.danger { background: transparent; color: var(--danger); }
+  @media (prefers-reduced-motion: reduce) { .inspector { transition: none; } }
+
+  /* callout badges */
+  .badge { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: var(--page-text); color: var(--page-bg); font-size: 12px; font-weight: 800; display: grid; place-items: center; z-index: 4; box-shadow: 0 0 0 3px var(--page-bg); font-family: var(--font-head); }
+
+  /* notes below */
+  .notes { margin-top: 34px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px 40px; }
+  .notes h4 { font-family: var(--font-head); font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--page-text); }
+  .notes ol { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .notes li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 14px; color: var(--page-muted); }
+  .notes li b { color: var(--page-text); font-weight: 800; }
+  .notes .num { width: 22px; height: 22px; border-radius: 50%; background: var(--page-text); color: var(--page-bg); font-size: 12px; font-weight: 800; display: grid; place-items: center; font-family: var(--font-head); }
+  .notes p { font-size: 14px; color: var(--page-muted); }
+  .notes p + p { margin-top: 8px; }
+  .rule { border: 0; border-top: 1px solid var(--page-rule); margin: 34px 0 0; }
+  .small { font-size: 13px; color: var(--page-muted); margin-top: 18px; max-width: 70ch; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <div>
+      <h1>Lists on a desktop: master and detail</h1>
+      <p class="lede">The phone flow (tap a card, the list replaces the screen, tap back) wastes a monitor. On a wide window the Lists tab becomes one screen: your lists down the left, the open list on the right, and a task's details slide in from the edge instead of taking over.</p>
+    </div>
+    <div class="hint">Click a list in the index, or a task, to see the panes change.<br />Follows your light/dark setting.</div>
+  </div>
+
+  <div class="stage">
+  <div class="frame" id="frame">
+    <span class="badge" style="left:196px; top:14px">1</span>
+    <span class="badge" style="left:494px; top:96px">2</span>
+    <span class="badge" style="left:494px; top:274px">3</span>
+    <span class="badge" style="left:560px; top:136px">4</span>
+    <span class="badge" style="left:1250px; top:268px" id="badge5">5</span>
+
+    <!-- rail -->
+    <nav class="rail" aria-label="Sections">
+      <button class="add"><b>＋</b> Add</button>
+      <button class="nav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>Today</button>
+      <button class="nav" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h12M4 10h12M4 15h12"/></svg>Lists</button>
+      <button class="nav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14M7 2v4M13 2v4"/></svg>Cal</button>
+      <button class="nav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/></svg>Meals</button>
+      <button class="nav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 17c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5"/></svg>You</button>
+    </nav>
+
+    <!-- index -->
+    <aside class="index" aria-label="Your lists">
+      <div class="index-head"><h2>Lists</h2></div>
+      <div class="search">🔍 Search lists and tasks <kbd>/</kbd></div>
+      <div class="index-scroll" id="index">
+        <div class="group">Built in</div>
+        <button class="row" data-pane="reminders"><span class="tile">🔔</span><span class="name">Reminders<span class="sub">3 upcoming</span></span><span class="count">3</span></button>
+        <button class="row" data-pane="shopping"><span class="tile">🛒</span><span class="name">Shopping<span class="sub">From your meal plan</span></span><span class="count">12</span></button>
+
+        <div class="group">Your lists</div>
+        <button class="row" data-pane="home" aria-current="true"><span class="tile" style="background:color-mix(in srgb,#5b9cf6 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#5b9cf6 48%,transparent)">🏠</span><span class="name">Home<span class="sub">Shared with Sam</span></span><span class="count hot">4</span></button>
+        <button class="row" data-pane="note"><span class="tile">📄</span><span class="name">Holiday ideas<span class="sub">Tassie in the Sept holidays?…</span></span><span class="count"></span></button>
+        <button class="row" data-pane="garden"><span class="tile" style="background:color-mix(in srgb,#3dbb7a 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#3dbb7a 48%,transparent)">🌱</span><span class="name">Garden<span class="sub">Just you</span></span><span class="count">2</span></button>
+        <button class="row" data-pane="car"><span class="tile">🔧</span><span class="name">Car<span class="sub">Shared with Sam</span></span><span class="count">1</span></button>
+
+        <div class="group">Kids</div>
+        <button class="row" data-pane="kid"><span class="tile" style="background:color-mix(in srgb,#f6a35b 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#f6a35b 48%,transparent)">🧒</span><span class="name">Bertie<span class="sub">Swimming Thu · Library day Fri</span></span><span class="count">2</span></button>
+        <button class="row" data-pane="kid"><span class="tile" style="background:color-mix(in srgb,#c07ce8 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#c07ce8 48%,transparent)">👧</span><span class="name">Maisie<span class="sub">Assembly Mon</span></span><span class="count">1</span></button>
+      </div>
+      <div class="index-foot"><button>＋ New list</button></div>
+    </aside>
+
+    <!-- detail -->
+    <section class="detail" id="detail" aria-live="polite">
+
+      <!-- HOME (tasks) -->
+      <div class="pane on" data-pane="home">
+        <div class="d-head">
+          <span class="tile" style="background:color-mix(in srgb,#5b9cf6 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#5b9cf6 48%,transparent)">🏠</span>
+          <div><h3>Home</h3><div class="meta">4 to do · 3 done this week</div></div>
+          <span class="spacer"></span>
+          <span class="avatars"><span class="av" style="background:#ffe1a8">🦊</span><span class="av" style="background:#cfe8ff">🐧</span></span>
+          <button class="pill">＋ Invite</button>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="quick"><span class="plus">＋</span> Add a task, press Enter to keep going <kbd>N</kbd></div>
+        <div class="tasks">
+          <button class="task" data-task="Water the plants"><span class="chk"></span><span class="t">Water the plants</span><span class="chip today">Today</span><span class="av" style="background:#ffe1a8">🦊</span></button>
+          <button class="task" data-task="Fix the back gate latch"><span class="chk"></span><span class="t"><span class="bang">!</span>Fix the back gate latch</span><span class="chip">Sat</span><span class="av" style="background:#cfe8ff">🐧</span></button>
+          <button class="task" data-task="Book the dentist for the kids"><span class="chk"></span><span class="t">Book the dentist for the kids</span><span class="chip">Fri 12 Sep</span><span class="av" style="background:#ffe1a8">🦊</span></button>
+          <button class="task" data-task="Return library books"><span class="chk"></span><span class="t">Return library books</span><span class="chip">Weekly · Fri</span></button>
+        </div>
+        <div class="section">Done <span class="n">3</span><span class="chev">Show ▾</span></div>
+        <div class="section">Events <span class="n">1</span></div>
+        <div class="tasks">
+          <div class="task"><span style="font-size:18px">📅</span><span class="t">Council green-waste pickup</span><span class="chip">Tue 16 Sep</span></div>
+        </div>
+      </div>
+
+      <!-- GARDEN / CAR (generic tasks) -->
+      <div class="pane" data-pane="garden">
+        <div class="d-head">
+          <span class="tile" style="background:color-mix(in srgb,#3dbb7a 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#3dbb7a 48%,transparent)">🌱</span>
+          <div><h3>Garden</h3><div class="meta">2 to do</div></div>
+          <span class="spacer"></span>
+          <button class="pill">＋ Invite</button>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="quick"><span class="plus">＋</span> Add a task, press Enter to keep going <kbd>N</kbd></div>
+        <div class="tasks">
+          <button class="task" data-task="Prune the lemon tree"><span class="chk"></span><span class="t">Prune the lemon tree</span><span class="chip">Sep</span></button>
+          <button class="task" data-task="Buy seed-raising mix"><span class="chk"></span><span class="t">Buy seed-raising mix</span></button>
+        </div>
+        <div class="section">Done <span class="n">5</span><span class="chev">Show ▾</span></div>
+      </div>
+
+      <!-- CAR -->
+      <div class="pane" data-pane="car">
+        <div class="d-head">
+          <span class="tile">🔧</span>
+          <div><h3>Car</h3><div class="meta">1 to do · shared with Sam</div></div>
+          <span class="spacer"></span>
+          <span class="avatars"><span class="av" style="background:#ffe1a8">🦊</span><span class="av" style="background:#cfe8ff">🐧</span></span>
+          <button class="pill">＋ Invite</button>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="quick"><span class="plus">＋</span> Add a task, press Enter to keep going <kbd>N</kbd></div>
+        <div class="tasks">
+          <button class="task" data-task="Book the 60,000 km service"><span class="chk"></span><span class="t">Book the 60,000 km service</span><span class="chip">Oct</span><span class="av" style="background:#cfe8ff">🐧</span></button>
+        </div>
+        <div class="section">Done <span class="n">2</span><span class="chev">Show ▾</span></div>
+      </div>
+
+      <!-- REMINDERS -->
+      <div class="pane" data-pane="reminders">
+        <div class="d-head">
+          <span class="tile">🔔</span>
+          <div><h3>Reminders</h3><div class="meta">3 upcoming · just you</div></div>
+          <span class="spacer"></span>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="quick"><span class="plus">＋</span> Remind me to… <kbd>N</kbd></div>
+        <div class="tasks">
+          <button class="task" data-task="Put the bins out"><span class="chk"></span><span class="t">Put the bins out</span><span class="chip today">Tonight 7:00 pm</span></button>
+          <button class="task" data-task="Call Mum"><span class="chk"></span><span class="t">Call Mum</span><span class="chip">Sun 10:00 am</span></button>
+          <button class="task" data-task="Renew car rego"><span class="chk"></span><span class="t">Renew car rego</span><span class="chip">1 Oct</span></button>
+        </div>
+      </div>
+
+      <!-- SHOPPING (checklist) -->
+      <div class="pane" data-pane="shopping">
+        <div class="d-head">
+          <span class="tile">🛒</span>
+          <div><h3>Shopping</h3><div class="meta">12 left · from your meal plan</div></div>
+          <span class="spacer"></span>
+          <span class="avatars"><span class="av" style="background:#ffe1a8">🦊</span><span class="av" style="background:#cfe8ff">🐧</span></span>
+          <button class="pill">Share as text</button>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="quick"><span class="plus">＋</span> Add an item <kbd>N</kbd></div>
+        <div class="two-col">
+          <div>
+            <div class="heading-row">Tue · Spag bol <span class="sub">from Meals</span></div>
+            <div class="ingr">
+              <div class="task"><span class="chk"></span><span class="t">Beef mince 500 g</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Passata</span></div>
+              <div class="task"><span class="chk done"></span><span class="t done">Onions</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Parmesan</span></div>
+            </div>
+            <div class="heading-row">Thu · Fish tacos <span class="sub">from Meals</span></div>
+            <div class="ingr">
+              <div class="task"><span class="chk"></span><span class="t">Flathead fillets</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Tortillas</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Limes ×3</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="heading-row">Everything else</div>
+            <div class="ingr">
+              <div class="task"><span class="chk"></span><span class="t">Milk 3 L</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Dishwasher tablets</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Bananas</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Weet-Bix</span></div>
+              <div class="task"><span class="chk"></span><span class="t">Toilet paper</span></div>
+            </div>
+            <div class="section">Bought <span class="n">4</span><span class="chev">Clear</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTE -->
+      <div class="pane" data-pane="note">
+        <div class="d-head">
+          <span class="tile">📄</span>
+          <div><h3>Holiday ideas</h3><div class="meta">Note · shared with Sam</div></div>
+          <span class="spacer"></span>
+          <span class="avatars"><span class="av" style="background:#ffe1a8">🦊</span><span class="av" style="background:#cfe8ff">🐧</span></span>
+          <button class="pill">＋ Invite</button>
+          <button class="icon-btn" aria-label="List settings">⋯</button>
+        </div>
+        <div class="note" contenteditable="true" spellcheck="false">Tassie in the Sept holidays?
+- Spirit of Tasmania from Geelong, take the car. Check if the Thu night sailing still runs.
+- Cradle Mountain 2 nights, then Hobart 3. Bertie wants to see the devils at Bonorong.
+- MONA only if the kids can do the ferry, otherwise Salamanca market Sat morning.
+
+Or closer: Wilsons Prom camping, book Tidal River the day it opens (Jan?).
+
+Budget-ish: ~$3.5k all in if we drive and self-cater.</div>
+        <div class="note-foot"><span class="dot"></span> Saved · 2 min ago by you</div>
+      </div>
+
+      <!-- KID -->
+      <div class="pane" data-pane="kid">
+        <div class="d-head">
+          <span class="tile" style="background:color-mix(in srgb,#f6a35b 22%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#f6a35b 48%,transparent)">🧒</span>
+          <div><h3>Bertie</h3><div class="meta">Year 2 · Term 3, week 9</div></div>
+          <span class="spacer"></span>
+          <button class="icon-btn" aria-label="Settings">⋯</button>
+        </div>
+        <p style="margin-top:22px;color:var(--muted);font-size:14px;max-width:52ch">The child screen keeps its own layout (week strip, lessons, profile). It opens in this pane rather than replacing the whole window, so you can flick between kids without leaving Lists.</p>
+      </div>
+
+      <!-- task inspector -->
+      <aside class="inspector" id="inspector" aria-label="Task details">
+        <div class="ins-top"><span class="chk"></span><span style="font-size:13px;color:var(--muted)">In Home</span><button class="icon-btn close" id="closeIns" aria-label="Close">×</button></div>
+        <div class="ins-title" id="insTitle">Water the plants</div>
+        <div class="field"><label>Due</label><div class="v">📅 Today</div></div>
+        <div class="field"><label>Repeats</label><div class="v muted">Doesn't repeat</div></div>
+        <div class="field"><label>Assigned to</label><div class="v"><span class="av" style="background:#ffe1a8;width:22px;height:22px;font-size:12px;border:0;margin:0">🦊</span> Danie</div></div>
+        <div class="field"><label>Priority</label><div class="v muted">None</div></div>
+        <div class="field"><label>Reminders</label><div class="v">🔔 Today 5:00 pm</div></div>
+        <div class="field"><label>Notes</label><div class="v muted" style="min-height:84px;align-items:flex-start">The ferns on the back deck twice a week now it's warming up.</div></div>
+        <div class="ins-actions"><button class="pill">Done</button><button class="pill danger">Delete</button></div>
+      </aside>
+    </section>
+  </div>
+  </div>
+
+  <div class="notes">
+    <div>
+      <h4>What the numbers point at</h4>
+      <ol>
+        <li><span class="num">1</span><span><b>The rail stays put.</b> It already exists in AppShell on desktop. Nothing changes here.</span></li>
+        <li><span class="num">2</span><span><b>Index column, 296px, scrolls on its own.</b> Rows replace the cards: emoji tile, name, one line of context, and the open count on the right where the eye can run down it. Groups are Built in, Your lists, Kids. The selected row uses the same accent-soft treatment the rail uses.</span></li>
+        <li><span class="num">3</span><span><b>Search moves into the index</b> and filters it live, since on a phone it already lives on the Lists tab. Typing <kbd>/</kbd> anywhere focuses it.</span></li>
+        <li><span class="num">4</span><span><b>Detail pane, capped at 760px.</b> Same list screen as the phone, with the back arrow gone. Due date and assignee sit inline on the row instead of a second line, because there is room. Shopping spreads its meal headings over two columns.</span></li>
+        <li><span class="num">5</span><span><b>Task details slide in from the right</b> instead of replacing the screen. The list stays visible so you can work down it: click a task, edit, click the next. Escape closes it.</span></li>
+      </ol>
+    </div>
+    <div>
+      <h4>Behaviour</h4>
+      <p><b>Remember the last open list.</b> Coming back to Lists lands you where you were. First visit opens the first list in "Your lists", never an empty pane.</p>
+      <p><b>Below about 900px wide</b> the index and detail stack back into the phone flow that already works. Nothing is redesigned for the phone.</p>
+      <p><b>Keyboard:</b> ↑ ↓ move between lists, <kbd>N</kbd> focuses add, <kbd>/</kbd> focuses search, Esc closes the inspector. Cheap to add once panes exist.</p>
+      <p><b>The + in the rail</b> adds a task to the open list, matching what the floating + does on the phone. "New list" lives at the foot of the index where lists are.</p>
+      <h4 style="margin-top:22px">Same shape, other tabs</h4>
+      <p><b>Today</b> could split the same way: agenda on the left, the selected task's details on the right. <b>Cal</b> and <b>Meals</b> already run full width and stay as they are. <b>You</b> is a settings page and reads fine in a column.</p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+  <p class="small">Mockup only. Data is made up. The child list (Bertie, Maisie) shows where it would open, not a redesign of that screen. Colours and type are the app's Nudge theme tokens, so the other two themes would follow automatically.</p>
+</div>
+
+<script>
+  (function () {
+    var rows = document.querySelectorAll('#index .row');
+    var panes = document.querySelectorAll('#detail .pane');
+    var ins = document.getElementById('inspector');
+    var badge5 = document.getElementById('badge5');
+    function show(name) {
+      rows.forEach(function (r) { r.getAttribute('data-pane') === name && r === current ? r.setAttribute('aria-current', 'true') : r.removeAttribute('aria-current'); });
+      panes.forEach(function (p) { p.classList.toggle('on', p.getAttribute('data-pane') === name); });
+      closeIns();
+    }
+    var current = document.querySelector('#index .row[aria-current]');
+    rows.forEach(function (r) {
+      r.addEventListener('click', function () { current = r; show(r.getAttribute('data-pane')); });
+    });
+    function openIns(title, btn) {
+      document.getElementById('insTitle').textContent = title;
+      document.querySelectorAll('.task.sel').forEach(function (t) { t.classList.remove('sel'); });
+      btn.classList.add('sel');
+      ins.classList.add('open');
+      badge5.style.left = '880px';
+    }
+    function closeIns() {
+      ins.classList.remove('open');
+      document.querySelectorAll('.task.sel').forEach(function (t) { t.classList.remove('sel'); });
+      badge5.style.left = '1250px';
+    }
+    document.querySelectorAll('.task[data-task]').forEach(function (t) {
+      t.addEventListener('click', function () { openIns(t.getAttribute('data-task'), t); });
+    });
+    document.getElementById('closeIns').addEventListener('click', closeIns);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeIns(); });
+  })();
+</script>

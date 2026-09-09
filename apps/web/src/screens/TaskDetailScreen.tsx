@@ -12,7 +12,30 @@ import {
 } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 
-export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: () => void }) {
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Close"
+      className="-ml-1 mb-d3 grid place-items-center rounded-full text-muted"
+      style={{ width: 34, height: 34, background: 'var(--color-chip-bg)', fontSize: 20 }}
+    >
+      ×
+    </button>
+  );
+}
+
+export function TaskDetailScreen({
+  taskId,
+  onBack,
+  embedded,
+}: {
+  taskId: string;
+  onBack: () => void;
+  /** Drawn inside a side panel: a close button instead of a back arrow. */
+  embedded?: boolean;
+}) {
   const utils = trpc.useUtils();
   const { data: task, isLoading } = trpc.tasks.get.useQuery({ id: taskId });
   const { data: reminders = [] } = trpc.reminders.byTask.useQuery({ taskId });
@@ -82,7 +105,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
   if (isLoading || !task) {
     return (
       <>
-        <BackButton label="Back" onClick={onBack} />
+        {embedded ? <CloseButton onClick={onBack} /> : <BackButton label="Back" onClick={onBack} />}
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Loading…
         </p>
@@ -99,7 +122,7 @@ export function TaskDetailScreen({ taskId, onBack }: { taskId: string; onBack: (
   return (
     <>
       <div className="flex items-center justify-between">
-        <BackButton label="Back" onClick={onBack} />
+        {embedded ? <CloseButton onClick={onBack} /> : <BackButton label="Back" onClick={onBack} />}
         <button
           className="font-semibold text-danger"
           style={{ fontSize: 'var(--fs-sm)' }}

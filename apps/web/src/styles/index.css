@@ -39,3 +39,18 @@
     }
   }
 }
+
+/* The desktop task panel arrives from the right edge rather than appearing. */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.slide-in-right {
+  animation: slide-in-right 0.18s ease-out;
+}

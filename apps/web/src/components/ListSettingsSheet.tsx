@@ -9,7 +9,7 @@ interface Props {
     name: string;
     emojiIcon: string;
     color?: string | null;
-    type?: 'tasks' | 'checklist' | 'child';
+    type?: 'tasks' | 'checklist' | 'child' | 'note';
     /** Set on built-in lists, which can be hidden but never deleted. */
     systemKey?: string | null;
     hidden?: boolean;
@@ -25,8 +25,9 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
   const [color, setColor] = useState<string | null>(list.color ?? null);
   // A child list has no tasks/shopping choice to make, and offering one would
   // let a stray tap convert it into an ordinary list and strand its week,
-  // terms and profile behind a screen you could no longer reach.
-  const isChild = list.type === 'child';
+  // terms and profile behind a screen you could no longer reach. A note is
+  // locked for the same reason: its text has no home in a task list.
+  const isChild = list.type === 'child' || list.type === 'note';
   const [type, setType] = useState<'tasks' | 'checklist'>(
     list.type === 'checklist' ? 'checklist' : 'tasks',
   );

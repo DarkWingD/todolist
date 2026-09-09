@@ -8,7 +8,7 @@ export interface SessionUser {
   image: string | null;
 }
 
-export type ListType = 'tasks' | 'checklist' | 'child';
+export type ListType = 'tasks' | 'checklist' | 'child' | 'note';
 
 // A list row from lists.mine / lists.reminders (includes computed counts).
 export interface ListSummary {
@@ -21,4 +21,6 @@ export interface ListSummary {
   memberCount: number;
   // Set for app-managed lists (e.g. 'reminders'); null/absent for user lists.
   systemKey?: string | null;
+  // Opening text of a note list, for its row. Absent on every other type.
+  notePreview?: string | null;
 }

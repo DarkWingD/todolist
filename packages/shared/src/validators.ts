@@ -51,6 +51,11 @@ export const updateListSchema = z.object({
   type: z.enum(LIST_TYPES).optional(),
 });
 
+export const saveListNoteSchema = z.object({
+  listId: z.string().uuid(),
+  body: z.string().max(50_000),
+});
+
 export const inviteToListSchema = z.object({
   listId: z.string().uuid(),
   email: emailSchema,

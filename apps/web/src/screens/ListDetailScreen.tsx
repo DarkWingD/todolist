@@ -5,6 +5,7 @@ import { BackButton } from '../components/BackButton';
 import { shareOrCopy } from '../lib/shareText';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
+import { NoteBody } from '../components/NoteBody';
 import { TaskRow } from '../components/TaskRow';
 import { toTaskRow } from '../lib/mapTask';
 import { trpc } from '../lib/trpc';
@@ -13,7 +14,7 @@ interface DetailList {
   id: string;
   name: string;
   emojiIcon: string;
-  type?: 'tasks' | 'checklist' | 'child';
+  type?: 'tasks' | 'checklist' | 'child' | 'note';
   systemKey?: string | null;
 }
 
@@ -57,17 +58,27 @@ function fmtEventDate(startIso: string, endIso: string, allDay: boolean) {
 
 export function ListDetailScreen({
   list,
+  meId,
   onBack,
   onOpenTask,
   focusAddSignal,
+  embedded,
 }: {
   list: DetailList;
+  meId: string;
   onBack: () => void;
   onOpenTask: (id: string) => void;
   focusAddSignal?: number;
+  /** Drawn in the Lists workspace's pane, where the index is the way back. */
+  embedded?: boolean;
 }) {
   const utils = trpc.useUtils();
-  const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery({ listId: list.id });
+  const isNote = (list.type ?? 'tasks') === 'note';
+  // A note has no tasks to fetch; the query would only return an empty list.
+  const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery(
+    { listId: list.id },
+    { enabled: !isNote },
+  );
   const { data: members = [] } = trpc.lists.members.useQuery({ listId: list.id });
   const { data: allLists = [] } = trpc.lists.mine.useQuery();
   // Prefer live list data (reflects renames / type changes immediately).
@@ -270,7 +281,7 @@ export function ListDetailScreen({
 
   return (
     <>
-      <BackButton label="Lists" onClick={onBack} />
+      {!embedded && <BackButton label="Lists" onClick={onBack} />}
 
       <header className="flex items-center gap-d3">
         <span
@@ -291,8 +302,18 @@ export function ListDetailScreen({
             {displayName}
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            {open.length} {isReminders ? 'upcoming' : isChecklist ? 'left' : 'to do'} ·{' '}
-            {done.length} done
+            {isNote ? (
+              members.length > 1 ? (
+                `Note · shared with ${members.length - 1} ${members.length === 2 ? 'other' : 'others'}`
+              ) : (
+                'Note · just you'
+              )
+            ) : (
+              <>
+                {open.length} {isReminders ? 'upcoming' : isChecklist ? 'left' : 'to do'} ·{' '}
+                {done.length} done
+              </>
+            )}
           </div>
         </div>
         {/* Shown for built-in lists too: the sheet offers Hide rather than
@@ -374,7 +395,9 @@ export function ListDetailScreen({
         </div>
       )}
 
-      {isChecklist ? (
+      {isNote ? (
+        <NoteBody listId={list.id} meId={meId} focusSignal={focusAddSignal} />
+      ) : isChecklist ? (
         <ShoppingList
           adapter={shoppingAdapter}
           onShare={(items) => void shareOrCopy(list.name, formatShoppingText(items))}

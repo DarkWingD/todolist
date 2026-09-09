@@ -30,7 +30,7 @@ export const appearanceEnum = pgEnum('appearance', ['system', 'light', 'dark']);
 export const densityEnum = pgEnum('density', ['comfortable', 'cozy', 'compact']);
 export const priorityEnum = pgEnum('priority', ['none', 'low', 'medium', 'high']);
 export const listRoleEnum = pgEnum('list_role', ['owner', 'member']);
-export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist', 'child']);
+export const listTypeEnum = pgEnum('list_type', ['tasks', 'checklist', 'child', 'note']);
 /** A term is in session; a break is not; a closure is a single day off inside a term. */
 export const schoolPeriodKindEnum = pgEnum('school_period_kind', ['term', 'break', 'closure']);
 export const inviteStatusEnum = pgEnum('invite_status', [
@@ -160,6 +160,22 @@ export const list = pgTable(
     uniqueIndex('list_owner_system_idx').on(t.ownerId, t.systemKey),
   ],
 );
+
+/**
+ * The body of a note list: one free-text document per list of type 'note'.
+ *
+ * Kept out of `list` so the summary query every screen loads doesn't drag the
+ * text of every note along with it. Last write wins between members — a family
+ * sharing a holiday plan, not a document editor.
+ */
+export const listNote = pgTable('list_note', {
+  listId: uuid('list_id')
+    .primaryKey()
+    .references(() => list.id, { onDelete: 'cascade' }),
+  body: text('body').notNull().default(''),
+  updatedBy: text('updated_by').references(() => user.id, { onDelete: 'set null' }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const listMember = pgTable(
   'list_member',

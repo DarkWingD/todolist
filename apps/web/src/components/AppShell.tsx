@@ -36,6 +36,11 @@ interface AppShellProps {
   wide?: boolean;
   /** Meals is optional — hiding it removes the destination, not the data. */
   showMeals?: boolean;
+  /**
+   * The screen manages its own panes and scrolling (the desktop Lists
+   * workspace): no padding, no reading column, no outer scroll.
+   */
+  fill?: boolean;
 }
 
 export function AppShell({
@@ -47,6 +52,7 @@ export function AppShell({
   overlay,
   wide,
   showMeals = true,
+  fill,
 }: AppShellProps) {
   const tabs = showMeals ? TABS : TABS.filter((t) => t.id !== 'meals');
   return (
@@ -92,18 +98,22 @@ export function AppShell({
         ))}
       </nav>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
-        {/* Grids fill the window; reading columns keep a measure and centre in
-            what's left. */}
-        <div
-          className={clsx(
-            'flex min-h-0 w-full flex-1 flex-col md:mx-auto',
-            wide ? 'md:max-w-none' : 'md:max-w-3xl',
-          )}
-        >
-          {children}
-        </div>
-      </main>
+      {fill ? (
+        <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+      ) : (
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
+          {/* Grids fill the window; reading columns keep a measure and centre in
+              what's left. */}
+          <div
+            className={clsx(
+              'flex min-h-0 w-full flex-1 flex-col md:mx-auto',
+              wide ? 'md:max-w-none' : 'md:max-w-3xl',
+            )}
+          >
+            {children}
+          </div>
+        </main>
+      )}
 
       {showFab && onAdd && (
         <button

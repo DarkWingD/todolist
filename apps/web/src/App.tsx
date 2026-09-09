@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, type TabId } from './components/AppShell';
+import { CreateListForm } from './components/CreateListForm';
+import { ListsIndex } from './components/ListsIndex';
 import { QuickAddSheet } from './components/QuickAddSheet';
 import { useSession } from './lib/auth';
 import { trpc } from './lib/trpc';
+import { DESKTOP_QUERY, useMediaQuery } from './lib/useMediaQuery';
 import { AccountScreen } from './screens/AccountScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
 import { CalScreen } from './screens/CalScreen';
@@ -20,13 +23,13 @@ import { TaskDetailScreen } from './screens/TaskDetailScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { YouScreen } from './screens/YouScreen';
 import { useTheme } from './theme/ThemeProvider';
-import type { SessionUser } from './types';
+import type { ListType, SessionUser } from './types';
 
 interface MinList {
   id: string;
   name: string;
   emojiIcon: string;
-  type?: 'tasks' | 'checklist' | 'child';
+  type?: ListType;
   systemKey?: string | null;
 }
 
@@ -58,6 +61,9 @@ function toSessionUser(u: Record<string, unknown>): SessionUser {
 // Per browser rather than per account: it exists to ask for notification
 // permission, which is a property of this browser, not of you.
 const WELCOME_KEY = 'todolist.seenWelcome';
+// Which list the desktop workspace reopens. Per browser: it is where *this*
+// screen was, not a fact about the account.
+const LAST_LIST_KEY = 'todolist.lastListId';
 
 function hasSeenWelcome(): boolean {
   try {
@@ -66,6 +72,31 @@ function hasSeenWelcome(): boolean {
     // Storage blocked — better to show it again than to hide it wrongly.
     return false;
   }
+}
+function readLastListId(): string | null {
+  try {
+    return localStorage.getItem(LAST_LIST_KEY);
+  } catch {
+    return null;
+  }
+}
+function writeLastListId(id: string) {
+  try {
+    localStorage.setItem(LAST_LIST_KEY, id);
+  } catch {
+    // Then the workspace opens on the first list next time. No harm.
+  }
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  const t = target as HTMLElement | null;
+  if (!t) return false;
+  return (
+    t.tagName === 'INPUT' ||
+    t.tagName === 'TEXTAREA' ||
+    t.tagName === 'SELECT' ||
+    t.isContentEditable === true
+  );
 }
 
 export function App() {
@@ -113,6 +144,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const showKids = serverPrefs?.showKids ?? true;
   const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
   const { data: lists = [] } = trpc.lists.mine.useQuery();
+  const { data: remindersList } = trpc.lists.reminders.useQuery();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
 
   const [tab, setTab] = useState<TabId>('today');
   const [view, setView] = useState<View>('main');
@@ -127,18 +160,9 @@ function AuthedApp({ me }: { me: SessionUser }) {
   const [calCreateSignal, setCalCreateSignal] = useState(0);
   const [focusAddSignal, setFocusAddSignal] = useState(0);
   const [childAddSignal, setChildAddSignal] = useState(0);
-
-  // The floating + adds whatever the current screen is about: a list on Lists,
-  // an event/birthday on Cal, a reminder in the Reminders list, otherwise a
-  // task. Meals has no +: you plan a dinner by tapping the day you want it on.
-  function onAdd() {
-    if (view === 'child') setChildAddSignal((n) => n + 1);
-    else if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
-    else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
-    else if (view === 'listDetail' && selectedList?.systemKey === 'reminders')
-      setFocusAddSignal((n) => n + 1);
-    else setSheetOpen(true);
-  }
+  // Desktop only: the New list form takes the pane while this is set.
+  const [creatingList, setCreatingList] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (serverPrefs) {
@@ -150,35 +174,6 @@ function AuthedApp({ me }: { me: SessionUser }) {
       });
     }
   }, [serverPrefs, setPrefs]);
-
-  function navigate(t: TabId) {
-    setTab(t);
-    setView('main');
-    setSelectedList(null);
-  }
-  function openChild(id: string) {
-    setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
-    setView('child');
-  }
-
-  function openList(l: MinList) {
-    setSelectedList(l);
-    setView(l.type === 'child' ? 'child' : 'listDetail');
-  }
-  function openTask(id: string) {
-    setSelectedTaskId(id);
-    setTaskReturn(
-      view === 'listDetail' ? { view: 'listDetail', tab: 'lists' } : { view: 'main', tab },
-    );
-    setView('taskDetail');
-  }
-  function closeTask() {
-    if (taskReturn.view === 'listDetail' && selectedList) setView('listDetail');
-    else {
-      setView('main');
-      setTab(taskReturn.tab);
-    }
-  }
 
   const activeTab: TabId =
     view === 'child'
@@ -196,13 +191,186 @@ function AuthedApp({ me }: { me: SessionUser }) {
               ? 'lists'
               : taskReturn.tab
             : tab;
+
+  // On a wide window, Lists is one screen: the index down the left and the open
+  // list beside it. Everything under the Lists tab renders inside it.
+  const workspace = isDesktop && activeTab === 'lists';
+  const inspectorOpen = workspace && view === 'taskDetail' && selectedTaskId !== null;
+
+  function navigate(t: TabId) {
+    setTab(t);
+    setView('main');
+    // The workspace keeps its place; the phone's Lists tab is the index itself.
+    if (!(isDesktop && t === 'lists')) setSelectedList(null);
+    setCreatingList(false);
+  }
+  function openChild(id: string) {
+    setSelectedList({ id, name: '', emojiIcon: '', type: 'child' });
+    setView('child');
+    writeLastListId(id);
+  }
+  const openList = useCallback((l: MinList) => {
+    setSelectedList(l);
+    setView(l.type === 'child' ? 'child' : 'listDetail');
+    setCreatingList(false);
+    writeLastListId(l.id);
+  }, []);
+  function openTask(id: string) {
+    setSelectedTaskId(id);
+    setTaskReturn(
+      view === 'listDetail' ? { view: 'listDetail', tab: 'lists' } : { view: 'main', tab },
+    );
+    setView('taskDetail');
+  }
+  function closeTask() {
+    if (taskReturn.view === 'listDetail' && selectedList) setView('listDetail');
+    else {
+      setView('main');
+      setTab(taskReturn.tab);
+    }
+  }
+
+  // The workspace never sits empty: it reopens the list this browser had open,
+  // or failing that the first of your own lists, then Reminders.
+  useEffect(() => {
+    if (!workspace || selectedList || creatingList) return;
+    const remembered = readLastListId();
+    const pick =
+      lists.find((l) => l.id === remembered) ??
+      (remindersList && remindersList.id === remembered ? remindersList : undefined) ??
+      lists.find((l) => l.type !== 'child') ??
+      lists[0] ??
+      remindersList;
+    if (pick) openList(pick);
+  }, [workspace, selectedList, creatingList, lists, remindersList, openList]);
+
+  // Desktop shortcuts. "/" finds, "n" adds to the open list, Esc closes the
+  // task panel. None fire while you are typing somewhere.
+  useEffect(() => {
+    if (!workspace) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (inspectorOpen) closeTask();
+        else if (creatingList) setCreatingList(false);
+        return;
+      }
+      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === '/') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        onAdd();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  });
+
+  // The + adds whatever the current screen is about: a list on Lists, an
+  // event/birthday on Cal, a reminder in the Reminders list, text in a note,
+  // otherwise a task. Meals has no +: you plan a dinner by tapping the day you
+  // want it on. In the workspace it adds to the open list; New list has its own
+  // button at the foot of the index.
+  function onAdd() {
+    if (workspace) {
+      if (!selectedList) setCreatingList(true);
+      else if (selectedList.type === 'child') setChildAddSignal((n) => n + 1);
+      else setFocusAddSignal((n) => n + 1);
+      return;
+    }
+    if (view === 'child') setChildAddSignal((n) => n + 1);
+    else if (view === 'main' && tab === 'lists') setCreateListSignal((n) => n + 1);
+    else if (view === 'main' && tab === 'cal') setCalCreateSignal((n) => n + 1);
+    else if (
+      view === 'listDetail' &&
+      (selectedList?.systemKey === 'reminders' || selectedList?.type === 'note')
+    )
+      setFocusAddSignal((n) => n + 1);
+    else setSheetOpen(true);
+  }
+
   const showFab =
-    (view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
-    view === 'listDetail' ||
-    view === 'child';
+    !workspace &&
+    ((view === 'main' && (tab === 'today' || tab === 'lists' || tab === 'cal')) ||
+      view === 'listDetail' ||
+      view === 'child');
 
   let content;
-  if (view === 'taskDetail' && selectedTaskId) {
+  if (workspace) {
+    let pane;
+    if (creatingList) {
+      pane = (
+        <div className="max-w-lg">
+          <h2
+            className="mb-d3 font-head"
+            style={{ fontSize: 'var(--fs-title)', fontWeight: 'var(--title-weight)' }}
+          >
+            New list
+          </h2>
+          <CreateListForm
+            usedColors={lists.map((l) => l.color)}
+            onCreated={(l) => openList(l)}
+            onCancel={() => setCreatingList(false)}
+          />
+        </div>
+      );
+    } else if (selectedList?.type === 'child') {
+      pane = (
+        <ChildScreen
+          key={selectedList.id}
+          listId={selectedList.id}
+          onBack={() => setSelectedList(null)}
+          addSignal={childAddSignal}
+          embedded
+        />
+      );
+    } else if (selectedList) {
+      pane = (
+        <ListDetailScreen
+          key={selectedList.id}
+          list={selectedList}
+          meId={me.id}
+          onBack={() => setSelectedList(null)}
+          onOpenTask={openTask}
+          focusAddSignal={focusAddSignal}
+          embedded
+        />
+      );
+    } else {
+      pane = (
+        <p className="mt-10 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+          Pick a list, or make one.
+        </p>
+      );
+    }
+    content = (
+      <div className="flex h-full min-w-0 flex-1">
+        <ListsIndex
+          selectedId={selectedList?.id ?? null}
+          onSelect={openList}
+          onOpenTask={openTask}
+          onNewList={() => setCreatingList(true)}
+          searchRef={searchRef}
+        />
+        <section className="relative flex min-h-0 min-w-0 flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto px-d5 pb-10 pt-4">
+            <div className="w-full max-w-[760px]">{pane}</div>
+          </div>
+          {inspectorOpen && selectedTaskId && (
+            <aside
+              key={selectedTaskId}
+              aria-label="Task details"
+              className="slide-in-right absolute inset-y-0 right-0 z-20 w-[380px] overflow-y-auto border-l border-border bg-bg px-d4 pb-10 pt-4"
+              style={{ boxShadow: '-18px 0 40px -24px rgba(0,0,0,.35)' }}
+            >
+              <TaskDetailScreen taskId={selectedTaskId} onBack={closeTask} embedded />
+            </aside>
+          )}
+        </section>
+      </div>
+    );
+  } else if (view === 'taskDetail' && selectedTaskId) {
     content = <TaskDetailScreen taskId={selectedTaskId} onBack={closeTask} />;
   } else if (view === 'child' && selectedList) {
     content = (
@@ -216,6 +384,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
     content = (
       <ListDetailScreen
         list={selectedList}
+        meId={me.id}
         onBack={() => navigate('lists')}
         onOpenTask={openTask}
         focusAddSignal={focusAddSignal}
@@ -270,13 +439,15 @@ function AuthedApp({ me }: { me: SessionUser }) {
       showFab={showFab}
       onAdd={onAdd}
       wide={view === 'main' && (tab === 'meals' || tab === 'cal' || tab === 'lists')}
+      fill={workspace}
       showMeals={showMeals}
       overlay={
         <QuickAddSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
-          lists={lists}
-          defaultListId={selectedList?.id}
+          // A note holds text, not tasks, so it is not somewhere a task can go.
+          lists={lists.filter((l) => l.type !== 'note')}
+          defaultListId={selectedList?.type === 'note' ? undefined : selectedList?.id}
         />
       }
     >

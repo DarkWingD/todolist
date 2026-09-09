@@ -1,7 +1,12 @@
 import { and, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { db, list, listInvite, listMember, task, user } from '@todolist/db';
-import { createListSchema, inviteToListSchema, updateListSchema } from '@todolist/shared';
+import { db, list, listInvite, listMember, listNote, task, user } from '@todolist/db';
+import {
+  createListSchema,
+  inviteToListSchema,
+  saveListNoteSchema,
+  updateListSchema,
+} from '@todolist/shared';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { env } from '../../env.js';
@@ -26,6 +31,10 @@ export const listsRouter = router({
         )`,
         memberCount: sql<number>`(
           select count(*)::int from ${listMember} lm where lm.list_id = ${list.id}
+        )`,
+        // A note has no count to show, so its row shows how it starts instead.
+        notePreview: sql<string | null>`(
+          select left(ln.body, 160) from ${listNote} ln where ln.list_id = ${list.id}
         )`,
       })
       .from(list)
@@ -120,11 +129,61 @@ export const listsRouter = router({
   update: protectedProcedure.input(updateListSchema).mutation(async ({ ctx, input }) => {
     await assertListAccess(ctx.user.id, input.listId);
     const { listId, ...rest } = input;
+    if (rest.type) {
+      // A note holds text and every other type holds tasks; converting either
+      // way would leave content behind a screen that can no longer show it.
+      const rows = await db
+        .select({ type: list.type })
+        .from(list)
+        .where(eq(list.id, listId))
+        .limit(1);
+      const current = rows[0]?.type;
+      if (current && current !== rest.type && (current === 'note' || rest.type === 'note'))
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'A note can’t be turned into a task list, or the other way round.',
+        });
+    }
     await db
       .update(list)
       .set({ ...rest, updatedAt: new Date() })
       .where(eq(list.id, listId));
     return { ok: true };
+  }),
+
+  // The text of a note list. Created empty on first read so the screen never
+  // has to special-case "no row yet".
+  note: protectedProcedure
+    .input(z.object({ listId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertListAccess(ctx.user.id, input.listId);
+      const rows = await db
+        .select({
+          body: listNote.body,
+          updatedAt: listNote.updatedAt,
+          updatedById: listNote.updatedBy,
+          updatedByName: user.name,
+        })
+        .from(listNote)
+        .leftJoin(user, eq(user.id, listNote.updatedBy))
+        .where(eq(listNote.listId, input.listId))
+        .limit(1);
+      if (rows[0]) return rows[0];
+      return { body: '', updatedAt: null, updatedById: null, updatedByName: null };
+    }),
+
+  saveNote: protectedProcedure.input(saveListNoteSchema).mutation(async ({ ctx, input }) => {
+    await assertListAccess(ctx.user.id, input.listId);
+    const now = new Date();
+    await db
+      .insert(listNote)
+      .values({ listId: input.listId, body: input.body, updatedBy: ctx.user.id, updatedAt: now })
+      .onConflictDoUpdate({
+        target: listNote.listId,
+        set: { body: input.body, updatedBy: ctx.user.id, updatedAt: now },
+      });
+    await db.update(list).set({ updatedAt: now }).where(eq(list.id, input.listId));
+    return { updatedAt: now };
   }),
 
   softDelete: protectedProcedure

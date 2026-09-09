@@ -45,9 +45,12 @@ export function ChildScreen({
   listId,
   onBack,
   addSignal,
+  embedded,
 }: {
   listId: string;
   onBack: () => void;
+  /** Drawn in the Lists workspace's pane, where the index is the way back. */
+  embedded?: boolean;
   /** Bumped when the floating + is tapped, so it opens this form. */
   addSignal?: number;
 }) {
@@ -193,7 +196,7 @@ export function ChildScreen({
   if (isLoading || !child) {
     return (
       <>
-        <BackButton label="Lists" onClick={onBack} />
+        {!embedded && <BackButton label="Lists" onClick={onBack} />}
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Loading…
         </p>
@@ -232,7 +235,7 @@ export function ChildScreen({
 
   return (
     <>
-      <BackButton label="Lists" onClick={onBack} />
+      {!embedded && <BackButton label="Lists" onClick={onBack} />}
 
       <header className="mb-d3 flex items-center gap-d3">
         <span

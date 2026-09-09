@@ -64,8 +64,13 @@ export function ManageListsScreen({
                 {l.name}
               </span>
               <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                {l.type === 'checklist' ? 'Shopping' : 'Tasks'} · {l.remaining}{' '}
-                {l.type === 'checklist' ? 'left' : 'to do'}
+                {l.type === 'checklist'
+                  ? `Shopping · ${l.remaining} left`
+                  : l.type === 'note'
+                    ? 'Note'
+                    : l.type === 'child'
+                      ? 'Child'
+                      : `Tasks · ${l.remaining} to do`}
               </span>
             </span>
           </button>
