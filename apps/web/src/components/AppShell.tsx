@@ -23,6 +23,8 @@ interface AppShellProps {
   onNavigate: (tab: TabId) => void;
   onAdd?: () => void;
   showFab?: boolean;
+  /** What the + makes here — a task, a list, an event, a child. */
+  addLabel?: string;
   children: ReactNode;
   /** Overlays (e.g. bottom sheets) rendered at the shell root, above the nav. */
   overlay?: ReactNode;
@@ -41,6 +43,15 @@ interface AppShellProps {
    * workspace): no padding, no reading column, no outer scroll.
    */
   fill?: boolean;
+  /**
+   * The screen is a single viewport-height pane rather than a document that
+   * scrolls (the calendar's month grid). Only these get a flex reading column:
+   * for everything else a column that is exactly one viewport tall squashes
+   * cards that carry `overflow-hidden` — a scroll container's automatic
+   * minimum size is 0, so it absorbs the shrink and slices its last row off —
+   * and it clips `position: sticky` to that same one-viewport box.
+   */
+  tall?: boolean;
 }
 
 export function AppShell({
@@ -48,11 +59,13 @@ export function AppShell({
   onNavigate,
   onAdd,
   showFab,
+  addLabel = 'Add',
   children,
   overlay,
   wide,
   showMeals = true,
   fill,
+  tall,
 }: AppShellProps) {
   const tabs = showMeals ? TABS : TABS.filter((t) => t.id !== 'meals');
   return (
@@ -63,13 +76,24 @@ export function AppShell({
         // whatever is left rather than inheriting the phone's centring.
         'relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg md:mx-0 md:max-w-none md:flex-row',
       )}
+      // The shell spans the whole screen, notch included, and holds the insets
+      // inside its own box: the tab bar then sits on the real bottom edge and
+      // the FAB measures up from it.
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
     >
       {/* Desktop rail. The same five destinations as the phone's tab bar, moved
           to the side: a bottom bar on a monitor puts navigation as far from the
           content as the screen allows, and wastes the width that made the
           desktop layout worth doing. */}
       <nav className="hidden md:flex md:w-52 md:flex-none md:flex-col md:gap-1 md:border-r md:border-border md:px-3 md:py-4">
-        {onAdd && (
+        {/* Gated the same way as the phone's FAB, plus the workspace, where it
+            adds to the open list. Meals and the settings screens have nothing
+            for a + to make, so they don't get one on either layout. */}
+        {onAdd && (showFab || fill) && (
           <button
             type="button"
             onClick={onAdd}
@@ -77,7 +101,7 @@ export function AppShell({
             style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
           >
             <span style={{ fontSize: 18, lineHeight: 1 }}>＋</span>
-            Add
+            {addLabel}
           </button>
         )}
         {tabs.map((t) => (
@@ -101,12 +125,21 @@ export function AppShell({
       {fill ? (
         <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
       ) : (
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5">
+        <main
+          className={clsx(
+            'flex min-h-0 flex-1 flex-col overflow-y-auto px-d4 pt-3 md:min-w-0 md:px-d5',
+            // The FAB floats over the last 68px of this box, so content needs
+            // to be able to clear it. The rail's Add button replaces it on
+            // desktop, where nothing overlaps.
+            showFab && onAdd ? 'pb-20 md:pb-d4' : 'pb-d4',
+          )}
+        >
           {/* Grids fill the window; reading columns keep a measure and centre in
               what's left. */}
           <div
             className={clsx(
-              'flex min-h-0 w-full flex-1 flex-col md:mx-auto',
+              'w-full md:mx-auto',
+              tall && 'flex min-h-0 flex-1 flex-col',
               wide ? 'md:max-w-none' : 'md:max-w-3xl',
             )}
           >
@@ -119,7 +152,7 @@ export function AppShell({
         <button
           type="button"
           onClick={onAdd}
-          aria-label="Add task"
+          aria-label={addLabel}
           className="absolute grid place-items-center rounded-fab text-accent-contrast md:hidden"
           style={{
             right: 18,

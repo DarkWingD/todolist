@@ -16,8 +16,11 @@
     background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-body);
-    /* Respect iOS safe areas for the installed PWA. */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    /* Safe areas are the shell's job. It is sized in dvh, which already spans
+       them, so insetting the body as well pushes the tab bar off the bottom of
+       the screen by the height of the notch. */
+    padding: 0;
+    overscroll-behavior: none;
     transition:
       background-color 0.25s ease,
       color 0.25s ease;

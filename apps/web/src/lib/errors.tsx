@@ -78,13 +78,18 @@ export function ErrorProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{ report }}>
       {children}
-      {errors.length > 0 && (
-        <div
-          className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-d4"
-          style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
-          role="alert"
-          aria-live="assertive"
-        >
+      {/* Always mounted: a live region that appears at the same moment as its
+          first message is not reliably announced. */}
+      <div
+        className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-d4"
+        // Clears the FAB rather than landing on it — a failed save must not
+        // hide the button you would use to try again.
+        style={{ bottom: 'calc(140px + env(safe-area-inset-bottom))' }}
+        role="alert"
+        aria-live="assertive"
+      >
+        {errors.length > 0 && (
+          <>
           {errors.map((e) => (
             <div
               key={e.id}
@@ -122,8 +127,9 @@ export function ErrorProvider({ children }: { children: ReactNode }) {
               </button>
             </div>
           ))}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </Ctx.Provider>
   );
 }

@@ -60,7 +60,15 @@ export function WelcomeScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-between px-d4 py-d5">
+    <div
+      className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-between px-d4 py-d5"
+      // "Skip for now" sits on the bottom edge, which on a modern iPhone is
+      // where the home indicator lives.
+      style={{
+        paddingTop: 'calc(var(--space-5) + env(safe-area-inset-top))',
+        paddingBottom: 'calc(var(--space-5) + env(safe-area-inset-bottom))',
+      }}
+    >
       <div className="flex flex-1 flex-col justify-center gap-d5">
         <div>
           <h1

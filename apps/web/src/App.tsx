@@ -314,6 +314,24 @@ function AuthedApp({ me }: { me: SessionUser }) {
       view === 'listDetail' ||
       view === 'child');
 
+  // Says what the + makes, so the button announces itself honestly on every
+  // screen rather than always claiming to add a task.
+  const addLabel = workspace
+    ? selectedList
+      ? 'Add to list'
+      : 'New list'
+    : view === 'child'
+      ? 'Add to their week'
+      : view === 'main' && tab === 'lists'
+        ? 'New list'
+        : view === 'main' && tab === 'cal'
+          ? 'Add event'
+          : view === 'main' && tab === 'family'
+            ? 'Add a child'
+            : view === 'listDetail' && selectedList?.type === 'note'
+              ? 'Add a line'
+              : 'Add task';
+
   let content;
   if (workspace) {
     let pane;
@@ -467,8 +485,12 @@ function AuthedApp({ me }: { me: SessionUser }) {
       active={activeTab}
       onNavigate={navigate}
       showFab={showFab}
+      addLabel={addLabel}
       onAdd={onAdd}
       wide={view === 'main' && (tab === 'meals' || tab === 'cal' || tab === 'lists')}
+      // Only the calendar is a fixed pane: its month grid divides the height it
+      // is given. Every other screen is a document that scrolls.
+      tall={view === 'main' && tab === 'cal'}
       fill={workspace}
       showMeals={showMeals}
       overlay={
