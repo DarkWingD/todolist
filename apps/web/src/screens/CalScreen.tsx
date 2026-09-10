@@ -2,11 +2,14 @@ import type { CalendarView } from '@todolist/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { readableOn } from '../components/ColorPicker';
+import { Sheet } from '@todolist/kitchen-ui';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { addDays, sameDay, startOfDay, startOfWeek, weekdayInitials } from '@todolist/kitchen-ui';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 
+// Roughly what a month cell can show on a phone before it starts clipping.
+const MONTH_CELL_ITEMS = 3;
 const NEUTRAL = '#9aa3b8';
 const BIRTHDAY_COLOR = '#EC4899';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -196,17 +199,20 @@ export function CalScreen({
   }
 
   const today = startOfDay(new Date());
-  const FULLBLEED = {
-    marginLeft: 'calc(-1 * var(--space-4))',
-    marginRight: 'calc(-1 * var(--space-4))',
-  };
+  // Pull out to the container's edge. The gutter is space-4 on a phone and
+  // space-5 on desktop, so this has to be a class rather than one fixed inset,
+  // or the grid stops 4px short of the edge it is meant to meet.
+  const FULLBLEED = '-mx-d4 md:-mx-d5';
 
   // ─────────── an item row (agenda/list/day sheet) ───────────
   function evtRow(it: CalItem) {
+    const opens = (it.kind === 'task' && it.id) || it.eventId;
     return (
-      <div
+      <button
         key={it.key}
-        className="mb-d2 flex items-center gap-3 rounded-card bg-surface p-d3 shadow-card"
+        type="button"
+        disabled={!opens}
+        className="mb-d2 flex w-full items-center gap-3 rounded-card bg-surface p-d3 text-left shadow-card"
         style={{ fontSize: 'var(--fs-base)' }}
         onClick={() => {
           if (it.kind === 'task' && it.id) onOpenTask(it.id);
@@ -224,11 +230,11 @@ export function CalScreen({
           </span>
         </span>
         {it.time && (
-          <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          <span className="flex-none text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {it.time}
           </span>
         )}
-      </div>
+      </button>
     );
   }
 
@@ -242,13 +248,17 @@ export function CalScreen({
       const isToday = sameDay(day, today);
       const col = i % 7;
       cells.push(
-        <div
+        <button
           key={i}
+          type="button"
+          aria-label={`${day.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}${
+            items.length ? `, ${items.length} ${items.length === 1 ? 'thing' : 'things'} on` : ''
+          }`}
           onClick={() => {
             setSelDay(day);
             setSheet('day');
           }}
-          className="flex min-h-0 cursor-pointer flex-col gap-px overflow-hidden border-b border-r"
+          className="flex min-h-0 cursor-pointer flex-col gap-px overflow-hidden border-b border-r text-left"
           style={{
             borderColor: 'var(--color-border)',
             padding: '1px 2px 2px',
@@ -287,7 +297,7 @@ export function CalScreen({
               ))}
             </span>
           )}
-          {items.map((it) =>
+          {items.slice(0, MONTH_CELL_ITEMS).map((it) =>
             it.kind === 'task' ? (
               <div
                 key={it.key}
@@ -332,12 +342,22 @@ export function CalScreen({
               </div>
             ),
           )}
-        </div>,
+          {items.length > MONTH_CELL_ITEMS && (
+            // The cell clips whatever doesn't fit, so a busy Saturday looked
+            // emptier than it was. Tapping the day still shows everything.
+            <span
+              className="text-muted"
+              style={{ fontSize: 'calc(9px * var(--text-scale))', fontWeight: 700 }}
+            >
+              +{items.length - MONTH_CELL_ITEMS} more
+            </span>
+          )}
+        </button>,
       );
     }
     return (
       <>
-        <div className="grid grid-cols-7" style={FULLBLEED}>
+        <div className={`grid grid-cols-7 ${FULLBLEED}`}>
           {dayInitials.map((d, i) => (
             <div
               key={i}
@@ -353,8 +373,8 @@ export function CalScreen({
           ))}
         </div>
         <div
-          className="grid flex-1 grid-cols-7 overflow-hidden border-l border-t"
-          style={{ ...FULLBLEED, gridAutoRows: '1fr', borderColor: 'var(--color-border)' }}
+          className={`grid flex-1 grid-cols-7 overflow-hidden border-l border-t ${FULLBLEED}`}
+          style={{ gridAutoRows: '1fr', borderColor: 'var(--color-border)' }}
         >
           {cells}
         </div>
@@ -484,11 +504,8 @@ export function CalScreen({
           ))}
         </div>
         <div className="grid grid-cols-7 gap-0.5 px-1">{cells}</div>
-        <div
-          className="mt-d2 flex-1 overflow-y-auto border-t border-border pt-d3"
-          style={FULLBLEED}
-        >
-          <div className="px-d4">
+        <div className={`mt-d2 flex-1 overflow-y-auto border-t border-border pt-d3 ${FULLBLEED}`}>
+          <div className="px-d4 md:px-d5">
             <h4 className="mb-d2 font-head" style={{ fontSize: 15 }}>
               {selDay.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
             </h4>
@@ -753,294 +770,276 @@ function CalSheet({
   const label = 'mb-1.5 mt-3 block font-semibold text-muted';
   const labelStyle = { fontSize: 'var(--fs-sm)' };
 
+  const sheetTitle =
+    mode === 'day'
+      ? day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
+      : mode === 'event'
+        ? 'New event'
+        : mode === 'birthday'
+          ? 'Add a birthday'
+          : 'Add to the calendar';
+
   return (
-    <>
-      <div
-        className="fixed inset-0 z-30"
-        style={{ background: 'rgba(0,0,0,.4)' }}
-        onClick={onClose}
-      />
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md overflow-y-auto p-4"
-        style={{
-          background: 'var(--color-bg)',
-          borderRadius: '22px 22px 0 0',
-          maxHeight: '82%',
-          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div
-          className="mx-auto mb-3 h-1.5 w-10 rounded-full"
-          style={{ background: 'var(--color-check-border)' }}
-        />
-
-        {mode === 'day' && (
-          <>
-            <h3 className="mb-3 font-head" style={{ fontSize: 18 }}>
-              {day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-            </h3>
-            {items.length ? (
-              items.map((it) => (
-                <div
-                  key={it.key}
-                  className="mb-2 flex items-center gap-2 rounded-card bg-surface p-3 shadow-card"
-                  style={{ fontSize: 'var(--fs-base)' }}
-                  onClick={() => {
-                    if (it.kind === 'task' && it.id) onOpenTask(it.id);
-                    else if (it.eventId) onOpenEvent(it.eventId);
-                  }}
-                >
-                  <span
-                    className="self-stretch rounded-full"
-                    style={{ width: 4, background: it.color, minHeight: 24 }}
-                  />
-                  <span className="flex-1">
-                    {it.kind === 'birthday' ? '🎂 ' : ''}
-                    {it.title}
+    <Sheet open={mode !== null} onClose={onClose} title={sheetTitle}>
+      {mode === 'day' && (
+        <>
+          <h3 className="mb-3 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+            {day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+          </h3>
+          {items.length ? (
+            items.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                disabled={!((it.kind === 'task' && it.id) || it.eventId)}
+                className="mb-2 flex w-full items-center gap-2 rounded-card bg-surface p-3 text-left shadow-card"
+                style={{ fontSize: 'var(--fs-base)' }}
+                onClick={() => {
+                  if (it.kind === 'task' && it.id) onOpenTask(it.id);
+                  else if (it.eventId) onOpenEvent(it.eventId);
+                }}
+              >
+                <span
+                  className="self-stretch rounded-full"
+                  style={{ width: 4, background: it.color, minHeight: 24 }}
+                />
+                {/* min-w-0, or a long single-word title refuses to shrink and
+                    pushes the time out of the sheet. */}
+                <span className="min-w-0 flex-1 break-words">
+                  {it.kind === 'birthday' ? '🎂 ' : ''}
+                  {it.title}
+                </span>
+                {it.time && (
+                  <span className="flex-none text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    {it.time}
                   </span>
-                  {it.time && (
-                    <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                      {it.time}
-                    </span>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-                Nothing on this day.
-              </p>
+                )}
+              </button>
+            ))
+          ) : (
+            <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
+              Nothing on this day.
+            </p>
+          )}
+          <button
+            className="mt-3 w-full rounded-card py-3 font-bold text-accent-contrast"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+            onClick={() => onPick('choose')}
+          >
+            ＋ Add to this day
+          </button>
+        </>
+      )}
+
+      {mode === 'choose' && (
+        <div className="flex flex-col gap-2">
+          <h3 className="mb-1 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+            Add
+          </h3>
+          <button
+            className="rounded-card bg-surface p-4 text-left shadow-card"
+            style={{ fontSize: 'var(--fs-base)' }}
+            onClick={() => onPick('event')}
+          >
+            📅 &nbsp;Event
+          </button>
+          <button
+            className="rounded-card bg-surface p-4 text-left shadow-card"
+            style={{ fontSize: 'var(--fs-base)' }}
+            onClick={() => onPick('birthday')}
+          >
+            🎂 &nbsp;Birthday
+          </button>
+        </div>
+      )}
+
+      {mode === 'event' && (
+        <>
+          <h3 className="mb-2 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+            New event
+          </h3>
+          <input
+            autoFocus
+            className={field}
+            style={fieldStyle}
+            placeholder="Event title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <label className={label} style={labelStyle}>
+            List
+          </label>
+          <select
+            className={field}
+            style={fieldStyle}
+            value={listId}
+            onChange={(e) => setListId(e.target.value)}
+          >
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.emojiIcon} {l.name}
+              </option>
+            ))}
+          </select>
+          <label
+            className="mt-3 flex items-center gap-2 font-semibold"
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />{' '}
+            All day
+          </label>
+          <label className={label} style={labelStyle}>
+            Start
+          </label>
+          <input
+            type={allDay ? 'date' : 'datetime-local'}
+            className={field}
+            style={fieldStyle}
+            value={allDay ? start.slice(0, 10) : start}
+            onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
+          />
+          <label className={label} style={labelStyle}>
+            End
+          </label>
+          <input
+            type={allDay ? 'date' : 'datetime-local'}
+            className={field}
+            style={fieldStyle}
+            value={allDay ? end.slice(0, 10) : end}
+            onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
+          />
+          {people.length > 1 && (
+            <>
+              <label className={label} style={labelStyle}>
+                For
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {people.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setAssignee((a) => (a === p.id ? null : p.id))}
+                    className="rounded-full"
+                    style={{
+                      padding: 2,
+                      borderRadius: '50%',
+                      boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
+                    }}
+                  >
+                    <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <label className={label} style={labelStyle}>
+            Repeats
+          </label>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {(
+              [
+                { v: 0, l: 'Never' },
+                { v: 1, l: 'Weekly' },
+                { v: 2, l: 'Fortnightly' },
+              ] as const
+            ).map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setRepeatEvery(o.v)}
+                className="rounded-full px-3 py-1.5 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background:
+                    repeatEvery === o.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+                  color: repeatEvery === o.v ? 'var(--color-accent)' : 'var(--color-text)',
+                }}
+              >
+                {o.l}
+              </button>
+            ))}
+            {repeatEvery > 0 && start && (
+              <span className="self-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                every {repeatEvery === 2 ? 'second ' : ''}
+                {DAY_LONG[new Date(start).getDay()]}
+              </span>
             )}
-            <button
-              className="mt-3 w-full rounded-card py-3 font-bold text-accent-contrast"
-              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-              onClick={() => onPick('choose')}
-            >
-              ＋ Add to this day
-            </button>
-          </>
-        )}
-
-        {mode === 'choose' && (
-          <div className="flex flex-col gap-2">
-            <h3 className="mb-1 font-head" style={{ fontSize: 18 }}>
-              Add
-            </h3>
-            <button
-              className="rounded-card bg-surface p-4 text-left shadow-card"
-              style={{ fontSize: 'var(--fs-base)' }}
-              onClick={() => onPick('event')}
-            >
-              📅 &nbsp;Event
-            </button>
-            <button
-              className="rounded-card bg-surface p-4 text-left shadow-card"
-              style={{ fontSize: 'var(--fs-base)' }}
-              onClick={() => onPick('birthday')}
-            >
-              🎂 &nbsp;Birthday
-            </button>
           </div>
-        )}
+          <button
+            disabled={!title.trim() || !listId || createEvent.isPending}
+            className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+            onClick={() => {
+              const s = fromLocalInput(start);
+              const e = fromLocalInput(end);
+              if (!s || !e) return;
+              createEvent.mutate({
+                listId,
+                title: title.trim(),
+                startAt: s,
+                endAt: e,
+                allDay,
+                assigneeId: assignee ?? undefined,
+                recurrenceRule:
+                  repeatEvery > 0
+                    ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
+                    : undefined,
+              });
+            }}
+          >
+            {createEvent.isPending ? 'Adding…' : 'Add event'}
+          </button>
+        </>
+      )}
 
-        {mode === 'event' && (
-          <>
-            <h3 className="mb-2 font-head" style={{ fontSize: 18 }}>
-              New event
-            </h3>
-            <input
-              autoFocus
-              className={field}
-              style={fieldStyle}
-              placeholder="Event title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <label className={label} style={labelStyle}>
-              List
-            </label>
+      {mode === 'birthday' && (
+        <>
+          <h3 className="mb-2 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+            New birthday
+          </h3>
+          <input
+            autoFocus
+            className={field}
+            style={fieldStyle}
+            placeholder="Name"
+            value={bname}
+            onChange={(e) => setBname(e.target.value)}
+          />
+          <div className="mt-3 flex gap-2">
             <select
               className={field}
               style={fieldStyle}
-              value={listId}
-              onChange={(e) => setListId(e.target.value)}
+              value={bmonth}
+              onChange={(e) => setBmonth(Number(e.target.value))}
             >
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.emojiIcon} {l.name}
+              {MONTHS.map((mn, i) => (
+                <option key={i} value={i + 1}>
+                  {mn}
                 </option>
               ))}
             </select>
-            <label
-              className="mt-3 flex items-center gap-2 font-semibold"
-              style={{ fontSize: 'var(--fs-sm)' }}
+            <select
+              className={field}
+              style={fieldStyle}
+              value={bday}
+              onChange={(e) => setBday(Number(e.target.value))}
             >
-              <input
-                type="checkbox"
-                checked={allDay}
-                onChange={(e) => setAllDay(e.target.checked)}
-              />{' '}
-              All day
-            </label>
-            <label className={label} style={labelStyle}>
-              Start
-            </label>
-            <input
-              type={allDay ? 'date' : 'datetime-local'}
-              className={field}
-              style={fieldStyle}
-              value={allDay ? start.slice(0, 10) : start}
-              onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
-            />
-            <label className={label} style={labelStyle}>
-              End
-            </label>
-            <input
-              type={allDay ? 'date' : 'datetime-local'}
-              className={field}
-              style={fieldStyle}
-              value={allDay ? end.slice(0, 10) : end}
-              onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
-            />
-            {people.length > 1 && (
-              <>
-                <label className={label} style={labelStyle}>
-                  For
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {people.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setAssignee((a) => (a === p.id ? null : p.id))}
-                      className="rounded-full"
-                      style={{
-                        padding: 2,
-                        borderRadius: '50%',
-                        boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
-                      }}
-                    >
-                      <Avatar
-                        emoji={p.avatarEmoji}
-                        color={p.avatarColor}
-                        image={p.image}
-                        size={30}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            <label className={label} style={labelStyle}>
-              Repeats
-            </label>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {(
-                [
-                  { v: 0, l: 'Never' },
-                  { v: 1, l: 'Weekly' },
-                  { v: 2, l: 'Fortnightly' },
-                ] as const
-              ).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => setRepeatEvery(o.v)}
-                  className="rounded-full px-3 py-1.5 font-semibold"
-                  style={{
-                    fontSize: 'var(--fs-sm)',
-                    background:
-                      repeatEvery === o.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
-                    color: repeatEvery === o.v ? 'var(--color-accent)' : 'var(--color-text)',
-                  }}
-                >
-                  {o.l}
-                </button>
+              {Array.from({ length: 31 }, (_, i) => (
+                <option key={i} value={i + 1}>
+                  {i + 1}
+                </option>
               ))}
-              {repeatEvery > 0 && start && (
-                <span className="self-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                  every {repeatEvery === 2 ? 'second ' : ''}
-                  {DAY_LONG[new Date(start).getDay()]}
-                </span>
-              )}
-            </div>
-            <button
-              disabled={!title.trim() || !listId || createEvent.isPending}
-              className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
-              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-              onClick={() => {
-                const s = fromLocalInput(start);
-                const e = fromLocalInput(end);
-                if (!s || !e) return;
-                createEvent.mutate({
-                  listId,
-                  title: title.trim(),
-                  startAt: s,
-                  endAt: e,
-                  allDay,
-                  assigneeId: assignee ?? undefined,
-                  recurrenceRule:
-                    repeatEvery > 0
-                      ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
-                      : undefined,
-                });
-              }}
-            >
-              {createEvent.isPending ? 'Adding…' : 'Add event'}
-            </button>
-          </>
-        )}
-
-        {mode === 'birthday' && (
-          <>
-            <h3 className="mb-2 font-head" style={{ fontSize: 18 }}>
-              New birthday
-            </h3>
-            <input
-              autoFocus
-              className={field}
-              style={fieldStyle}
-              placeholder="Name"
-              value={bname}
-              onChange={(e) => setBname(e.target.value)}
-            />
-            <div className="mt-3 flex gap-2">
-              <select
-                className={field}
-                style={fieldStyle}
-                value={bmonth}
-                onChange={(e) => setBmonth(Number(e.target.value))}
-              >
-                {MONTHS.map((mn, i) => (
-                  <option key={i} value={i + 1}>
-                    {mn}
-                  </option>
-                ))}
-              </select>
-              <select
-                className={field}
-                style={fieldStyle}
-                value={bday}
-                onChange={(e) => setBday(Number(e.target.value))}
-              >
-                {Array.from({ length: 31 }, (_, i) => (
-                  <option key={i} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              disabled={!bname.trim() || createBirthday.isPending}
-              className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
-              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-              onClick={() =>
-                createBirthday.mutate({ name: bname.trim(), day: bday, month: bmonth })
-              }
-            >
-              {createBirthday.isPending ? 'Adding…' : 'Add birthday'}
-            </button>
-          </>
-        )}
-      </div>
-    </>
+            </select>
+          </div>
+          <button
+            disabled={!bname.trim() || createBirthday.isPending}
+            className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+            onClick={() => createBirthday.mutate({ name: bname.trim(), day: bday, month: bmonth })}
+          >
+            {createBirthday.isPending ? 'Adding…' : 'Add birthday'}
+          </button>
+        </>
+      )}
+    </Sheet>
   );
 }

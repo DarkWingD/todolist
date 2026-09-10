@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ShoppingRow } from '../components/ShoppingRow';
+import { Sheet } from '../components/Sheet';
 import type { ShoppingAdapter, ShoppingItem } from '../adapter';
 
 /**
@@ -51,6 +52,8 @@ export function ShoppingList({
   // Set while a heading animates out, so its ingredients leave with it.
   const [completingHeadingId, setCompletingHeadingId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  // Deleting an item is one tap and there is no undo, so it asks first.
+  const [confirmDel, setConfirmDel] = useState(false);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['shopping', adapter.key],
@@ -127,6 +130,12 @@ export function ShoppingList({
 
   const editItem = items.find((t) => t.id === editId);
 
+  const openEdit = (id: string) => {
+    setEditId(id);
+    setEditTitle(items.find((x) => x.id === id)?.title ?? '');
+    setConfirmDel(false);
+  };
+
   const renderGroup = (t: ShoppingItem) => {
     const kids = childrenOf.get(t.id) ?? [];
     const i = toBuy.findIndex((x) => x.id === t.id);
@@ -140,10 +149,7 @@ export function ShoppingList({
           canIndent={!t.completed && kids.length === 0 && i > 0}
           onIndent={indent}
           onToggle={(id, completed) => toggle.mutate({ id, completed })}
-          onOpen={(id) => {
-            setEditId(id);
-            setEditTitle(items.find((x) => x.id === id)?.title ?? '');
-          }}
+          onOpen={openEdit}
           onCompleteStart={kids.length > 0 ? setCompletingHeadingId : undefined}
         />
         {kids.length > 0 && (
@@ -162,10 +168,7 @@ export function ShoppingList({
                 // through, so you can watch the meal fill up as you shop.
                 animateOut={false}
                 onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                onOpen={(id) => {
-                  setEditId(id);
-                  setEditTitle(items.find((x) => x.id === id)?.title ?? '');
-                }}
+                onOpen={openEdit}
               />
             ))}
           </div>
@@ -179,7 +182,7 @@ export function ShoppingList({
       {/* Pinned, so rapid entry works: the list scrolls underneath while the box
           and the keyboard focus stay put. Without this, scrolling to a newly
           added item scrolled the box itself out of reach. */}
-      <div className="sticky top-0 z-10 -mx-d4 bg-bg px-d4 pb-d2 pt-1">
+      <div className="sticky top-0 z-10 -mx-d4 bg-bg px-d4 pb-d2 pt-1 md:-mx-d5 md:px-d5">
         <div className="flex items-center gap-2 rounded-card border border-border bg-surface px-3 py-3 shadow-card">
           <input
             value={newItem}
@@ -269,27 +272,18 @@ export function ShoppingList({
         </>
       )}
 
-      {editId && editItem && (
-        <>
-          <div
-            className="fixed inset-0 z-30"
-            style={{ background: 'rgba(0,0,0,.4)' }}
-            onClick={() => setEditId(null)}
-          />
-          <div
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md p-4"
-            style={{
-              background: 'var(--color-bg)',
-              borderRadius: '22px 22px 0 0',
-              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-            }}
-          >
-            <div
-              className="mx-auto mb-3 h-1.5 w-10 rounded-full"
-              style={{ background: 'var(--color-check-border)' }}
-            />
+      <Sheet
+        open={Boolean(editId && editItem)}
+        onClose={() => {
+          setEditId(null);
+          setConfirmDel(false);
+        }}
+        title={editItem ? `Edit ${editItem.title}` : 'Edit item'}
+      >
+        {editId && (
+          <>
             <input
-              autoFocus
+              data-autofocus
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={(e) =>
@@ -297,33 +291,44 @@ export function ShoppingList({
                 editTitle.trim() &&
                 rename.mutate({ id: editId, title: editTitle.trim() })
               }
+              aria-label="Item"
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 outline-none"
               style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
             />
             <div className="mt-3 flex gap-2">
-              <button
-                className="flex-1 rounded-lg py-2 font-semibold"
-                style={{
-                  fontSize: 'var(--fs-sm)',
-                  color: 'var(--color-danger)',
-                  background: 'var(--color-danger-soft)',
-                }}
-                onClick={() => remove.mutate(editId)}
-              >
-                Delete
-              </button>
+              {!confirmDel ? (
+                <button
+                  className="flex-1 rounded-lg py-2.5 font-semibold"
+                  style={{
+                    fontSize: 'var(--fs-sm)',
+                    color: 'var(--color-danger)',
+                    background: 'var(--color-danger-soft)',
+                  }}
+                  onClick={() => setConfirmDel(true)}
+                >
+                  Delete
+                </button>
+              ) : (
+                <button
+                  className="flex-1 rounded-lg py-2.5 font-bold text-accent-contrast"
+                  style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-danger)' }}
+                  onClick={() => remove.mutate(editId)}
+                >
+                  Delete for good?
+                </button>
+              )}
               <button
                 disabled={!editTitle.trim()}
-                className="flex-1 rounded-lg py-2 font-bold text-accent-contrast disabled:opacity-50"
+                className="flex-1 rounded-lg py-2.5 font-bold text-accent-contrast disabled:opacity-50"
                 style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-accent)' }}
                 onClick={() => rename.mutate({ id: editId, title: editTitle.trim() })}
               >
                 Save
               </button>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </Sheet>
     </>
   );
 }

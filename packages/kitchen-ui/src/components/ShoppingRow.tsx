@@ -141,17 +141,20 @@ export function ShoppingRow({
             className={clsx('font-medium', completed && 'text-muted')}
             style={{ fontSize: 'var(--fs-base)', letterSpacing: '-0.005em' }}
           >
-            <span className="relative inline-block">
+            {/* Painted as a background so it follows the text across every
+                line — one absolute bar struck through the middle of the block
+                and missed a title that wrapped. */}
+            <span
+              className="inline"
+              style={{
+                backgroundImage: 'linear-gradient(currentColor, currentColor)',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: '0 58%',
+                backgroundSize: showChecked ? '100% 2px' : '0% 2px',
+                transition: 'background-size .25s ease',
+              }}
+            >
               {title}
-              {showChecked && (
-                <motion.span
-                  className="pointer-events-none absolute left-0"
-                  style={{ top: '50%', height: 2, background: 'currentColor', borderRadius: 2 }}
-                  initial={{ width: completed && !completing ? '100%' : '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 0.25 }}
-                />
-              )}
             </span>
           </div>
         </div>

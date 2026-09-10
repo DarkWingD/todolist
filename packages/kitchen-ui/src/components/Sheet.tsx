@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCloseOnBack } from '../lib/backstack';
 
 /**
  * The bottom sheet every panel in the app is made of.
@@ -55,6 +56,10 @@ export function Sheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const [keyboard, setKeyboard] = useState(0);
+
+  // Back dismisses the sheet before it moves the app — the gesture people
+  // reach for, and in an installed PWA there is nothing else it could mean.
+  useCloseOnBack(open, onClose);
 
   // Remember who opened it, and hand focus back on the way out — otherwise
   // closing a sheet drops you at the top of the document.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { closeTopOverlay } from '@todolist/kitchen-ui';
 import { AppShell, type TabId } from './components/AppShell';
 import { BackButton } from './components/BackButton';
 import { CreateListForm } from './components/CreateListForm';
@@ -246,6 +247,71 @@ function AuthedApp({ me }: { me: SessionUser }) {
       setTab(taskReturn.tab);
     }
   }
+
+  /**
+   * Back walks the app instead of leaving it.
+   *
+   * The screen you are on is a piece of state, not a URL, so nothing was ever
+   * written to the browser's history: Back from a task, a child's page or
+   * Appearance dropped you out of the app — and in an installed PWA, out
+   * altogether. Every move now leaves an entry behind, and a press either
+   * closes whatever overlay is in front of you or steps back through them.
+   */
+  type NavEntry = {
+    view: View;
+    tab: TabId;
+    list: MinList | null;
+    taskId: string | null;
+    taskReturn: { view: 'main' | 'listDetail'; tab: TabId };
+  };
+  const navKey = JSON.stringify({
+    view,
+    tab,
+    list: selectedList?.id ?? null,
+    taskId: selectedTaskId,
+  });
+  const lastNavKey = useRef('');
+  const currentEntry = useRef<NavEntry | null>(null);
+
+  useEffect(() => {
+    if (navKey === lastNavKey.current) return;
+    const first = lastNavKey.current === '';
+    lastNavKey.current = navKey;
+    const entry: NavEntry = { view, tab, list: selectedList, taskId: selectedTaskId, taskReturn };
+    currentEntry.current = entry;
+    // The first render is where you already are, not somewhere you went.
+    if (first) window.history.replaceState({ nav: entry }, '');
+    else window.history.pushState({ nav: entry }, '');
+  }, [navKey, view, tab, selectedList, selectedTaskId, taskReturn]);
+
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      // A sheet is in front: the press belongs to it, and the entry it just
+      // consumed is put back so the app's own depth is unchanged.
+      if (closeTopOverlay()) {
+        window.history.pushState({ nav: currentEntry.current }, '');
+        return;
+      }
+      const s = (e.state as { nav?: NavEntry } | null)?.nav;
+      if (!s) return;
+      // Claim the key first, so restoring the state doesn't read as a new
+      // move and push an entry straight back on.
+      lastNavKey.current = JSON.stringify({
+        view: s.view,
+        tab: s.tab,
+        list: s.list?.id ?? null,
+        taskId: s.taskId,
+      });
+      currentEntry.current = s;
+      setView(s.view);
+      setTab(s.tab);
+      setSelectedList(s.list);
+      setSelectedTaskId(s.taskId);
+      setTaskReturn(s.taskReturn);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // The workspace never sits empty: it reopens the list this browser had open,
   // or failing that the first of your own lists, then Reminders.

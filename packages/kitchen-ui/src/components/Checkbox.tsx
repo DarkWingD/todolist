@@ -15,7 +15,7 @@ export function Checkbox({ checked, onChange, label }: CheckboxProps) {
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className="grid flex-none place-items-center"
+      className="relative grid flex-none place-items-center"
       style={{
         width: 22,
         height: 22,
@@ -26,6 +26,10 @@ export function Checkbox({ checked, onChange, label }: CheckboxProps) {
         transition: 'background 0.15s ease',
       }}
     >
+      {/* Ticking something off is the thing this app is for, and 22px is half
+          the size a thumb needs. The box stays 22px so the row still looks
+          right; the part you can actually hit reaches past it. */}
+      <span aria-hidden="true" className="absolute" style={{ inset: -10 }} />
       {checked && (
         <motion.span
           initial={{ scale: 0.4, opacity: 0 }}

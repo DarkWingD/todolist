@@ -5,6 +5,7 @@ export { ShoppingRow } from './components/ShoppingRow';
 export { formatShoppingText } from './lib/shoppingText';
 export { Checkbox } from './components/Checkbox';
 export { Sheet } from './components/Sheet';
+export { closeTopOverlay, overlayDepth, useCloseOnBack } from './lib/backstack';
 export type { MealEntry, MealOption } from './components/MealDayCard';
 export type {
   MealPlan,

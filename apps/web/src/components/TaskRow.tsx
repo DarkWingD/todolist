@@ -125,6 +125,20 @@ export function TaskRow({
         className="relative flex cursor-pointer items-start gap-d3 rounded-card bg-surface shadow-card"
         style={{ padding: 'var(--space-3)' }}
         onClick={() => onOpen?.(task.id)}
+        // A draggable div can't be a <button> — it already contains one — so it
+        // says what it is instead. Without this the row was reachable by mouse
+        // only, and opening a task from a list was impossible by keyboard.
+        {...(onOpen && {
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': `Open ${task.title}`,
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onOpen(task.id);
+            }
+          },
+        })}
       >
         <div onClick={(e) => e.stopPropagation()} onPointerDownCapture={(e) => e.stopPropagation()}>
           <Checkbox
@@ -138,7 +152,20 @@ export function TaskRow({
             className={clsx('font-medium', task.completed && 'text-muted')}
             style={{ fontSize: 'var(--fs-base)', letterSpacing: '-0.005em' }}
           >
-            <span className="relative inline-block">
+            {/* The strike is painted as a background so it follows the text
+                across every line. A single absolutely-positioned bar drew one
+                line through the middle of the whole block, which on a title
+                that wraps to three lines missed all three. */}
+            <span
+              className="inline"
+              style={{
+                backgroundImage: 'linear-gradient(currentColor, currentColor)',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: '0 58%',
+                backgroundSize: showChecked || task.completed ? '100% 2px' : '0% 2px',
+                transition: 'background-size .25s ease',
+              }}
+            >
               {task.leadEmoji && <span className="mr-1">{task.leadEmoji}</span>}
               {task.flagged && !showChecked && (
                 <span className="mr-1" style={{ color: 'var(--color-danger)' }}>
@@ -146,15 +173,6 @@ export function TaskRow({
                 </span>
               )}
               {task.title}
-              {(showChecked || task.completed) && (
-                <motion.span
-                  className="pointer-events-none absolute left-0"
-                  style={{ top: '50%', height: 2, background: 'currentColor', borderRadius: 2 }}
-                  initial={{ width: task.completed && !completing ? '100%' : '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 0.25 }}
-                />
-              )}
             </span>
           </div>
           {hasMeta && !completing && (

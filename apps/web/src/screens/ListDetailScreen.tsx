@@ -6,6 +6,7 @@ import { shareOrCopy } from '../lib/shareText';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { ListSettingsSheet } from '../components/ListSettingsSheet';
 import { NoteBody } from '../components/NoteBody';
+import { QueryState } from '../components/QueryState';
 import { TaskRow } from '../components/TaskRow';
 import { toTaskRow } from '../lib/mapTask';
 import { trpc } from '../lib/trpc';
@@ -76,10 +77,12 @@ export function ListDetailScreen({
   const utils = trpc.useUtils();
   const isNote = (list.type ?? 'tasks') === 'note';
   // A note has no tasks to fetch; the query would only return an empty list.
-  const { data: tasks = [], isLoading } = trpc.tasks.byList.useQuery(
-    { listId: list.id },
-    { enabled: !isNote },
-  );
+  const {
+    data: tasks = [],
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.tasks.byList.useQuery({ listId: list.id }, { enabled: !isNote });
   const { data: members = [] } = trpc.lists.members.useQuery({ listId: list.id });
   const { data: household } = trpc.household.get.useQuery();
   const { data: allLists = [] } = trpc.lists.mine.useQuery();
@@ -96,10 +99,6 @@ export function ListDetailScreen({
   const [newItem, setNewItem] = useState('');
   const [remindPreset, setRemindPreset] = useState<RemindPreset>('hour');
   const [customRemindAt, setCustomRemindAt] = useState('');
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  // Set while a meal heading is animating out, so its ingredients leave with it.
-  const [completingHeadingId, setCompletingHeadingId] = useState<string | null>(null);
 
   // The floating + focuses the quick-add box (only fired for the Reminders
   // list) — but not on mount, when returning to an already-open screen.
@@ -120,24 +119,11 @@ export function ListDetailScreen({
     utils.lists.mine.invalidate();
     utils.lists.reminders.invalidate();
     utils.lists.shopping.invalidate();
-    setCompletingHeadingId(null);
   };
   const toggle = trpc.tasks.toggle.useMutation({ onSuccess: invalidate });
   const create = trpc.tasks.create.useMutation({ onSuccess: invalidate });
   const quickAddReminder = trpc.reminders.quickAdd.useMutation({ onSuccess: invalidate });
-  const update = trpc.tasks.update.useMutation({
-    onSuccess: () => {
-      invalidate();
-      setEditId(null);
-    },
-  });
-  const remove = trpc.tasks.remove.useMutation({
-    onSuccess: () => {
-      invalidate();
-      setEditId(null);
-    },
-  });
-  const clearBought = trpc.tasks.clearCompleted.useMutation({ onSuccess: invalidate });
+  const remove = trpc.tasks.remove.useMutation({ onSuccess: invalidate });
   const invite = trpc.lists.invite.useMutation({
     onSuccess: () => {
       setInviting(false);
@@ -207,80 +193,6 @@ export function ListDetailScreen({
 
   const open = tasks.filter((t) => !t.completedAt);
   const done = tasks.filter((t) => t.completedAt);
-  const editItem = tasks.find((t) => t.id === editId);
-
-  // A shopping list is a one-level outline: top-level rows in the order they
-  // were added, each followed by its own children. A group's section is decided
-  // by its heading — a half-shopped meal stays under "To buy" with the bought
-  // lines struck through, and only drops to "Bought" once you tick the meal
-  // itself. That is what makes ticking a meal feel like filing it away.
-  const childrenOf = new Map<string, typeof tasks>();
-  for (const t of tasks) {
-    if (!t.parentTaskId) continue;
-    const kids = childrenOf.get(t.parentTaskId) ?? [];
-    kids.push(t);
-    childrenOf.set(t.parentTaskId, kids);
-  }
-  const topLevel = tasks.filter((t) => !t.parentTaskId);
-  const toBuy = topLevel.filter((t) => !t.completedAt);
-  const bought = topLevel.filter((t) => t.completedAt);
-
-  function openItem(id: string) {
-    if (isChecklist) {
-      setEditId(id);
-      setEditTitle(tasks.find((t) => t.id === id)?.title ?? '');
-    } else {
-      onOpenTask(id);
-    }
-  }
-
-  // Swipe right nests an item under the row directly above it; swipe left
-  // promotes it back to a heading of its own. Two levels only, so a row that
-  // already has children can't be nested any further.
-  function indent(id: string) {
-    const i = toBuy.findIndex((t) => t.id === id);
-    const above = i > 0 ? toBuy[i - 1] : undefined;
-    if (above) update.mutate({ id, parentTaskId: above.id });
-  }
-  function outdent(id: string) {
-    update.mutate({ id, parentTaskId: null });
-  }
-
-  const renderGroup = (t: (typeof tasks)[number]) => {
-    const kids = childrenOf.get(t.id) ?? [];
-    const i = toBuy.findIndex((x) => x.id === t.id);
-    return (
-      <div key={t.id} className={kids.length > 0 ? 'mb-d3' : undefined}>
-        <TaskRow
-          task={toTaskRow(t)}
-          variant="checklist"
-          canIndent={!t.completedAt && kids.length === 0 && i > 0}
-          onIndent={indent}
-          onToggle={(id, completed) => toggle.mutate({ id, completed })}
-          onOpen={openItem}
-          onDelete={(id) => remove.mutate({ id })}
-          onCompleteStart={kids.length > 0 ? setCompletingHeadingId : undefined}
-        />
-        {kids.length > 0 && (
-          <div className="ml-d4 border-l border-border pl-d2">
-            {kids.map((c) => (
-              <TaskRow
-                key={c.id}
-                task={toTaskRow(c)}
-                variant="checklist"
-                canOutdent
-                onOutdent={outdent}
-                forceCompleting={completingHeadingId === t.id && !c.completedAt}
-                onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                onOpen={openItem}
-                onDelete={(id) => remove.mutate({ id })}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <>
@@ -436,9 +348,8 @@ export function ListDetailScreen({
                     setNewItem('');
                   }
                 }}
-                placeholder={
-                  isReminders ? 'Remind me to…' : isChecklist ? 'Add an item…' : 'Add a task…'
-                }
+                // A checklist never reaches here: it renders as a ShoppingList above.
+                placeholder={isReminders ? 'Remind me to…' : 'Add a task…'}
                 className="flex-1 bg-transparent outline-none"
                 style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
               />
@@ -492,66 +403,53 @@ export function ListDetailScreen({
             className="mb-d2 mt-d4 font-bold uppercase text-muted"
             style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
           >
-            {isReminders ? 'Upcoming' : isChecklist ? 'To buy' : 'To do'}
+            {isReminders ? 'Upcoming' : 'To do'}
           </h2>
-          {isLoading ? (
-            <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-              Loading…
-            </p>
-          ) : open.length === 0 ? (
-            <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-              {isReminders
+          <QueryState
+            isLoading={isLoading}
+            isError={isError}
+            onRetry={() => void refetch()}
+            isEmpty={open.length === 0}
+            empty={
+              isReminders
                 ? 'Nothing coming up — add a reminder above.'
-                : isChecklist
-                  ? 'Empty — add an item above.'
-                  : 'All done — nice. 🎉'}
-            </p>
-          ) : isChecklist ? (
-            toBuy.map(renderGroup)
-          ) : (
-            open.map((t) => (
+                : // "All done" is a lie on a list you made ten seconds ago and
+                  // have never put anything in.
+                  done.length > 0
+                  ? 'All done — nice. 🎉'
+                  : 'Nothing here yet — add the first thing above.'
+            }
+          >
+            {open.map((t) => (
               <TaskRow
                 key={t.id}
                 task={toTaskRow(t)}
                 onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                onOpen={openItem}
+                onOpen={onOpenTask}
                 onDelete={(id) => remove.mutate({ id })}
               />
-            ))
-          )}
+            ))}
+          </QueryState>
 
-          {(isChecklist ? bought.length > 0 : done.length > 0) && (
+          {done.length > 0 && (
             <>
               <div className="mb-d2 mt-d4 flex items-baseline justify-between gap-d3">
                 <h2
                   className="font-bold uppercase text-muted"
                   style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
                 >
-                  {isChecklist ? 'Bought' : 'Done'}
+                  Done
                 </h2>
-                {isChecklist && (
-                  <button
-                    type="button"
-                    disabled={clearBought.isPending}
-                    onClick={() => clearBought.mutate({ listId: list.id })}
-                    className="font-semibold text-accent disabled:opacity-50"
-                    style={{ fontSize: 'var(--fs-xs)' }}
-                  >
-                    {clearBought.isPending ? 'Clearing…' : 'Clear bought'}
-                  </button>
-                )}
               </div>
-              {isChecklist
-                ? bought.map(renderGroup)
-                : done.map((t) => (
-                    <TaskRow
-                      key={t.id}
-                      task={toTaskRow(t)}
-                      onToggle={(id, completed) => toggle.mutate({ id, completed })}
-                      onOpen={openItem}
-                      onDelete={(id) => remove.mutate({ id })}
-                    />
-                  ))}
+              {done.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={toTaskRow(t)}
+                  onToggle={(id, completed) => toggle.mutate({ id, completed })}
+                  onOpen={onOpenTask}
+                  onDelete={(id) => remove.mutate({ id })}
+                />
+              ))}
             </>
           )}
         </>
@@ -589,59 +487,6 @@ export function ListDetailScreen({
               </span>
             </button>
           ))}
-        </>
-      )}
-
-      {/* Lightweight checklist item editor (rename / delete only). */}
-      {editId && editItem && (
-        <>
-          <div
-            className="fixed inset-0 z-30"
-            style={{ background: 'rgba(0,0,0,.4)' }}
-            onClick={() => setEditId(null)}
-          />
-          <div
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md p-4"
-            style={{
-              background: 'var(--color-bg)',
-              borderRadius: '22px 22px 0 0',
-              paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-            }}
-          >
-            <div
-              className="mx-auto mb-3 h-1.5 w-10 rounded-full"
-              style={{ background: 'var(--color-check-border)' }}
-            />
-            <input
-              autoFocus
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                editTitle.trim() &&
-                update.mutate({ id: editId, title: editTitle.trim() })
-              }
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 outline-none"
-              style={{ fontSize: 'var(--fs-lg)', color: 'var(--color-text)' }}
-            />
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                className="font-semibold text-danger"
-                style={{ fontSize: 'var(--fs-sm)' }}
-                onClick={() => remove.mutate({ id: editId })}
-              >
-                Delete
-              </button>
-              <button
-                disabled={!editTitle.trim()}
-                className="ml-auto rounded-lg px-5 py-2 font-bold text-accent-contrast disabled:opacity-50"
-                style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-                onClick={() => update.mutate({ id: editId, title: editTitle.trim() })}
-              >
-                Save
-              </button>
-            </div>
-          </div>
         </>
       )}
 
