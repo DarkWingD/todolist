@@ -363,7 +363,7 @@ export function CalScreen({
               key={i}
               className="pb-1 text-center font-bold uppercase"
               style={{
-                fontSize: 10,
+                fontSize: 'calc(10px * var(--text-scale))',
                 letterSpacing: '.04em',
                 color: isWeekendCol(i) ? 'var(--color-accent)' : 'var(--color-muted)',
               }}
@@ -404,11 +404,17 @@ export function CalScreen({
           <div className="mb-1.5 flex items-baseline gap-2">
             <span
               className="font-head font-bold"
-              style={{ fontSize: 19, color: isToday ? 'var(--color-accent)' : 'var(--color-text)' }}
+              style={{
+                fontSize: 'calc(19px * var(--text-scale))',
+                color: isToday ? 'var(--color-accent)' : 'var(--color-text)',
+              }}
             >
               {day.getDate()}
             </span>
-            <span className="font-bold uppercase text-muted" style={{ fontSize: 11 }}>
+            <span
+              className="font-bold uppercase text-muted"
+              style={{ fontSize: 'calc(11px * var(--text-scale))' }}
+            >
               {day.toLocaleDateString([], { weekday: 'long' })}
             </span>
             {offOn(day).map((p) => (
@@ -416,7 +422,7 @@ export function CalScreen({
                 key={p.id}
                 className="rounded-full px-2 py-0.5 font-bold"
                 style={{
-                  fontSize: 10,
+                  fontSize: 'calc(10px * var(--text-scale))',
                   background: 'var(--color-accent-soft)',
                   color: 'var(--color-accent)',
                 }}
@@ -428,7 +434,7 @@ export function CalScreen({
           {items.length ? (
             items.map(evtRow)
           ) : (
-            <div className="text-muted" style={{ fontSize: 12 }}>
+            <div className="text-muted" style={{ fontSize: 'calc(12px * var(--text-scale))' }}>
               —
             </div>
           )}
@@ -465,7 +471,7 @@ export function CalScreen({
             style={{
               width: 26,
               height: 26,
-              fontSize: 13,
+              fontSize: 'calc(13px * var(--text-scale))',
               fontWeight: 600,
               color: isToday
                 ? 'var(--color-accent-contrast)'
@@ -495,7 +501,7 @@ export function CalScreen({
               key={i}
               className="pb-1 text-center font-bold uppercase"
               style={{
-                fontSize: 10,
+                fontSize: 'calc(10px * var(--text-scale))',
                 color: isWeekendCol(i) ? 'var(--color-accent)' : 'var(--color-muted)',
               }}
             >
@@ -506,7 +512,7 @@ export function CalScreen({
         <div className="grid grid-cols-7 gap-0.5 px-1">{cells}</div>
         <div className={`mt-d2 flex-1 overflow-y-auto border-t border-border pt-d3 ${FULLBLEED}`}>
           <div className="px-d4 md:px-d5">
-            <h4 className="mb-d2 font-head" style={{ fontSize: 15 }}>
+            <h4 className="mb-d2 font-head" style={{ fontSize: 'calc(15px * var(--text-scale))' }}>
               {selDay.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
             </h4>
             {selItems.length ? (
@@ -632,7 +638,7 @@ export function CalScreen({
                 aria-label={`Show ${p.name}'s things`}
                 className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold"
                 style={{
-                  fontSize: 12,
+                  fontSize: 'calc(12px * var(--text-scale))',
                   background: 'var(--color-chip-bg)',
                   border: `1.5px solid ${on ? p.avatarColor : 'transparent'}`,
                   opacity: on ? 1 : 0.45,
@@ -1015,7 +1021,13 @@ function CalSheet({
               className={field}
               style={fieldStyle}
               value={bmonth}
-              onChange={(e) => setBmonth(Number(e.target.value))}
+              onChange={(e) => {
+                const m = Number(e.target.value);
+                setBmonth(m);
+                // Moving from the 31st to a shorter month would otherwise leave
+                // a day the picker no longer offers.
+                setBday((d) => Math.min(d, new Date(2024, m, 0).getDate()));
+              }}
             >
               {MONTHS.map((mn, i) => (
                 <option key={i} value={i + 1}>
@@ -1029,7 +1041,10 @@ function CalSheet({
               value={bday}
               onChange={(e) => setBday(Number(e.target.value))}
             >
-              {Array.from({ length: 31 }, (_, i) => (
+              {/* Only the days the chosen month actually has: 31 February was
+                  offered, and 29 February is real, so a leap year is used as
+                  the reference. */}
+              {Array.from({ length: new Date(2024, bmonth, 0).getDate() }, (_, i) => (
                 <option key={i} value={i + 1}>
                   {i + 1}
                 </option>

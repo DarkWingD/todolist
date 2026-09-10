@@ -309,9 +309,14 @@ export function ChildSetup({
                     aria-pressed={on}
                     aria-label={DAY_SHORT[i]}
                     onClick={() => setPicked((v) => (on ? v.filter((x) => x !== i) : [...v, i]))}
-                    className="grid h-10 w-10 place-items-center rounded-full font-bold"
+                    // Seven fixed 40px circles plus their gaps need 304px, which
+                    // an iPhone SE doesn't have once the card's padding is
+                    // taken out — they shrank into ovals. They share the width
+                    // and stay round instead.
+                    className="grid aspect-square flex-1 place-items-center rounded-full font-bold"
                     style={{
                       fontSize: 'var(--fs-sm)',
+                      maxWidth: 40,
                       background: on ? 'var(--color-accent)' : 'transparent',
                       color: on ? 'var(--color-accent-contrast)' : 'var(--color-text)',
                       border: on ? 'none' : '1px solid var(--color-border)',

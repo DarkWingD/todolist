@@ -143,7 +143,7 @@ export function NoteBody({
           aria-hidden
           className="inline-block h-1.5 w-1.5 rounded-full"
           style={{
-            background: save.isPending || dirty.current ? 'var(--color-muted)' : '#3dbb7a',
+            background: save.isPending || dirty.current ? 'var(--color-muted)' : 'var(--color-ok)',
           }}
         />
         {status}

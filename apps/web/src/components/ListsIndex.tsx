@@ -213,7 +213,10 @@ export function ListsIndex({
         ) : (
           <kbd
             className="rounded px-1.5 text-muted"
-            style={{ fontSize: 11, background: 'var(--color-chip-bg)' }}
+            style={{
+              fontSize: 'calc(11px * var(--text-scale))',
+              background: 'var(--color-chip-bg)',
+            }}
           >
             /
           </kbd>

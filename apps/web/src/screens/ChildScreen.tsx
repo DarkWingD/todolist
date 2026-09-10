@@ -504,8 +504,12 @@ export function ChildScreen({
                     ) : (
                       // No checkbox on an event: you do not tick a concert.
                       <span
-                        className="w-12 flex-none text-muted"
-                        style={{ fontSize: 'var(--fs-xs)' }}
+                        // min-width rather than a fixed 48px: at the top of the
+                        // text-size range "12:30 pm" is wider than that and
+                        // wrapped, making the row a line taller than its
+                        // neighbours.
+                        className="w-12 flex-none whitespace-nowrap text-muted"
+                        style={{ fontSize: 'var(--fs-xs)', width: 'auto', minWidth: '3rem' }}
                       >
                         {it.timeLabel ?? 'All day'}
                       </span>

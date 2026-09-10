@@ -187,7 +187,7 @@ export function AppShell({
               'flex flex-col items-center gap-[3px]',
               active === t.id ? 'font-bold text-accent' : 'text-muted',
             )}
-            style={{ fontSize: 11.5 }}
+            style={{ fontSize: 'calc(11.5px * var(--text-scale))' }}
           >
             <NavIcon tab={t.id} />
             {t.label}
