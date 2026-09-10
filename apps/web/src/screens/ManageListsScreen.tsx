@@ -13,7 +13,11 @@ export function ManageListsScreen({
   onOpenList: (list: ListSummary) => void;
 }) {
   const utils = trpc.useUtils();
-  const { data: lists = [] } = trpc.lists.mine.useQuery();
+  // A child's list belongs to Family, the way it does on Lists and in the
+  // desktop index. Opening one from here sent you to their page, whose Back
+  // returns to whichever tab you were on — never to this screen.
+  const { data: allLists = [] } = trpc.lists.mine.useQuery();
+  const lists = allLists.filter((l) => l.type !== 'child');
   const { data: systemLists = [] } = trpc.lists.system.useQuery();
   const [settingsFor, setSettingsFor] = useState<ListSummary | null>(null);
   const setHidden = trpc.lists.setHidden.useMutation({

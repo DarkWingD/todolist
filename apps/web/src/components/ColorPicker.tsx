@@ -1,23 +1,27 @@
-const PALETTE = [
-  '#EF4444', // red
-  '#F43F5E', // rose
-  '#F97316', // orange
-  '#F59E0B', // amber
-  '#EAB308', // yellow
-  '#84CC16', // lime
-  '#22C55E', // green
-  '#10B981', // emerald
-  '#14B8A6', // teal
-  '#06B6D4', // cyan
-  '#0EA5E9', // sky
-  '#3B82F6', // blue
-  '#6366F1', // indigo
-  '#8B5CF6', // violet
-  '#A855F7', // purple
-  '#D946EF', // fuchsia
-  '#EC4899', // pink
-  '#78716C', // stone
-];
+// Each colour's name is the only thing a screen reader can announce about it:
+// the swatch is a button whose entire content is its background.
+const COLORS = [
+  { hex: '#EF4444', name: 'Red' },
+  { hex: '#F43F5E', name: 'Rose' },
+  { hex: '#F97316', name: 'Orange' },
+  { hex: '#F59E0B', name: 'Amber' },
+  { hex: '#EAB308', name: 'Yellow' },
+  { hex: '#84CC16', name: 'Lime' },
+  { hex: '#22C55E', name: 'Green' },
+  { hex: '#10B981', name: 'Emerald' },
+  { hex: '#14B8A6', name: 'Teal' },
+  { hex: '#06B6D4', name: 'Cyan' },
+  { hex: '#0EA5E9', name: 'Sky' },
+  { hex: '#3B82F6', name: 'Blue' },
+  { hex: '#6366F1', name: 'Indigo' },
+  { hex: '#8B5CF6', name: 'Violet' },
+  { hex: '#A855F7', name: 'Purple' },
+  { hex: '#D946EF', name: 'Fuchsia' },
+  { hex: '#EC4899', name: 'Pink' },
+  { hex: '#78716C', name: 'Stone' },
+] as const;
+
+const PALETTE = COLORS.map((c) => c.hex);
 
 /**
  * The least-used palette colour across the given list colours — used to
@@ -52,7 +56,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       type="button"
       onClick={() => onChange(c)}
       aria-pressed={value === c}
-      className="grid place-items-center rounded-full"
+      aria-label={c ? (COLORS.find((x) => x.hex === c)?.name ?? c) : 'No colour'}
+      className="relative grid place-items-center rounded-full"
       style={{
         width: 30,
         height: 30,
@@ -67,6 +72,9 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
         fontSize: 14,
       }}
     >
+      {/* 30px is a small thing to hit accurately; the target reaches past it
+          without moving the swatches apart. */}
+      <span aria-hidden="true" className="absolute" style={{ inset: -6 }} />
       {c ? '' : '∅'}
     </button>
   );

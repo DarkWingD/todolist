@@ -9,6 +9,7 @@ export interface ServerTask {
   recurrenceRule: string | null;
   priority?: string;
   assigneeId: string | null;
+  assigneeName?: string | null;
   assigneeEmoji?: string | null;
   assigneeColor?: string | null;
   assigneeImage?: string | null;
@@ -29,6 +30,7 @@ export function toTaskRow(t: ServerTask, opts: { withLeadEmoji?: boolean } = {})
     assignee: t.assigneeId
       ? {
           id: t.assigneeId,
+          name: t.assigneeName ?? undefined,
           emoji: t.assigneeEmoji ?? '🙂',
           color: t.assigneeColor ?? '#888',
           image: t.assigneeImage,

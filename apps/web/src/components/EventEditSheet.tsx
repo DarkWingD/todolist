@@ -134,6 +134,9 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
                   borderRadius: '50%',
                   boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
                 }}
+                // The avatar is decorative, so the name has to be said here.
+                aria-label={p.name}
+                aria-pressed={assignee === p.id}
               >
                 <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
               </button>
@@ -225,8 +228,14 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
           </button>
           <button
             disabled={remove.isPending}
-            className="flex-1 rounded-card py-3 font-bold text-white disabled:opacity-60"
-            style={{ fontSize: 'var(--fs-base)', background: 'var(--color-danger)' }}
+            className="flex-1 rounded-card py-3 font-bold disabled:opacity-60"
+            // Not white: in the dark themes --color-danger is a light salmon, and
+            // white on it is about 1.9:1 — on a "Delete forever" button.
+            style={{
+              fontSize: 'var(--fs-base)',
+              background: 'var(--color-danger)',
+              color: 'var(--color-danger-contrast)',
+            }}
             onClick={() => remove.mutate({ id: event.id })}
           >
             {remove.isPending ? 'Deleting…' : 'Delete'}

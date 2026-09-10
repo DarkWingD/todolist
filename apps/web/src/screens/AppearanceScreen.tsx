@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Appearance, Density, Theme } from '@todolist/shared';
 import { BackButton } from '../components/BackButton';
 import { trpc } from '../lib/trpc';
@@ -36,6 +37,23 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
     update.mutate(next);
   }
 
+  /**
+   * Show it straight away, save it once you stop.
+   *
+   * The slider fires on every frame of a drag, so going from the smallest text
+   * to the largest was a dozen or so saves of values nobody asked to keep.
+   */
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function applyLive(patch: Partial<ThemePrefs>) {
+    setPrefs(patch);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(
+      () => update.mutate({ theme, appearance, density, textScale, ...patch }),
+      400,
+    );
+  }
+  useEffect(() => () => void (saveTimer.current && clearTimeout(saveTimer.current)), []);
+
   const seg = <T extends string>(
     current: T,
     options: { value: T; label: string }[],
@@ -51,7 +69,12 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
             fontSize: 'var(--fs-sm)',
             background: current === o.value ? 'var(--color-surface)' : 'transparent',
             color: current === o.value ? 'var(--color-text)' : 'var(--color-muted)',
-            boxShadow: current === o.value ? '0 1px 2px rgba(0,0,0,.12)' : 'none',
+            // A drop shadow is how the active pill reads as raised, but the dark
+            // themes deliberately have no card shadow, so it lifts with a border
+            // there instead of vanishing.
+            boxShadow:
+              current === o.value ? 'var(--shadow-card, 0 1px 2px rgba(0,0,0,.12))' : 'none',
+            outline: current === o.value ? '1px solid var(--color-border)' : 'none',
           }}
         >
           {o.label}
@@ -154,7 +177,8 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
               max={1.14}
               step={0.02}
               value={textScale}
-              onChange={(e) => apply({ textScale: parseFloat(e.target.value) })}
+              onChange={(e) => applyLive({ textScale: parseFloat(e.target.value) })}
+              aria-label="Text size"
               className="flex-1"
               style={{ accentColor: 'var(--color-accent)' }}
             />

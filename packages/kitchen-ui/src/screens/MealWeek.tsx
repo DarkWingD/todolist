@@ -327,7 +327,10 @@ export function MealWeek({
           Loading…
         </p>
       ) : (
-        <div className="flex flex-col gap-d2 md:grid md:grid-cols-7 md:items-start">
+        // Seven columns needs real width. At md: the desktop rail has already
+        // taken ~208px, leaving about 75px a day — narrower than the "Feeds 3
+        // nights" chip, which then overflows its card. Stacked until lg:.
+        <div className="flex flex-col gap-d2 lg:grid lg:grid-cols-7 lg:items-start">
           {days.map((d, i) => {
             const key = toKey(d);
             const entry = byDate.get(key) ?? null;
@@ -462,6 +465,25 @@ export function MealWeek({
                 toShopping.data.added === 1 ? 'item' : 'items'
               } to Shopping.`
             : 'Everything from this week is already on the list.'}
+        </p>
+      )}
+      {/* The adapter has always returned what it copied and what it left alone;
+          the button just stopped saying "Copying…" and gave no account of
+          itself, which on a week that was already half planned looks like
+          nothing happened. */}
+      {copyWeek.data && !copyWeek.error && (
+        <p
+          className="pb-2 text-center"
+          style={{
+            fontSize: 'var(--fs-sm)',
+            color: copyWeek.data.copied > 0 ? 'var(--color-accent)' : 'var(--color-muted)',
+          }}
+        >
+          {copyWeek.data.copied > 0
+            ? `Copied ${copyWeek.data.copied} ${copyWeek.data.copied === 1 ? 'night' : 'nights'}${
+                copyWeek.data.skipped > 0 ? `, ${copyWeek.data.skipped} already planned` : ''
+              }.`
+            : 'Every night this week was already planned.'}
         </p>
       )}
     </div>

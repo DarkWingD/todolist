@@ -157,11 +157,14 @@ export function NotificationsScreen({ onBack }: { onBack: () => void }) {
                 ? 'Turn off on this device'
                 : '🔔 Enable notifications on this device'}
           </button>
-          {error && (
-            <p className="mt-2 text-danger" style={{ fontSize: 'var(--fs-sm)' }}>
-              {error}
-            </p>
-          )}
+          <p
+            className="mt-2 text-danger"
+            style={{ fontSize: 'var(--fs-sm)' }}
+            role="alert"
+            aria-live="assertive"
+          >
+            {error}
+          </p>
           <p className="mt-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             On iPhone/iPad, add Sorted to your Home Screen first — iOS only allows notifications for
             installed apps.

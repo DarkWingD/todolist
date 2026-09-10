@@ -95,6 +95,7 @@ export function ListDetailScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [editEventId, setEditEventId] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [invited, setInvited] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [newItem, setNewItem] = useState('');
   const [remindPreset, setRemindPreset] = useState<RemindPreset>('hour');
@@ -125,9 +126,12 @@ export function ListDetailScreen({
   const quickAddReminder = trpc.reminders.quickAdd.useMutation({ onSuccess: invalidate });
   const remove = trpc.tasks.remove.useMutation({ onSuccess: invalidate });
   const invite = trpc.lists.invite.useMutation({
-    onSuccess: () => {
+    onSuccess: (_r, vars) => {
       setInviting(false);
       setEmail('');
+      // Say it landed. The panel just closing looks the same as it failing,
+      // and an invite goes off somewhere you can't see from here.
+      setInvited(vars.email);
       utils.lists.members.invalidate({ listId: list.id });
     },
   });
@@ -264,6 +268,15 @@ export function ListDetailScreen({
             ＋ Invite
           </button>
         </div>
+      )}
+
+      {invited && (
+        <p
+          className="mt-d2 rounded-card px-3 py-2 text-accent"
+          style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+        >
+          Invited {invited} — waiting for them to accept.
+        </p>
       )}
 
       {inviting && (

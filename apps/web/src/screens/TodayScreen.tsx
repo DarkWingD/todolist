@@ -278,34 +278,39 @@ export function TodayScreen({
               </button>
             ))}
             {dinner && (
-              <button
-                type="button"
-                onClick={onOpenMeals}
-                className="flex w-full items-center gap-d3 border-b border-border px-3.5 py-2.5 text-left last:border-0"
-              >
-                <span style={{ fontSize: 18 }}>🍽️</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
-                    Dinner: {dinner.name}
+              // Two targets side by side rather than a link inside a button:
+              // a browser is entitled to pull that anchor out of the button
+              // while parsing, and assistive tech can't say which one it is.
+              <div className="flex items-center gap-d3 border-b border-border px-3.5 py-2.5 last:border-0">
+                <button
+                  type="button"
+                  onClick={onOpenMeals}
+                  className="flex min-w-0 flex-1 items-center gap-d3 text-left"
+                >
+                  <span style={{ fontSize: 18 }}>🍽️</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                      Dinner: {dinner.name}
+                    </span>
+                    <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                      {dinner.isLeftover ? `Leftovers, night ${dinner.night}` : 'Cooking tonight'}
+                      {dinner.recipeUrl ? ' · recipe saved' : ''}
+                    </span>
                   </span>
-                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                    {dinner.isLeftover ? `Leftovers, night ${dinner.night}` : 'Cooking tonight'}
-                    {dinner.recipeUrl ? ' · recipe saved' : ''}
-                  </span>
-                </span>
+                </button>
                 {dinner.recipeUrl && (
                   <a
                     href={dinner.recipeUrl}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded-full px-3 py-1.5 font-bold text-accent"
+                    aria-label={`Recipe for ${dinner.name}`}
+                    className="grid min-h-[44px] flex-none place-items-center rounded-full px-3 font-bold text-accent"
                     style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-xs)' }}
                   >
                     Recipe
                   </a>
                 )}
-              </button>
+              </div>
             )}
           </div>
         </div>

@@ -611,7 +611,8 @@ export function CalScreen({
               fontSize: 'var(--fs-sm)',
               background: view === o.v ? 'var(--color-surface)' : 'transparent',
               color: view === o.v ? 'var(--color-text)' : 'var(--color-muted)',
-              boxShadow: view === o.v ? '0 1px 2px rgba(0,0,0,.12)' : 'none',
+              boxShadow: view === o.v ? 'var(--shadow-card, 0 1px 2px rgba(0,0,0,.12))' : 'none',
+              outline: view === o.v ? '1px solid var(--color-border)' : 'none',
             }}
           >
             {o.label}
@@ -627,6 +628,8 @@ export function CalScreen({
               <button
                 key={p.id}
                 onClick={() => toggleHidden(p.id)}
+                aria-pressed={on}
+                aria-label={`Show ${p.name}'s things`}
                 className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-bold"
                 style={{
                   fontSize: 12,
@@ -924,6 +927,9 @@ function CalSheet({
                       borderRadius: '50%',
                       boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
                     }}
+                    // The avatar is decorative, so the name has to be said here.
+                    aria-label={p.name}
+                    aria-pressed={assignee === p.id}
                   >
                     <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
                   </button>

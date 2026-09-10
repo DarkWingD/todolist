@@ -89,8 +89,12 @@ export function ChildSetup({
   listId: string;
   onChanged: () => void;
 }) {
+  // Kept alongside the app-wide toast because this screen has several forms
+  // open at once and the banner says *which* one failed. The toast fires too —
+  // MutationCache.onError runs whether or not a mutation handles its own error
+  // — so these say different things rather than the same thing twice.
   const [error, setError] = useState<string | null>(null);
-  const onErr = (e: { message: string }) => setError(e.message);
+  const onErr = () => setError('That didn’t save. Check the fields above and try again.');
   const ok = () => {
     setError(null);
     onChanged();

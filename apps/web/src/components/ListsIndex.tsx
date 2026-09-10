@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { listSubtitle } from '../lib/listSubtitle';
 import { trpc } from '../lib/trpc';
+import { useDebounced } from '../lib/useDebounced';
 import type { ListSummary } from '../types';
 
 interface Props {
@@ -116,9 +117,11 @@ export function ListsIndex({
 }: Props) {
   const [q, setQ] = useState('');
   const query = q.trim();
+  // One search when you stop typing, not one per letter.
+  const searchFor = useDebounced(query);
   const { data: results, isFetching } = trpc.search.query.useQuery(
-    { q: query },
-    { enabled: query.length > 0 },
+    { q: searchFor },
+    { enabled: searchFor.length > 0 },
   );
   const { data: lists = [], isLoading } = trpc.lists.mine.useQuery();
   const { data: reminders } = trpc.lists.reminders.useQuery();
@@ -134,11 +137,16 @@ export function ListsIndex({
   const ordered = useMemo(() => [...builtIn, ...mine], [builtIn, mine]);
 
   // Arrow keys walk the index in the order it is drawn.
+  const asideRef = useRef<HTMLElement>(null);
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // Only while the index itself has focus. Bound to the document, this
+      // swapped the open list out from under a sheet or the task inspector,
+      // and stole the page scroll from anything else you had tabbed to.
+      if (!asideRef.current?.contains(t)) return;
       if (ordered.length === 0) return;
       const i = ordered.findIndex((l) => l.id === selectedId);
       const nextIndex =
@@ -157,6 +165,7 @@ export function ListsIndex({
 
   return (
     <aside
+      ref={asideRef}
       className="flex h-full w-[296px] flex-none flex-col border-r border-border"
       aria-label="Your lists"
     >

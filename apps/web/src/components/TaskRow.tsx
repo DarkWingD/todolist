@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { motion, type PanInfo } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar } from './Avatar';
 import { Checkbox } from '@todolist/kitchen-ui';
 import { Chip } from './Chip';
@@ -15,7 +15,7 @@ export interface TaskRowData {
   dueVariant?: 'due' | 'over';
   recurrence?: string;
   tag?: string;
-  assignee?: { id: string; emoji: string; color: string; image?: string | null };
+  assignee?: { id: string; name?: string; emoji: string; color: string; image?: string | null };
 }
 
 interface TaskRowProps {
@@ -66,6 +66,16 @@ export function TaskRow({
       setCompleting(true); // animate, then the outer onAnimationComplete fires onToggle
     }
   }
+
+  // The row fades itself out and only then writes. If that write fails, nothing
+  // brings it back — the list doesn't change, so it just sits there as a blank
+  // gap. Give up after a moment and show it again; the error toast has already
+  // said what happened.
+  useEffect(() => {
+    if (!completing || task.completed) return;
+    const id = setTimeout(() => setCompleting(false), 4000);
+    return () => clearTimeout(id);
+  }, [completing, task.completed]);
 
   function onDragEnd(_e: unknown, info: PanInfo) {
     // On a shopping list the gesture reshapes the outline instead of completing
@@ -187,11 +197,14 @@ export function TaskRow({
               {task.tag && <Chip variant="tag">{task.tag}</Chip>}
               {task.assignee && (
                 <span className="ml-auto">
+                  {/* The only thing on a row that says who a task is for, so
+                      unlike the avatars beside a written-out name it speaks. */}
                   <Avatar
                     emoji={task.assignee.emoji}
                     color={task.assignee.color}
                     image={task.assignee.image}
                     size={22}
+                    label={task.assignee.name ? `For ${task.assignee.name}` : undefined}
                   />
                 </span>
               )}
@@ -225,7 +238,11 @@ export function TaskRow({
           </button>
           <button
             className="rounded-full px-3 py-1.5 font-bold"
-            style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-danger)', color: '#fff' }}
+            style={{
+              fontSize: 'var(--fs-sm)',
+              background: 'var(--color-danger)',
+              color: 'var(--color-danger-contrast)',
+            }}
             onClick={() => onDelete?.(task.id)}
           >
             Delete

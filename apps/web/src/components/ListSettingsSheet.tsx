@@ -173,8 +173,12 @@ export function ListSettingsSheet({ list, onClose, onDeleted }: Props) {
               </button>
               <button
                 disabled={del.isPending}
-                className="flex-1 rounded-lg py-2 font-bold text-white disabled:opacity-60"
-                style={{ fontSize: 'var(--fs-sm)', background: 'var(--color-danger)' }}
+                className="flex-1 rounded-lg py-2 font-bold disabled:opacity-60"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: 'var(--color-danger)',
+                  color: 'var(--color-danger-contrast)',
+                }}
                 onClick={() => del.mutate({ listId: list.id })}
               >
                 {del.isPending ? 'Deleting…' : 'Delete forever'}

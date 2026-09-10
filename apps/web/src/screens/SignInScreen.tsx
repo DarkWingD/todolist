@@ -79,11 +79,15 @@ export function SignInScreen() {
           >
             {status === 'sending' ? 'Sending…' : 'Send magic link'}
           </button>
-          {status === 'error' && (
-            <p className="text-center text-danger" style={{ fontSize: 'var(--fs-sm)' }}>
-              {error}
-            </p>
-          )}
+          {/* Announced, not just shown: this is the only feedback the form gives. */}
+          <p
+            className="text-center text-danger"
+            style={{ fontSize: 'var(--fs-sm)' }}
+            role="alert"
+            aria-live="assertive"
+          >
+            {status === 'error' ? error : ''}
+          </p>
         </form>
       )}
     </div>

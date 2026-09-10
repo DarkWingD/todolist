@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CreateListForm } from '../components/CreateListForm';
 import { listSubtitle } from '../lib/listSubtitle';
 import { trpc } from '../lib/trpc';
+import { useDebounced } from '../lib/useDebounced';
 import type { ListSummary, ListType } from '../types';
 
 function ListCard({
@@ -73,9 +74,11 @@ export function ListsScreen({
 }) {
   const [q, setQ] = useState('');
   const query = q.trim();
+  // One search when you stop typing, not one per letter.
+  const searchFor = useDebounced(query);
   const { data: results, isFetching } = trpc.search.query.useQuery(
-    { q: query },
-    { enabled: query.length > 0 },
+    { q: searchFor },
+    { enabled: searchFor.length > 0 },
   );
   const { data: allLists = [], isLoading } = trpc.lists.mine.useQuery();
   // Kids have their own tab now; their lists open from there.

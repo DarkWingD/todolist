@@ -6,6 +6,12 @@ interface AvatarProps {
   /** pixel diameter */
   size?: number;
   className?: string;
+  /**
+   * Who this is, when the avatar is the only thing saying so — a task row's
+   * assignee, for instance. Left off, it stays decorative and silent, which is
+   * right beside a name that is already written out.
+   */
+  label?: string;
 }
 
 /**
@@ -13,12 +19,13 @@ interface AvatarProps {
  * their chosen color. Readable across every theme + light/dark because the
  * tint mixes with --color-surface.
  */
-export function Avatar({ emoji, color, image, size = 24, className }: AvatarProps) {
+export function Avatar({ emoji, color, image, size = 24, className, label }: AvatarProps) {
+  const a11y = label ? { role: 'img' as const, 'aria-label': label } : { 'aria-hidden': true };
   if (image) {
     return (
       <img
         src={image}
-        alt=""
+        alt={label ?? ''}
         className={className}
         style={{
           width: size,
@@ -28,7 +35,7 @@ export function Avatar({ emoji, color, image, size = 24, className }: AvatarProp
           objectFit: 'cover',
           boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${color} 48%, transparent)`,
         }}
-        aria-hidden="true"
+        {...(label ? {} : { 'aria-hidden': true })}
       />
     );
   }
@@ -47,7 +54,7 @@ export function Avatar({ emoji, color, image, size = 24, className }: AvatarProp
         background: `color-mix(in srgb, ${color} 22%, var(--color-surface))`,
         boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${color} 48%, transparent)`,
       }}
-      aria-hidden="true"
+      {...a11y}
     >
       {emoji}
     </span>

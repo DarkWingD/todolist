@@ -149,12 +149,22 @@ export function FamilyScreen({
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => setRenaming(false)}
+              // Tapping away used to throw the new name out without saying so.
+              // Escape is the way to abandon it; anything else keeps it.
+              onBlur={() => {
+                const n = name.trim();
+                if (n && n !== hh?.name) rename.mutate({ name: n });
+                else setRenaming(false);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) rename.mutate({ name: name.trim() });
-                if (e.key === 'Escape') setRenaming(false);
+                if (e.key === 'Escape') {
+                  setName(hh?.name ?? 'Family');
+                  setRenaming(false);
+                }
               }}
               aria-label="Family name"
+              placeholder="Family name"
               className="w-full bg-transparent font-head outline-none"
               style={{
                 fontSize: 'var(--fs-big)',
@@ -604,7 +614,7 @@ function EditChildSheet({
               style={{
                 fontSize: 'var(--fs-sm)',
                 background: 'var(--color-danger)',
-                color: '#fff',
+                color: 'var(--color-danger-contrast)',
               }}
             >
               Remove
