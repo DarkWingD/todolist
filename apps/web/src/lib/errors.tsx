@@ -90,43 +90,47 @@ export function ErrorProvider({ children }: { children: ReactNode }) {
       >
         {errors.length > 0 && (
           <>
-          {errors.map((e) => (
-            <div
-              key={e.id}
-              className="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card p-d3 shadow-card"
-              style={{ background: 'var(--color-danger-soft)' }}
-            >
-              <span style={{ fontSize: 15, lineHeight: 1.3 }}>⚠️</span>
-              <span className="min-w-0 flex-1">
-                <span
-                  className="block font-semibold"
-                  style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-danger)' }}
-                >
-                  {e.message}
-                </span>
-                {e.detail && (
+            {errors.map((e) => (
+              <div
+                key={e.id}
+                className="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card p-d3 shadow-card"
+                style={{ background: 'var(--color-danger-soft)' }}
+              >
+                <span style={{ fontSize: 15, lineHeight: 1.3 }}>⚠️</span>
+                <span className="min-w-0 flex-1">
                   <span
-                    className="block break-words"
-                    style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text)', opacity: 0.75 }}
+                    className="block font-semibold"
+                    style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-danger)' }}
                   >
-                    {e.detail}
+                    {e.message}
                   </span>
-                )}
-              </span>
-              {/* Dismissed by hand, never on a timer: a failed save is worth
+                  {e.detail && (
+                    <span
+                      className="block break-words"
+                      style={{
+                        fontSize: 'var(--fs-xs)',
+                        color: 'var(--color-text)',
+                        opacity: 0.75,
+                      }}
+                    >
+                      {e.detail}
+                    </span>
+                  )}
+                </span>
+                {/* Dismissed by hand, never on a timer: a failed save is worth
                   more of your attention than a toast that vanishes while you
                   are looking at something else. */}
-              <button
-                type="button"
-                onClick={() => setErrors((list) => list.filter((x) => x.id !== e.id))}
-                aria-label="Dismiss"
-                className="flex-none"
-                style={{ fontSize: 16, color: 'var(--color-danger)' }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => setErrors((list) => list.filter((x) => x.id !== e.id))}
+                  aria-label="Dismiss"
+                  className="flex-none"
+                  style={{ fontSize: 16, color: 'var(--color-danger)' }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </>
         )}
       </div>

@@ -66,6 +66,14 @@ export interface ShoppingItem {
 }
 
 export interface ShoppingAdapter {
+  /**
+   * Which list this adapter is bound to.
+   *
+   * A household can have several shopping lists — the built-in one and any list
+   * made with the 🛒 type — and they must not share a cache entry, or opening
+   * the second shows the first's items and a tick lands on the wrong list.
+   */
+  key: string;
   getItems(): Promise<ShoppingItem[]>;
   /** Returns the new item's id, so the list can scroll to what you just added. */
   addItem(title: string): Promise<string>;

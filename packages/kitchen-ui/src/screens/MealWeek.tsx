@@ -388,7 +388,9 @@ export function MealWeek({
                     weekday={dayNames[i]!}
                     dayNum={d.getDate()}
                     isToday={sameDay(d, today)}
-                    isWeekend={i >= 5}
+                    // Ask the date, not the column: on a Sunday-start week the
+                    // last two columns are Friday and Saturday.
+                    isWeekend={d.getDay() === 0 || d.getDay() === 6}
                     entry={entry}
                     meals={meals}
                     expanded={expanded}

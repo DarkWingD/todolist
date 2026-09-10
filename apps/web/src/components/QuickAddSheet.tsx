@@ -1,3 +1,4 @@
+import { Sheet } from '@todolist/kitchen-ui';
 import { useEffect, useState } from 'react';
 import { Avatar } from './Avatar';
 import { trpc } from '../lib/trpc';
@@ -68,7 +69,9 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   });
 
   function submit() {
-    if (!title.trim() || !listId) return;
+    // The guard lives here rather than only on the button: Enter reaches this
+    // directly, and two quick presses would otherwise make two tasks.
+    if (!title.trim() || !listId || create.isPending) return;
     // A repeat needs a first date to count from; today if none was picked.
     create.mutate({
       listId,
@@ -89,125 +92,104 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   });
 
   return (
-    <>
-      <div
-        className="absolute inset-0 z-10 transition-opacity"
-        style={{
-          background: 'rgba(0,0,0,.4)',
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
-        }}
-        onClick={onClose}
+    <Sheet open={open} onClose={onClose} title="Add a task" keepMounted>
+      <input
+        data-autofocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+        placeholder="What needs doing?"
+        aria-label="What needs doing?"
+        className="mb-4 w-full bg-transparent font-head outline-none"
+        style={{ fontSize: 'var(--fs-lg)', color: 'var(--color-text)' }}
       />
-      <div
-        className="absolute inset-x-0 bottom-0 z-20 p-5"
-        style={{
-          background: 'var(--color-bg)',
-          borderRadius: '24px 24px 0 0',
-          boxShadow: '0 -10px 40px rgba(0,0,0,.25)',
-          transform: open ? 'translateY(0)' : 'translateY(110%)',
-          transition: 'transform .28s cubic-bezier(.32,.72,0,1)',
-          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div
-          className="mx-auto mb-4 h-1.5 w-10 rounded-full"
-          style={{ background: 'var(--color-check-border)' }}
-        />
-        <input
-          autoFocus={open}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="What needs doing?"
-          className="mb-4 w-full bg-transparent font-head outline-none"
-          style={{ fontSize: 'var(--fs-lg)', color: 'var(--color-text)' }}
-        />
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          {lists.length > 0 && (
-            <select
-              value={listId}
-              onChange={(e) => setListId(e.target.value)}
-              className={optClass(true)}
-              style={optStyle(false)}
-            >
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.emojiIcon} {l.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <button
-            className={optClass(due !== 'none')}
-            style={optStyle(due !== 'none')}
-            onClick={() =>
-              setDue((d) => (d === 'today' ? 'tomorrow' : d === 'tomorrow' ? 'none' : 'today'))
-            }
+      <div className="mb-4 flex flex-wrap gap-2">
+        {lists.length > 0 && (
+          <select
+            value={listId}
+            onChange={(e) => setListId(e.target.value)}
+            className={optClass(true)}
+            style={optStyle(false)}
           >
-            📅 {due === 'none' ? 'No date' : due === 'today' ? 'Today' : 'Tomorrow'}
-          </button>
-          <button
-            className={optClass(repeat !== '')}
-            onClick={() =>
-              setRepeat((r) => {
-                const i = REPEATS.findIndex((o) => o.v === r);
-                return REPEATS[(i + 1) % REPEATS.length]!.v;
-              })
-            }
-            title="Repeats"
-            // Sized for the longest label so cycling it never reflows the row.
-            style={{ ...optStyle(repeat !== ''), minWidth: '8.5em', justifyContent: 'center' }}
-          >
-            ↻ {REPEATS.find((o) => o.v === repeat)?.label}
-          </button>
-          <button
-            className={optClass(priority === 'high')}
-            style={optStyle(priority === 'high')}
-            onClick={() => setPriority((p) => (p === 'high' ? 'none' : 'high'))}
-          >
-            🚩 Priority
-          </button>
-        </div>
-
-        {members.length > 1 && (
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-              Assign:
-            </span>
-            {members.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setAssigneeId((a) => (a === m.id ? null : m.id))}
-                className="rounded-full"
-                style={{
-                  padding: 2,
-                  boxShadow: assigneeId === m.id ? '0 0 0 2px var(--color-accent)' : 'none',
-                  borderRadius: '50%',
-                }}
-                title={m.name}
-              >
-                <Avatar emoji={m.avatarEmoji} color={m.avatarColor} image={m.image} size={30} />
-              </button>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.emojiIcon} {l.name}
+              </option>
             ))}
-          </div>
+          </select>
         )}
-
         <button
-          disabled={!title.trim() || !listId || create.isPending}
-          onClick={submit}
-          className="w-full rounded-card py-3.5 font-bold text-accent-contrast disabled:opacity-50"
-          style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+          className={optClass(due !== 'none')}
+          style={optStyle(due !== 'none')}
+          onClick={() =>
+            setDue((d) => (d === 'today' ? 'tomorrow' : d === 'tomorrow' ? 'none' : 'today'))
+          }
         >
-          {create.isPending ? 'Adding…' : 'Add task'}
+          📅 {due === 'none' ? 'No date' : due === 'today' ? 'Today' : 'Tomorrow'}
         </button>
-        {lists.length === 0 && (
-          <p className="mt-2 text-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            Create a list first (Lists tab).
-          </p>
-        )}
+        <button
+          className={optClass(repeat !== '')}
+          onClick={() =>
+            setRepeat((r) => {
+              const i = REPEATS.findIndex((o) => o.v === r);
+              return REPEATS[(i + 1) % REPEATS.length]!.v;
+            })
+          }
+          title="Repeats"
+          // Sized for the longest label so cycling it never reflows the row.
+          style={{ ...optStyle(repeat !== ''), minWidth: '8.5em', justifyContent: 'center' }}
+        >
+          ↻ {REPEATS.find((o) => o.v === repeat)?.label}
+        </button>
+        <button
+          className={optClass(priority === 'high')}
+          style={optStyle(priority === 'high')}
+          onClick={() => setPriority((p) => (p === 'high' ? 'none' : 'high'))}
+        >
+          🚩 Priority
+        </button>
       </div>
-    </>
+
+      {members.length > 1 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Assign:
+          </span>
+          {members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setAssigneeId((a) => (a === m.id ? null : m.id))}
+              className="rounded-full"
+              style={{
+                padding: 2,
+                boxShadow: assigneeId === m.id ? '0 0 0 2px var(--color-accent)' : 'none',
+                borderRadius: '50%',
+              }}
+              // The avatar is decorative, so the name has to be said here —
+              // and a title attribute is nothing at all on a touchscreen.
+              aria-label={m.name}
+              aria-pressed={assigneeId === m.id}
+            >
+              <Avatar emoji={m.avatarEmoji} color={m.avatarColor} image={m.image} size={30} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        disabled={!title.trim() || !listId || create.isPending}
+        onClick={submit}
+        className="w-full rounded-card py-3.5 font-bold text-accent-contrast disabled:opacity-50"
+        style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+      >
+        {create.isPending ? 'Adding…' : 'Add task'}
+      </button>
+      {lists.length === 0 && (
+        <p className="mt-2 text-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Create a list first (Lists tab).
+        </p>
+      )}
+    </Sheet>
   );
 }

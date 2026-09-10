@@ -124,7 +124,7 @@ export function YouScreen({
           <div className="font-head font-bold" style={{ fontSize: 'var(--fs-lg)' }}>
             {me.name}
           </div>
-          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          <div className="break-all text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {me.email}
           </div>
           {me.image && (

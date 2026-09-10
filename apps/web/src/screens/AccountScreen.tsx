@@ -49,7 +49,7 @@ export function AccountScreen({ me, onBack }: { me: SessionUser; onBack: () => v
         style={{ fontSize: 'var(--fs-base)' }}
       >
         <div className="font-semibold">{me.name}</div>
-        <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+        <div className="break-all text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
           {me.email}
         </div>
       </div>

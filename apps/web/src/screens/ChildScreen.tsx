@@ -4,6 +4,7 @@ import { trpc } from '../lib/trpc';
 import { ChildSetup } from './ChildSetup';
 import { DoseSheet } from '../components/DoseSheet';
 import { relativeTime } from '../lib/activityText';
+import { recursOn } from '../lib/datetime';
 
 /**
  * A child, on day 30 rather than day 1.
@@ -153,7 +154,6 @@ export function ChildScreen({
   // so recurring items surface only on the day they actually fire.
   const { groups, todayRoutine } = useMemo(() => {
     if (!child) return { groups: [], todayRoutine: [] as Item[] };
-    const weekday = new Date().getDay();
     const routine: Item[] = [];
     const dated: Item[] = [];
 
@@ -166,7 +166,7 @@ export function ChildScreen({
         timeLabel: null,
       };
       if (t.recurrenceRule) {
-        if (t.recurrenceRule.includes(RRULE_DAYS[weekday]!)) {
+        if (recursOn(t.recurrenceRule, new Date(), t.dueAt as unknown as string | null)) {
           routine.push({ ...base, when: startOfToday() });
         }
         continue;
@@ -346,7 +346,10 @@ export function ChildScreen({
                   <div className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
                     💊 {s.medicine}
                     {s.amount ? ` · ${s.amount}` : ''}
-                    <span className="text-muted"> · {relativeTime(s.givenAt as unknown as string)}</span>
+                    <span className="text-muted">
+                      {' '}
+                      · {relativeTime(s.givenAt as unknown as string)}
+                    </span>
                   </div>
                   <div
                     style={{

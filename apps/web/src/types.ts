@@ -25,4 +25,7 @@ export interface ListSummary {
   notePreview?: string | null;
   // Shared with the household unless set.
   private?: boolean;
+  // Built-in lists only: tucked out of the index, but still receiving what is
+  // sent to them.
+  hidden?: boolean;
 }

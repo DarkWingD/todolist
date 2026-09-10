@@ -72,3 +72,22 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
   );
   return <div className="flex flex-wrap gap-2">{[null, ...PALETTE].map(swatch)}</div>;
 }
+
+/**
+ * Black or white, whichever can actually be read on `bg`.
+ *
+ * The palette runs from a near-black stone to a bright yellow; white text holds
+ * up on one end and is around 1.7:1 on the other, which is illegible at the
+ * size a calendar chip renders. Uses the WCAG relative-luminance formula, and
+ * its 0.179 crossover — the point where white and black give equal contrast.
+ */
+export function readableOn(bg: string | null | undefined): string {
+  const hex = (bg ?? '').replace('#', '');
+  if (hex.length !== 6) return '#fff';
+  const channel = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  return luminance > 0.179 ? '#000' : '#fff';
+}

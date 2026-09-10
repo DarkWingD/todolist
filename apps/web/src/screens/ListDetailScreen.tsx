@@ -16,6 +16,7 @@ interface DetailList {
   emojiIcon: string;
   type?: 'tasks' | 'checklist' | 'child' | 'note';
   systemKey?: string | null;
+  hidden?: boolean;
 }
 
 type RemindPreset = 'hour' | 'evening' | 'tomorrow' | 'custom';
@@ -156,6 +157,7 @@ export function ListDetailScreen({
   // Android app render the identical thing. This is the tRPC half of its port.
   const shoppingAdapter = useMemo<ShoppingAdapter>(
     () => ({
+      key: list.id,
       getItems: async () => {
         const rows = await utils.client.tasks.byList.query({ listId: list.id });
         return rows.map((t) => ({
@@ -679,10 +681,13 @@ export function ListDetailScreen({
             emojiIcon: displayEmoji,
             color: live?.color ?? null,
             type: live?.type ?? list.type ?? 'tasks',
-            // Without this the sheet can't tell it's a built-in list and would
+            // Without these the sheet can't tell it's a built-in list and would
             // offer Delete. `live` comes from lists.mine, which excludes system
-            // lists, so it has to come from the list we were handed.
+            // lists, so they have to come from the list we were handed. Left
+            // out, `hidden` reads as undefined and the toggle sends `!undefined`
+            // — always true — so the button could only ever hide, never show.
             systemKey: list.systemKey ?? null,
+            hidden: list.hidden ?? false,
           }}
           onClose={() => setShowSettings(false)}
           onDeleted={onBack}

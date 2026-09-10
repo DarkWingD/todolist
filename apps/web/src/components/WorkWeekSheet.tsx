@@ -1,3 +1,4 @@
+import { Sheet } from '@todolist/kitchen-ui';
 import { useEffect, useState } from 'react';
 import { trpc } from '../lib/trpc';
 
@@ -105,167 +106,148 @@ export function WorkWeekSheet({
   );
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-30"
-        style={{ background: 'rgba(0,0,0,.4)' }}
-        onClick={onClose}
-      />
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md overflow-y-auto p-4"
-        style={{
-          background: 'var(--color-bg)',
-          borderRadius: '22px 22px 0 0',
-          maxHeight: '88%',
-          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-        }}
-      >
-        <div
-          className="mx-auto mb-3 h-1.5 w-10 rounded-full"
-          style={{ background: 'var(--color-check-border)' }}
-        />
-        <h3 className="font-head" style={{ fontSize: 18 }}>
-          {p.name.split(' ')[0]}'s week
-        </h3>
-        <p className="mb-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          Tap the days they work. Anything unticked is a day off.
+    <Sheet open onClose={onClose} title={`${p.name.split(' ')[0]}'s week`} maxHeight="88%">
+      <h3 className="font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+        {p.name.split(' ')[0]}'s week
+      </h3>
+      <p className="mb-3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+        Tap the days they work. Anything unticked is a day off.
+      </p>
+
+      {isLoading ? (
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Loading…
         </p>
+      ) : (
+        <>
+          <div
+            className="mb-3 flex rounded-lg p-0.5"
+            style={{ background: 'var(--color-chip-bg)' }}
+          >
+            {[
+              { v: false, label: 'Every week' },
+              { v: true, label: 'Fortnight' },
+            ].map((o) => (
+              <button
+                key={String(o.v)}
+                type="button"
+                onClick={() => setFortnightly(o.v)}
+                className="flex-1 rounded-md py-1.5 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-sm)',
+                  background: fortnightly === o.v ? 'var(--color-surface)' : 'transparent',
+                  color: fortnightly === o.v ? 'var(--color-text)' : 'var(--color-muted)',
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
 
-        {isLoading ? (
-          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            Loading…
-          </p>
-        ) : (
-          <>
-            <div
-              className="mb-3 flex rounded-lg p-0.5"
-              style={{ background: 'var(--color-chip-bg)' }}
-            >
-              {[
-                { v: false, label: 'Every week' },
-                { v: true, label: 'Fortnight' },
-              ].map((o) => (
+          {fortnightly ? (
+            <>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="font-semibold text-muted" style={labelStyle}>
+                  Week A{data?.currentWeek === 0 ? ' · this week' : ''}
+                </span>
+              </div>
+              {weekRow(0)}
+              <div className="mb-1 mt-3 flex items-baseline justify-between">
+                <span className="font-semibold text-muted" style={labelStyle}>
+                  Week B{data?.currentWeek === 1 ? ' · this week' : ''}
+                </span>
                 <button
-                  key={String(o.v)}
                   type="button"
-                  onClick={() => setFortnightly(o.v)}
-                  className="flex-1 rounded-md py-1.5 font-semibold"
-                  style={{
-                    fontSize: 'var(--fs-sm)',
-                    background: fortnightly === o.v ? 'var(--color-surface)' : 'transparent',
-                    color: fortnightly === o.v ? 'var(--color-text)' : 'var(--color-muted)',
-                  }}
+                  disabled={swap.isPending}
+                  onClick={() => swap.mutate()}
+                  className="font-semibold text-accent"
+                  style={{ fontSize: 'var(--fs-xs)' }}
                 >
-                  {o.label}
+                  Swap A and B
                 </button>
-              ))}
-            </div>
-
-            {fortnightly ? (
-              <>
-                <div className="mb-1 flex items-baseline justify-between">
-                  <span className="font-semibold text-muted" style={labelStyle}>
-                    Week A{data?.currentWeek === 0 ? ' · this week' : ''}
-                  </span>
-                </div>
-                {weekRow(0)}
-                <div className="mb-1 mt-3 flex items-baseline justify-between">
-                  <span className="font-semibold text-muted" style={labelStyle}>
-                    Week B{data?.currentWeek === 1 ? ' · this week' : ''}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={swap.isPending}
-                    onClick={() => swap.mutate()}
-                    className="font-semibold text-accent"
-                    style={{ fontSize: 'var(--fs-xs)' }}
-                  >
-                    Swap A and B
-                  </button>
-                </div>
-                {weekRow(1)}
-              </>
-            ) : (
-              weekRow(0)
-            )}
-
-            <label className={label} style={labelStyle}>
-              Where
-            </label>
-            <input
-              value={place}
-              onChange={(e) => setPlace(e.target.value)}
-              placeholder="Work"
-              className={field}
-              style={fieldStyle}
-            />
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className={label} style={labelStyle}>
-                  From
-                </label>
-                <input
-                  type="time"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className={field}
-                  style={fieldStyle}
-                />
               </div>
-              <div className="flex-1">
-                <label className={label} style={labelStyle}>
-                  To
-                </label>
-                <input
-                  type="time"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className={field}
-                  style={fieldStyle}
-                />
-              </div>
-            </div>
-            <label className={label} style={labelStyle}>
-              Note
-            </label>
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="WFH Fridays, on call every third weekend…"
-              className={field}
-              style={fieldStyle}
-            />
+              {weekRow(1)}
+            </>
+          ) : (
+            weekRow(0)
+          )}
 
-            <button
-              type="button"
-              disabled={save.isPending}
-              onClick={() =>
-                save.mutate({
-                  personId: p.id,
-                  fortnightly,
-                  note: note.trim() || null,
-                  days: [...picked].map((k) => {
-                    const [w, d] = k.split(':');
-                    return {
-                      week: Number(w) as 0 | 1,
-                      weekday: Number(d),
-                      place: place.trim() || 'Work',
-                      startTime: from || null,
-                      endTime: to || null,
-                    };
-                  }),
-                })
-              }
-              className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
-              style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-            >
-              {save.isPending
-                ? 'Saving…'
-                : `Save · ${count} ${count === 1 ? 'day' : 'days'} ${fortnightly ? 'a fortnight' : 'a week'}`}
-            </button>
-          </>
-        )}
-      </div>
-    </>
+          <label className={label} style={labelStyle}>
+            Where
+          </label>
+          <input
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            placeholder="Work"
+            className={field}
+            style={fieldStyle}
+          />
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className={label} style={labelStyle}>
+                From
+              </label>
+              <input
+                type="time"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className={field}
+                style={fieldStyle}
+              />
+            </div>
+            <div className="flex-1">
+              <label className={label} style={labelStyle}>
+                To
+              </label>
+              <input
+                type="time"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className={field}
+                style={fieldStyle}
+              />
+            </div>
+          </div>
+          <label className={label} style={labelStyle}>
+            Note
+          </label>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="WFH Fridays, on call every third weekend…"
+            className={field}
+            style={fieldStyle}
+          />
+
+          <button
+            type="button"
+            disabled={save.isPending}
+            onClick={() =>
+              save.mutate({
+                personId: p.id,
+                fortnightly,
+                note: note.trim() || null,
+                days: [...picked].map((k) => {
+                  const [w, d] = k.split(':');
+                  return {
+                    week: Number(w) as 0 | 1,
+                    weekday: Number(d),
+                    place: place.trim() || 'Work',
+                    startTime: from || null,
+                    endTime: to || null,
+                  };
+                }),
+              })
+            }
+            className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+          >
+            {save.isPending
+              ? 'Saving…'
+              : `Save · ${count} ${count === 1 ? 'day' : 'days'} ${fortnightly ? 'a fortnight' : 'a week'}`}
+          </button>
+        </>
+      )}
+    </Sheet>
   );
 }

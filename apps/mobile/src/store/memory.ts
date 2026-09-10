@@ -342,6 +342,8 @@ const rawMeals: MealPlannerAdapter = {
 };
 
 const rawShopping: ShoppingAdapter = {
+  // The phone keeps one shopping list, so a constant is enough.
+  key: 'shopping',
   getItems: async () => store.shopping.map((i) => ({ ...i })),
   addItem: async (title) => {
     const id = uid();

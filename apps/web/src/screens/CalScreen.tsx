@@ -1,6 +1,7 @@
 import type { CalendarView } from '@todolist/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { readableOn } from '../components/ColorPicker';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { addDays, sameDay, startOfDay, startOfWeek, weekdayInitials } from '@todolist/kitchen-ui';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
@@ -78,7 +79,11 @@ export function CalScreen({
   const monthWeeks = (() => {
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
     const dim = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
-    const lead = (first.getDay() + 6) % 7;
+    // How many cells of the previous month come before the 1st. Counted from
+    // whichever day the household starts its week on: fixing this to Monday
+    // undercounts on a Sunday-start calendar, and the month then loses its last
+    // row — a 31-day month beginning on a Friday drops the 31st entirely.
+    const lead = (first.getDay() - weekStartsOn + 7) % 7;
     return Math.ceil((lead + dim) / 7);
   })();
   const monthCells = monthWeeks * 7;
@@ -312,7 +317,10 @@ export function CalScreen({
                   ...clamp2,
                   fontSize: 'calc(9.5px * var(--text-scale))',
                   fontWeight: 700,
-                  color: '#fff',
+                  // The list's colour is whatever the household picked, and at
+                  // this size white on the yellow end of the palette can't be
+                  // read at all.
+                  color: readableOn(it.color),
                   background: it.color,
                   borderRadius: 3,
                   padding: '1px 3px',

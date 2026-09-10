@@ -1,3 +1,4 @@
+import { Sheet } from '@todolist/kitchen-ui';
 import { useState } from 'react';
 import { fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
@@ -58,199 +59,180 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
   const labelStyle = { fontSize: 'var(--fs-sm)' };
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-30"
-        style={{ background: 'rgba(0,0,0,.4)' }}
-        onClick={onClose}
+    <Sheet open onClose={onClose} title="Edit event">
+      <h3 className="mb-2 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+        Edit event
+      </h3>
+
+      <input
+        data-autofocus
+        className={field}
+        style={fieldStyle}
+        placeholder="Event title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
       />
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md overflow-y-auto p-4"
-        style={{
-          background: 'var(--color-bg)',
-          borderRadius: '22px 22px 0 0',
-          maxHeight: '82%',
-          paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-        }}
+
+      <label className={label} style={labelStyle}>
+        List
+      </label>
+      <select
+        className={field}
+        style={fieldStyle}
+        value={listId}
+        onChange={(e) => setListId(e.target.value)}
       >
-        <div
-          className="mx-auto mb-3 h-1.5 w-10 rounded-full"
-          style={{ background: 'var(--color-check-border)' }}
-        />
-        <h3 className="mb-2 font-head" style={{ fontSize: 18 }}>
-          Edit event
-        </h3>
+        {lists.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.emojiIcon} {l.name}
+          </option>
+        ))}
+      </select>
 
-        <input
-          className={field}
-          style={fieldStyle}
-          placeholder="Event title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+      <label
+        className="mt-3 flex items-center gap-2 font-semibold"
+        style={{ fontSize: 'var(--fs-sm)' }}
+      >
+        <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> All
+        day
+      </label>
 
-        <label className={label} style={labelStyle}>
-          List
-        </label>
-        <select
-          className={field}
-          style={fieldStyle}
-          value={listId}
-          onChange={(e) => setListId(e.target.value)}
-        >
-          {lists.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.emojiIcon} {l.name}
-            </option>
-          ))}
-        </select>
+      <label className={label} style={labelStyle}>
+        Start
+      </label>
+      <input
+        type={allDay ? 'date' : 'datetime-local'}
+        className={field}
+        style={fieldStyle}
+        value={allDay ? start.slice(0, 10) : start}
+        onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
+      />
+      <label className={label} style={labelStyle}>
+        End
+      </label>
+      <input
+        type={allDay ? 'date' : 'datetime-local'}
+        className={field}
+        style={fieldStyle}
+        value={allDay ? end.slice(0, 10) : end}
+        onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
+      />
 
-        <label
-          className="mt-3 flex items-center gap-2 font-semibold"
-          style={{ fontSize: 'var(--fs-sm)' }}
-        >
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />{' '}
-          All day
-        </label>
-
-        <label className={label} style={labelStyle}>
-          Start
-        </label>
-        <input
-          type={allDay ? 'date' : 'datetime-local'}
-          className={field}
-          style={fieldStyle}
-          value={allDay ? start.slice(0, 10) : start}
-          onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
-        />
-        <label className={label} style={labelStyle}>
-          End
-        </label>
-        <input
-          type={allDay ? 'date' : 'datetime-local'}
-          className={field}
-          style={fieldStyle}
-          value={allDay ? end.slice(0, 10) : end}
-          onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
-        />
-
-        {people.length > 1 && (
-          <>
-            <label className={label} style={labelStyle}>
-              For
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {people.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setAssignee((a) => (a === p.id ? null : p.id))}
-                  className="rounded-full"
-                  style={{
-                    padding: 2,
-                    borderRadius: '50%',
-                    boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
-                  }}
-                >
-                  <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        <label className={label} style={labelStyle}>
-          Repeats
-        </label>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {(
-            [
-              { v: 0, l: 'Never' },
-              { v: 1, l: 'Weekly' },
-              { v: 2, l: 'Fortnightly' },
-            ] as const
-          ).map((o) => (
-            <button
-              key={o.v}
-              type="button"
-              onClick={() => setRepeatEvery(o.v)}
-              className="rounded-full px-3 py-1.5 font-semibold"
-              style={{
-                fontSize: 'var(--fs-sm)',
-                background:
-                  repeatEvery === o.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
-                color: repeatEvery === o.v ? 'var(--color-accent)' : 'var(--color-text)',
-              }}
-            >
-              {o.l}
-            </button>
-          ))}
-          {repeatEvery > 0 && start && (
-            <span className="self-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-              every {repeatEvery === 2 ? 'second ' : ''}
-              {DAY_LONG[new Date(start).getDay()]}
-            </span>
-          )}
-        </div>
-        <button
-          disabled={!title.trim() || update.isPending}
-          className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
-          style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
-          onClick={() => {
-            const s = fromLocalInput(start);
-            const e = fromLocalInput(end);
-            if (!s || !e) return;
-            update.mutate({
-              id: event.id,
-              listId,
-              title: title.trim(),
-              startAt: s,
-              endAt: e,
-              allDay,
-              assigneeId: assignee,
-              // Anchored to the day the event actually starts, so moving the
-              // event moves the whole series with it.
-              recurrenceRule:
-                repeatEvery > 0
-                  ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
-                  : null,
-            });
-          }}
-        >
-          {update.isPending ? 'Saving…' : 'Save'}
-        </button>
-
-        {!confirmDel ? (
-          <button
-            className="mt-3 w-full rounded-card py-3 font-semibold"
-            style={{
-              fontSize: 'var(--fs-base)',
-              color: 'var(--color-danger)',
-              background: 'var(--color-danger-soft)',
-            }}
-            onClick={() => setConfirmDel(true)}
-          >
-            🗑 Delete event
-          </button>
-        ) : (
-          <div className="mt-3 flex gap-2">
-            <button
-              className="flex-1 rounded-card py-3 font-semibold"
-              style={{ fontSize: 'var(--fs-base)', background: 'var(--color-chip-bg)' }}
-              onClick={() => setConfirmDel(false)}
-            >
-              Cancel
-            </button>
-            <button
-              disabled={remove.isPending}
-              className="flex-1 rounded-card py-3 font-bold text-white disabled:opacity-60"
-              style={{ fontSize: 'var(--fs-base)', background: 'var(--color-danger)' }}
-              onClick={() => remove.mutate({ id: event.id })}
-            >
-              {remove.isPending ? 'Deleting…' : 'Delete'}
-            </button>
+      {people.length > 1 && (
+        <>
+          <label className={label} style={labelStyle}>
+            For
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {people.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setAssignee((a) => (a === p.id ? null : p.id))}
+                className="rounded-full"
+                style={{
+                  padding: 2,
+                  borderRadius: '50%',
+                  boxShadow: assignee === p.id ? '0 0 0 2px var(--color-accent)' : 'none',
+                }}
+              >
+                <Avatar emoji={p.avatarEmoji} color={p.avatarColor} image={p.image} size={30} />
+              </button>
+            ))}
           </div>
+        </>
+      )}
+
+      <label className={label} style={labelStyle}>
+        Repeats
+      </label>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {(
+          [
+            { v: 0, l: 'Never' },
+            { v: 1, l: 'Weekly' },
+            { v: 2, l: 'Fortnightly' },
+          ] as const
+        ).map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => setRepeatEvery(o.v)}
+            className="rounded-full px-3 py-1.5 font-semibold"
+            style={{
+              fontSize: 'var(--fs-sm)',
+              background: repeatEvery === o.v ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
+              color: repeatEvery === o.v ? 'var(--color-accent)' : 'var(--color-text)',
+            }}
+          >
+            {o.l}
+          </button>
+        ))}
+        {repeatEvery > 0 && start && (
+          <span className="self-center text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            every {repeatEvery === 2 ? 'second ' : ''}
+            {DAY_LONG[new Date(start).getDay()]}
+          </span>
         )}
       </div>
-    </>
+      <button
+        disabled={!title.trim() || update.isPending}
+        className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
+        style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
+        onClick={() => {
+          const s = fromLocalInput(start);
+          const e = fromLocalInput(end);
+          if (!s || !e) return;
+          update.mutate({
+            id: event.id,
+            listId,
+            title: title.trim(),
+            startAt: s,
+            endAt: e,
+            allDay,
+            assigneeId: assignee,
+            // Anchored to the day the event actually starts, so moving the
+            // event moves the whole series with it.
+            recurrenceRule:
+              repeatEvery > 0
+                ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
+                : null,
+          });
+        }}
+      >
+        {update.isPending ? 'Saving…' : 'Save'}
+      </button>
+
+      {!confirmDel ? (
+        <button
+          className="mt-3 w-full rounded-card py-3 font-semibold"
+          style={{
+            fontSize: 'var(--fs-base)',
+            color: 'var(--color-danger)',
+            background: 'var(--color-danger-soft)',
+          }}
+          onClick={() => setConfirmDel(true)}
+        >
+          🗑 Delete event
+        </button>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            className="flex-1 rounded-card py-3 font-semibold"
+            style={{ fontSize: 'var(--fs-base)', background: 'var(--color-chip-bg)' }}
+            onClick={() => setConfirmDel(false)}
+          >
+            Cancel
+          </button>
+          <button
+            disabled={remove.isPending}
+            className="flex-1 rounded-card py-3 font-bold text-white disabled:opacity-60"
+            style={{ fontSize: 'var(--fs-base)', background: 'var(--color-danger)' }}
+            onClick={() => remove.mutate({ id: event.id })}
+          >
+            {remove.isPending ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      )}
+    </Sheet>
   );
 }

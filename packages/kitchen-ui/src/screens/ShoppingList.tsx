@@ -53,11 +53,11 @@ export function ShoppingList({
   const [flashId, setFlashId] = useState<string | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['shopping'],
+    queryKey: ['shopping', adapter.key],
     queryFn: () => adapter.getItems(),
   });
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['shopping'] });
+    qc.invalidateQueries({ queryKey: ['shopping', adapter.key] });
     setCompletingHeadingId(null);
   };
   // A new item keeps its place in the outline rather than jumping to the top,

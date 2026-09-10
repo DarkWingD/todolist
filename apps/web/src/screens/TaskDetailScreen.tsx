@@ -1,5 +1,5 @@
 import type { Priority } from '@todolist/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
 import {
@@ -43,6 +43,15 @@ export function TaskDetailScreen({
   const { data: household } = trpc.household.get.useQuery();
   const members = household?.people ?? [];
 
+  type Fields = {
+    title: string;
+    notes: string;
+    due: string;
+    priority: Priority;
+    freq: Freq | '';
+    assigneeId: string | null;
+  };
+
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [due, setDue] = useState('');
@@ -52,9 +61,14 @@ export function TaskDetailScreen({
   const [newReminder, setNewReminder] = useState('');
   const [showCustomReminder, setShowCustomReminder] = useState(false);
 
+  // Set while a field is mid-edit, so a background refetch — switching apps and
+  // coming back is enough to trigger one — doesn't overwrite what you typed
+  // with what the server still has.
+  const dirty = useRef(false);
+
   // Seed local state once the task loads.
   useEffect(() => {
-    if (!task) return;
+    if (!task || dirty.current) return;
     setTitle(task.title);
     setNotes(task.notes ?? '');
     setDue(toLocalInput(task.dueAt as unknown as string));
@@ -62,6 +76,16 @@ export function TaskDetailScreen({
     setFreq(ruleToFreq(task.recurrenceRule));
     setAssigneeId(task.assigneeId);
   }, [task]);
+
+  // The title is a textarea so it can hold a long one; grow it with the text
+  // rather than hiding the rest behind an internal scrollbar.
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
 
   const invalidateTask = () => {
     utils.tasks.get.invalidate({ id: taskId });
@@ -89,15 +113,26 @@ export function TaskDetailScreen({
     onSuccess: () => utils.reminders.byTask.invalidate({ taskId }),
   });
 
-  function onSave() {
+  /**
+   * Save the fields as they stand, with `patch` overriding.
+   *
+   * The chips and pickers save the moment you touch them, so they have to hand
+   * the new value in: this closure holds the values from the render that made
+   * it, and deferring the call doesn't change that — it would post the value
+   * the field had *before* the tap, and the refetch would then snap the UI
+   * back to it.
+   */
+  function onSave(patch: Partial<Fields> = {}) {
+    dirty.current = false;
+    const f = { title, notes, due, priority, freq, assigneeId, ...patch };
     save.mutate({
       id: taskId,
-      title: title.trim() || 'Untitled',
-      notes: notes.trim() || undefined,
-      dueAt: fromLocalInput(due),
-      priority,
-      recurrenceRule: freqToRule(freq),
-      assigneeId,
+      title: f.title.trim() || 'Untitled',
+      notes: f.notes.trim() || undefined,
+      dueAt: fromLocalInput(f.due),
+      priority: f.priority,
+      recurrenceRule: freqToRule(f.freq),
+      assigneeId: f.assigneeId,
     });
   }
 
@@ -153,10 +188,15 @@ export function TaskDetailScreen({
       </button>
 
       <textarea
+        ref={titleRef}
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={onSave}
+        onChange={(e) => {
+          dirty.current = true;
+          setTitle(e.target.value);
+        }}
+        onBlur={() => onSave()}
         rows={1}
+        aria-label="Task title"
         className="w-full resize-none bg-transparent font-head outline-none"
         style={{
           fontSize: 'var(--fs-title)',
@@ -172,8 +212,11 @@ export function TaskDetailScreen({
         <input
           type="datetime-local"
           value={due}
-          onChange={(e) => setDue(e.target.value)}
-          onBlur={onSave}
+          onChange={(e) => {
+            dirty.current = true;
+            setDue(e.target.value);
+          }}
+          onBlur={() => onSave()}
           className={fieldClass}
           style={fieldStyle}
         />
@@ -183,7 +226,7 @@ export function TaskDetailScreen({
             style={{ fontSize: 'var(--fs-sm)' }}
             onClick={() => {
               setDue('');
-              setTimeout(onSave, 0);
+              onSave({ due: '' });
             }}
           >
             Clear
@@ -196,8 +239,9 @@ export function TaskDetailScreen({
       </h2>
       <button
         onClick={() => {
-          setPriority((p) => (p === 'high' ? 'none' : 'high'));
-          setTimeout(onSave, 0);
+          const next: Priority = priority === 'high' ? 'none' : 'high';
+          setPriority(next);
+          onSave({ priority: next });
         }}
         className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-semibold"
         style={{
@@ -215,8 +259,9 @@ export function TaskDetailScreen({
       <select
         value={freq}
         onChange={(e) => {
-          setFreq(e.target.value as Freq | '');
-          setTimeout(onSave, 0);
+          const next = e.target.value as Freq | '';
+          setFreq(next);
+          onSave({ freq: next });
         }}
         className={fieldClass}
         style={fieldStyle}
@@ -238,7 +283,7 @@ export function TaskDetailScreen({
             <button
               onClick={() => {
                 setAssigneeId(null);
-                setTimeout(onSave, 0);
+                onSave({ assigneeId: null });
               }}
               className="rounded-full px-3 py-1.5 font-semibold"
               style={{
@@ -255,7 +300,7 @@ export function TaskDetailScreen({
                 key={m.id}
                 onClick={() => {
                   setAssigneeId(m.id);
-                  setTimeout(onSave, 0);
+                  onSave({ assigneeId: m.id });
                 }}
                 className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 font-semibold"
                 style={{
@@ -278,9 +323,13 @@ export function TaskDetailScreen({
       </h2>
       <textarea
         value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        onBlur={onSave}
+        onChange={(e) => {
+          dirty.current = true;
+          setNotes(e.target.value);
+        }}
+        onBlur={() => onSave()}
         rows={3}
+        aria-label="Notes"
         placeholder="Add notes…"
         className={fieldClass}
         style={fieldStyle}
