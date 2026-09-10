@@ -470,6 +470,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
       <ChildScreen
         listId={selectedList.id}
         onBack={() => setView('main')}
+        onOpenTask={openTask}
         addSignal={childAddSignal}
       />
     );

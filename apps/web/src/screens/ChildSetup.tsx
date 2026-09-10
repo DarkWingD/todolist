@@ -195,8 +195,10 @@ export function ChildSetup({
   const fieldStyle = { fontSize: 'var(--fs-base)', color: 'var(--color-text)' } as const;
   const terms = child.periods.filter((p) => p.kind === 'term');
 
+  // No card chrome: this is drawn inside a sheet, which is already a surface
+  // with its own padding.
   return (
-    <div className="mb-d4 flex flex-col gap-d4 rounded-card bg-surface p-d3">
+    <div className="flex flex-col gap-d4">
       {error && (
         <p
           className="rounded-card p-d2"

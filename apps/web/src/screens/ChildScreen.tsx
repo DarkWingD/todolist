@@ -6,15 +6,23 @@ import { ChildSetup } from './ChildSetup';
 import { DoseSheet } from '../components/DoseSheet';
 import { relativeTime } from '../lib/activityText';
 import { recursOn } from '../lib/datetime';
+import { ChildTodayCard } from '../components/ChildTodayCard';
+import { TaskRow } from '../components/TaskRow';
+import { EventEditSheet } from '../components/EventEditSheet';
+import { Sheet } from '@todolist/kitchen-ui';
 
 /**
  * A child, on day 30 rather than day 1.
  *
- * Setting up the weekly pattern and term dates happens once; after that the
- * screen is a working list of this child's things, and the whole of that setup
- * shows as a single derived line at the top — "Today · Primary school 9:00–3:00".
- * The setup surfaces themselves fold into one row at the foot. Nothing is
- * removed as the child fills up; the weight shifts.
+ * One card says where they are, who to ring and any medicine still in its
+ * window. Under it, one Today — a repeating chore and a form due this
+ * afternoon are the same kind of fact — then anything overdue above it and
+ * everything later below.
+ *
+ * Medicine is episodic: intense for three days in ninety, and nothing the rest
+ * of the time. It is one quiet row until a dose is live, and then it is the
+ * strip at the top of the card. Setup opens over the screen rather than
+ * unfolding into the middle of it.
  */
 
 const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -28,6 +36,13 @@ interface Item {
   kind: 'task' | 'event';
   done: boolean;
   timeLabel: string | null;
+  /** A recurring chore, so the row can say so rather than repeat itself. */
+  repeats?: boolean;
+}
+
+interface DayGroup {
+  date: Date;
+  items: Item[];
 }
 
 function startOfToday(): Date {
@@ -48,11 +63,14 @@ function dayHeading(d: Date): string {
 export function ChildScreen({
   listId,
   onBack,
+  onOpenTask,
   addSignal,
   embedded,
 }: {
   listId: string;
   onBack: () => void;
+  /** Opens the task's own screen, the way a task row does everywhere else. */
+  onOpenTask: (id: string) => void;
   /** Drawn in the Lists workspace's pane, where the index is the way back. */
   embedded?: boolean;
   /** Bumped when the floating + is tapped, so it opens this form. */
@@ -63,6 +81,8 @@ export function ChildScreen({
   const [setupOpen, setSetupOpen] = useState(false);
   const [dosing, setDosing] = useState(false);
   const [confirmDose, setConfirmDose] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editEventId, setEditEventId] = useState<string | null>(null);
   const { data: meds } = trpc.doses.recent.useQuery({ listId });
   const removeDose = trpc.doses.remove.useMutation({
     onSuccess: () => {
@@ -76,6 +96,7 @@ export function ChildScreen({
     utils.children.mine.invalidate();
   };
   const toggleTask = trpc.tasks.toggle.useMutation({ onSuccess: refresh });
+  const removeTask = trpc.tasks.remove.useMutation({ onSuccess: refresh });
 
   // Capture lives on the screen, not only behind the floating button — and the
   // presence of a time decides task or event, rather than asking. Nobody
@@ -93,6 +114,7 @@ export function ChildScreen({
 
   // Opened by the floating +, but only when it is actually tapped — not on
   // mount, which would spring the form open every time you enter the screen.
+  const addFormRef = useRef<HTMLDivElement>(null);
   const lastAddSignal = useRef(addSignal);
   useEffect(() => {
     if (addSignal !== lastAddSignal.current) {
@@ -101,6 +123,16 @@ export function ChildScreen({
       setAdding(true);
     }
   }, [addSignal]);
+
+  // The form lives at the foot of a long page, so opening it from the floating
+  // + used to change nothing you could see.
+  useEffect(() => {
+    if (!adding) return;
+    const id = requestAnimationFrame(() => {
+      addFormRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [adding]);
 
   const closeAdd = () => {
     setAdding(false);
@@ -154,10 +186,14 @@ export function ChildScreen({
   // Dated one-offs and events interleave by date. A weekly recurring task would
   // otherwise generate a dozen identical rows a term and drown every real one,
   // so recurring items surface only on the day they actually fire.
-  const { groups, todayRoutine } = useMemo(() => {
-    if (!child) return { groups: [], todayRoutine: [] as Item[] };
-    const routine: Item[] = [];
-    const dated: Item[] = [];
+  const { overdue, todayItems, laterGroups } = useMemo(() => {
+    const empty = {
+      overdue: [] as Item[],
+      todayItems: [] as Item[],
+      laterGroups: [] as DayGroup[],
+    };
+    if (!child) return empty;
+    const all: Item[] = [];
 
     for (const t of child.tasks) {
       const base = {
@@ -168,17 +204,19 @@ export function ChildScreen({
         timeLabel: null,
       };
       if (t.recurrenceRule) {
+        // A weekly chore would otherwise generate a dozen identical rows a
+        // term and drown every real one, so it surfaces on the day it fires.
         if (recursOn(t.recurrenceRule, new Date(), t.dueAt as unknown as string | null)) {
-          routine.push({ ...base, when: startOfToday() });
+          all.push({ ...base, when: startOfToday(), repeats: true });
         }
         continue;
       }
-      if (t.dueAt) dated.push({ ...base, when: new Date(t.dueAt) });
+      if (t.dueAt) all.push({ ...base, when: new Date(t.dueAt) });
     }
 
     for (const e of child.events) {
       const start = new Date(e.startAt);
-      dated.push({
+      all.push({
         id: e.id,
         title: e.title,
         when: start,
@@ -190,18 +228,33 @@ export function ChildScreen({
       });
     }
 
-    // Past items are kept, not dropped — an overdue form is the thing you most
-    // need to see. Sorting puts them first.
-    dated.sort((a, b) => a.when.getTime() - b.when.getTime());
+    all.sort((a, b) => a.when.getTime() - b.when.getTime());
+
+    // Three buckets rather than two lists and a heading. A repeating chore and
+    // a form due today are both things due today, and were landing in separate
+    // sections either side of everything else.
+    const startToday = startOfToday().getTime();
+    const startTomorrow = startToday + 86_400_000;
+    const od: Item[] = [];
+    const now: Item[] = [];
+    const later: Item[] = [];
+    for (const it of all) {
+      const t = it.when.getTime();
+      // A finished item is not overdue, whatever its date says.
+      if (t < startToday) (it.done ? now : od).push(it);
+      else if (t < startTomorrow) now.push(it);
+      else later.push(it);
+    }
 
     const byDay = new Map<string, Item[]>();
-    for (const it of dated) {
+    for (const it of later) {
       const key = it.when.toDateString();
       byDay.set(key, [...(byDay.get(key) ?? []), it]);
     }
     return {
-      groups: [...byDay.entries()].map(([key, items]) => ({ date: new Date(key), items })),
-      todayRoutine: routine,
+      overdue: od,
+      todayItems: now,
+      laterGroups: [...byDay.entries()].map(([key, items]) => ({ date: new Date(key), items })),
     };
   }, [child]);
 
@@ -217,69 +270,136 @@ export function ChildScreen({
   }
 
   const hasPattern = child.days.length > 0;
-  const t = child.today;
-  const contextLine = t.offReason
-    ? t.offReason
-    : t.place
-      ? `${t.place}${t.startTime ? ` ${t.startTime}${t.endTime ? `–${t.endTime}` : ''}` : ''}`
-      : hasPattern
-        ? 'Nothing on today'
-        : null;
+  const first = child.name.split(' ')[0];
+  const sectionH = 'mb-d2 mt-d4 font-bold uppercase text-muted';
+  const sectionStyle = { fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' };
 
-  const isOverdue = (d: Date) => d.getTime() < startOfToday().getTime();
+  /**
+   * A task here is a task everywhere else in the app.
+   *
+   * These rows used to be a checkbox and a run of dead text: nothing on this
+   * screen could be opened, rescheduled or deleted, so a form added for the
+   * wrong day could only be ticked or left. TaskRow brings tap-to-open and the
+   * swipe gestures with it. An event is not a task — you do not tick a concert
+   * — so it keeps its own row, and opens its editor.
+   */
+  const itemRow = (it: Item) => {
+    if (it.kind === 'event') {
+      return (
+        <button
+          key={it.id}
+          type="button"
+          onClick={() => setEditEventId(it.id)}
+          // mb-d2 rather than a gap on the container: TaskRow carries its own
+          // bottom margin, and the two lists interleave.
+          className="mb-d2 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+        >
+          <span
+            className="flex-none whitespace-nowrap text-muted"
+            style={{ fontSize: 'var(--fs-xs)', minWidth: '3rem' }}
+          >
+            {it.timeLabel ?? 'All day'}
+          </span>
+          <span className="min-w-0 flex-1" style={{ fontSize: 'var(--fs-base)' }}>
+            {it.title}
+          </span>
+          <span className="flex-none text-muted" style={{ fontSize: 16 }}>
+            ›
+          </span>
+        </button>
+      );
+    }
+    return (
+      <TaskRow
+        key={it.id}
+        task={{
+          id: it.id,
+          title: it.title,
+          completed: it.done,
+          recurrence: it.repeats ? 'Weekly' : undefined,
+        }}
+        onToggle={(id, completed) => toggleTask.mutate({ id, completed })}
+        onOpen={onOpenTask}
+        onDelete={(id) => removeTask.mutate({ id })}
+      />
+    );
+  };
 
-  const checkbox = (done: boolean, onClick: () => void, label: string) => (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="grid h-5 w-5 flex-none place-items-center rounded-check border"
-      style={{
-        borderColor: done ? 'var(--color-accent)' : 'var(--color-check-border)',
-        background: done ? 'var(--color-accent)' : 'transparent',
-        color: 'var(--color-accent-contrast)',
-        fontSize: 12,
-      }}
+  const doseRow = (d: NonNullable<typeof meds>['doses'][number]) => (
+    <div
+      key={d.id}
+      className="flex items-center gap-d3 border-b border-border px-3.5 py-2.5 last:border-0"
     >
-      {done ? '✓' : ''}
-    </button>
+      <span
+        className="flex-none whitespace-nowrap text-muted"
+        style={{ fontSize: 'var(--fs-xs)', minWidth: '3.4rem' }}
+      >
+        {new Date(d.givenAt as unknown as string).toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        })}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block" style={{ fontSize: 'var(--fs-sm)' }}>
+          <b>{d.medicine}</b>
+          {d.amount ? ` · ${d.amount}` : ''}
+          {d.note ? <span className="text-muted"> · {d.note}</span> : null}
+        </span>
+        <span className="block text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+          {relativeTime(d.givenAt as unknown as string)}
+          {d.givenByName ? ` · ${d.givenByName.split(' ')[0]}` : ''}
+        </span>
+      </span>
+      {/* A dose is a medical record — the app's own copy says everyone sees
+          when the next one is due — so removing one asks first. */}
+      <button
+        type="button"
+        aria-label={
+          confirmDose === d.id
+            ? `Remove the ${d.medicine} dose for good?`
+            : `Remove this ${d.medicine} dose`
+        }
+        onClick={() =>
+          confirmDose === d.id ? removeDose.mutate({ id: d.id }) : setConfirmDose(d.id)
+        }
+        onBlur={() => setConfirmDose((c) => (c === d.id ? null : c))}
+        className="grid h-11 w-11 flex-none place-items-center rounded-full"
+        style={{
+          fontSize: confirmDose === d.id ? 'var(--fs-xs)' : 16,
+          color: confirmDose === d.id ? 'var(--color-danger)' : 'var(--color-muted)',
+          background: confirmDose === d.id ? 'var(--color-danger-soft)' : 'transparent',
+        }}
+      >
+        {confirmDose === d.id ? 'Sure?' : '×'}
+      </button>
+    </div>
+  );
+
+  // Today's doses are the ones you are counting; the rest of the week is
+  // history, and sits behind a disclosure rather than on the screen.
+  const startToday = startOfToday().getTime();
+  const allDoses = meds?.doses ?? [];
+  const dosesToday = allDoses.filter(
+    (d) => new Date(d.givenAt as unknown as string).getTime() >= startToday,
+  );
+  const dosesEarlier = allDoses.filter(
+    (d) => new Date(d.givenAt as unknown as string).getTime() < startToday,
   );
 
   return (
     <>
       {!embedded && <BackButton label="Back" onClick={onBack} />}
 
-      <header className="mb-d3 flex items-center gap-d3">
-        <span
-          className="grid h-11 w-11 flex-none place-items-center rounded-emoji"
-          style={{
-            fontSize: 22,
-            background: child.color
-              ? `color-mix(in srgb, ${child.color} 22%, var(--color-surface))`
-              : 'var(--color-emoji-bg)',
-          }}
-        >
-          {child.emojiIcon}
-        </span>
-        <div className="min-w-0">
-          <h1
-            className="font-head truncate"
-            style={{
-              fontSize: 'var(--fs-big)',
-              fontWeight: 'var(--title-weight)',
-              letterSpacing: 'var(--title-tracking)',
-            }}
-          >
-            {child.name}
-          </h1>
-          {/* The whole visible payoff of the weekly pattern and the term dates. */}
-          {contextLine && (
-            <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-              Today · {contextLine}
-            </div>
-          )}
-        </div>
-      </header>
+      <ChildTodayCard
+        name={child.name}
+        emojiIcon={child.emojiIcon}
+        color={child.color}
+        today={child.today}
+        profile={child.profile}
+        periods={child.periods}
+        doses={meds?.status ?? []}
+        onLogDose={() => setDosing(true)}
+      />
 
       {/* Emergency information does not live behind a chevron. */}
       {child.profile?.medicalNotes && (
@@ -313,223 +433,116 @@ export function ChildScreen({
         </div>
       )}
 
-      {/* Medicine: last dose, when the next can be, the week's history. */}
-      <div className="mb-d3">
-        <div className="mb-d2 flex items-baseline justify-between">
-          <h2
-            className="font-bold uppercase text-muted"
-            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-          >
-            Medicine
+      {overdue.length > 0 && (
+        <>
+          <h2 className={sectionH} style={{ ...sectionStyle, color: 'var(--color-danger)' }}>
+            Overdue · since {dayHeading(overdue[0]!.when)}
           </h2>
-          <button
-            type="button"
-            onClick={() => setDosing(true)}
-            className="font-semibold text-accent"
-            style={{ fontSize: 'var(--fs-xs)' }}
-          >
-            ＋ Log a dose
-          </button>
-        </div>
-        {(meds?.status.length ?? 0) > 0 && (
-          <div className="mb-d2 flex flex-col gap-d2">
-            {meds!.status.map((s) => {
-              const next = s.nextFrom ? new Date(s.nextFrom as unknown as string) : null;
-              const ok = !next || next <= new Date();
-              return (
-                <div
-                  key={s.medicine}
-                  className="rounded-card p-d3"
-                  style={{
-                    background: ok ? 'var(--color-surface)' : 'var(--color-accent-soft)',
-                    boxShadow: 'var(--shadow-card)',
-                  }}
-                >
-                  <div className="font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
-                    💊 {s.medicine}
-                    {s.amount ? ` · ${s.amount}` : ''}
-                    <span className="text-muted">
-                      {' '}
-                      · {relativeTime(s.givenAt as unknown as string)}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 'var(--fs-sm)',
-                      color: ok ? 'var(--color-muted)' : 'var(--color-accent)',
-                    }}
-                  >
-                    {next
-                      ? ok
-                        ? 'Next dose can be given now'
-                        : `Next from ${next.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                      : 'No spacing entered'}
-                    {s.countToday > 1 ? ` · ${s.countToday} in the last 24 h` : ''}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {(meds?.doses.length ?? 0) > 0 ? (
-          <div className="overflow-hidden rounded-card bg-surface shadow-card">
-            {meds!.doses.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center gap-d3 border-b border-border px-3.5 py-2.5 last:border-0"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block" style={{ fontSize: 'var(--fs-sm)' }}>
-                    <b>{d.medicine}</b>
-                    {d.amount ? ` · ${d.amount}` : ''}
-                    {d.note ? <span className="text-muted"> · {d.note}</span> : null}
-                  </span>
-                  <span className="block text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {new Date(d.givenAt as unknown as string).toLocaleString([], {
-                      weekday: 'short',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                    {d.givenByName ? ` · ${d.givenByName.split(' ')[0]}` : ''}
-                  </span>
-                </span>
-                {/* A dose is a medical record — the app's own copy says
-                    everyone can see when the next one is due — so removing one
-                    asks, and the target is big enough to mean it. */}
-                <button
-                  type="button"
-                  aria-label={
-                    confirmDose === d.id
-                      ? `Remove the ${d.medicine} dose for good?`
-                      : `Remove this ${d.medicine} dose`
-                  }
-                  onClick={() =>
-                    confirmDose === d.id ? removeDose.mutate({ id: d.id }) : setConfirmDose(d.id)
-                  }
-                  onBlur={() => setConfirmDose((c) => (c === d.id ? null : c))}
-                  className="grid h-11 w-11 flex-none place-items-center rounded-full"
-                  style={{
-                    fontSize: confirmDose === d.id ? 'var(--fs-xs)' : 16,
-                    color: confirmDose === d.id ? 'var(--color-danger)' : 'var(--color-muted)',
-                    background: confirmDose === d.id ? 'var(--color-danger-soft)' : 'transparent',
-                  }}
-                >
-                  {confirmDose === d.id ? 'Sure?' : '×'}
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-            Nothing in the last week. When {child.name.split(' ')[0]} is unwell, log each dose here
-            instead of texting, and everyone sees when the next can be.
-          </p>
-        )}
-      </div>
-
-      {/* Today's routine: present, but calmer than the dated items. */}
-      {todayRoutine.length > 0 && (
-        <div className="mb-d3">
-          <h2
-            className="mb-d2 font-bold uppercase text-muted"
-            style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-          >
-            Today
-          </h2>
-          <div className="flex flex-col gap-d2">
-            {todayRoutine.map((it) => (
-              <div key={it.id} className="flex items-center gap-d3 rounded-card bg-surface p-d3">
-                {checkbox(
-                  it.done,
-                  () => toggleTask.mutate({ id: it.id, completed: !it.done }),
-                  it.done ? 'Mark not done' : 'Mark done',
-                )}
-                <span
-                  className={it.done ? 'flex-1 text-muted line-through' : 'flex-1 text-muted'}
-                  style={{ fontSize: 'var(--fs-base)' }}
-                >
-                  {it.title}
-                </span>
-                <span className="flex-none text-muted" style={{ fontSize: 12 }} title="Every week">
-                  ↻
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <div className="mb-d3">{overdue.map(itemRow)}</div>
+        </>
       )}
 
-      <h2
-        className="mb-d2 font-bold uppercase text-muted"
-        style={{ fontSize: 'var(--fs-xs)', letterSpacing: '0.09em' }}
-      >
-        Coming up
+      {/* One Today. A repeating chore and a form due this afternoon are both
+          things due today; they used to sit in separate sections with the
+          whole of Medicine and Coming up between them. */}
+      <h2 className={sectionH} style={sectionStyle}>
+        Today
       </h2>
-
-      {groups.length === 0 ? (
+      {todayItems.length === 0 ? (
         <p className="mb-d3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-          Nothing dated yet. Anything you add to {child.name} with a due date turns up here.
+          Nothing for {first} today.
         </p>
       ) : (
-        <div className="mb-d3 flex flex-col gap-d3">
-          {groups.map((g) => (
-            <div key={g.date.toDateString()}>
-              <div
-                className="mb-1 font-semibold"
-                style={{
-                  fontSize: 'var(--fs-xs)',
-                  color: isOverdue(g.date) ? 'var(--color-danger)' : 'var(--color-muted)',
-                }}
-              >
-                {isOverdue(g.date) ? 'Overdue · ' : ''}
-                {dayHeading(g.date)}
-              </div>
-              <div className="flex flex-col gap-d2">
-                {g.items.map((it) => (
-                  <div
-                    key={it.id}
-                    className="flex items-center gap-d3 rounded-card bg-surface p-d3 shadow-card"
-                    style={
-                      isOverdue(g.date)
-                        ? { boxShadow: 'inset 3px 0 0 0 var(--color-danger)' }
-                        : undefined
-                    }
-                  >
-                    {it.kind === 'task' ? (
-                      checkbox(
-                        it.done,
-                        () => toggleTask.mutate({ id: it.id, completed: !it.done }),
-                        it.done ? 'Mark not done' : 'Mark done',
-                      )
-                    ) : (
-                      // No checkbox on an event: you do not tick a concert.
-                      <span
-                        // min-width rather than a fixed 48px: at the top of the
-                        // text-size range "12:30 pm" is wider than that and
-                        // wrapped, making the row a line taller than its
-                        // neighbours.
-                        className="w-12 flex-none whitespace-nowrap text-muted"
-                        style={{ fontSize: 'var(--fs-xs)', width: 'auto', minWidth: '3rem' }}
-                      >
-                        {it.timeLabel ?? 'All day'}
-                      </span>
-                    )}
-                    <span
-                      className={it.done ? 'flex-1 text-muted line-through' : 'flex-1'}
-                      style={{ fontSize: 'var(--fs-base)' }}
-                    >
-                      {it.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="mb-d3">{todayItems.map(itemRow)}</div>
       )}
 
+      {laterGroups.length > 0 && (
+        <>
+          <h2 className={sectionH} style={sectionStyle}>
+            Later
+          </h2>
+          <div className="mb-d3 flex flex-col gap-d3">
+            {laterGroups.map((g) => (
+              <div key={g.date.toDateString()}>
+                <div className="mb-1 font-semibold text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                  {dayHeading(g.date)}
+                </div>
+                <div>{g.items.map(itemRow)}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Medicine is episodic — it matters intensely for three days in ninety.
+          With nothing in the last 24 hours it is one quiet row; the live status
+          rides in the card at the top, and the week's history stays folded. */}
+      {(meds?.status.length ?? 0) === 0 ? (
+        <button
+          type="button"
+          onClick={() => setDosing(true)}
+          className="mb-d3 flex w-full items-center gap-d3 rounded-card bg-surface p-d3 text-left shadow-card"
+        >
+          <span className="flex-none" style={{ fontSize: 15 }}>
+            💊
+          </span>
+          <span className="min-w-0 flex-1 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            No medicine in the last 24 hours
+          </span>
+          <span
+            className="flex-none font-semibold text-accent"
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
+            Log a dose
+          </span>
+        </button>
+      ) : (
+        <>
+          <div className="mb-d2 flex items-baseline justify-between">
+            <h2 className={sectionH} style={{ ...sectionStyle, marginTop: 0 }}>
+              Medicine · today
+            </h2>
+            <button
+              type="button"
+              onClick={() => setDosing(true)}
+              className="font-semibold text-accent"
+              style={{ fontSize: 'var(--fs-xs)' }}
+            >
+              ＋ Log a dose
+            </button>
+          </div>
+          {dosesToday.length > 0 && (
+            <div className="mb-d2 overflow-hidden rounded-card bg-surface shadow-card">
+              {dosesToday.map(doseRow)}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            aria-expanded={historyOpen}
+            className="mb-d3 font-semibold text-accent"
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
+            {historyOpen ? 'Hide earlier doses' : 'Earlier this week →'}
+          </button>
+          {historyOpen && (
+            <div className="mb-d3 overflow-hidden rounded-card bg-surface shadow-card">
+              {dosesEarlier.length > 0 ? (
+                dosesEarlier.map(doseRow)
+              ) : (
+                <p className="p-d3 text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                  Nothing before today.
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
       {adding ? (
-        <div className="mb-d3 flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card">
+        <div
+          ref={addFormRef}
+          className="mb-d3 flex flex-col gap-d2 rounded-card bg-surface p-d3 shadow-card"
+        >
           <input
             autoFocus
             value={title}
@@ -604,25 +617,64 @@ export function ChildScreen({
         </button>
       )}
 
-      {/* Everything setup built, folded away once it has been answered. */}
+      {/* Setup opens over the screen rather than unfolding six hundred lines of
+          forms into the middle of it. Configuring a child and reading a child
+          are different jobs, and this is the boundary. */}
       <button
         type="button"
-        onClick={() => setSetupOpen((v) => !v)}
-        aria-expanded={setupOpen}
+        onClick={() => setSetupOpen(true)}
         className="mb-d2 flex w-full items-center gap-2 rounded-card bg-surface p-d3 text-left"
       >
         <span className="flex-1 font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
-          Week &amp; school
+          Week, terms &amp; details
         </span>
         <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
           {hasPattern ? `${child.days.length} days · ${child.periods.length} dates` : 'Not set up'}
         </span>
         <span className="text-muted" style={{ fontSize: 16 }}>
-          {setupOpen ? '⌃' : '⌄'}
+          ›
         </span>
       </button>
 
-      {setupOpen && <ChildSetup child={child} listId={listId} onChanged={refresh} />}
+      <Sheet
+        open={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        title={`${first}'s week, terms and details`}
+        maxHeight="88%"
+      >
+        <h3 className="mb-2 font-head" style={{ fontSize: 'var(--fs-lg)' }}>
+          {first}&rsquo;s week &amp; school
+        </h3>
+        {setupOpen && <ChildSetup child={child} listId={listId} onChanged={refresh} />}
+      </Sheet>
+
+      {editEventId &&
+        (() => {
+          const ev = child.events.find((e) => e.id === editEventId);
+          if (!ev) return null;
+          return (
+            <EventEditSheet
+              event={{
+                id: ev.id,
+                listId,
+                title: ev.title,
+                startAt: new Date(ev.startAt as unknown as string).toISOString(),
+                endAt: new Date(ev.endAt as unknown as string).toISOString(),
+                allDay: ev.allDay,
+                assigneeId: null,
+                recurrenceRule: ev.recurrenceRule,
+              }}
+              lists={[{ id: listId, name: child.name, emojiIcon: child.emojiIcon }]}
+              people={[]}
+              onClose={() => setEditEventId(null)}
+              onDone={() => {
+                setEditEventId(null);
+                refresh();
+              }}
+            />
+          );
+        })()}
+
       {dosing && (
         <DoseSheet
           listId={listId}
