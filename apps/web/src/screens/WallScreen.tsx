@@ -103,7 +103,9 @@ export function WallScreen({ token }: { token: string }) {
   const [tick, setTick] = useState(0);
   const dayStart = startOfToday();
   const { data, error, isLoading } = trpc.wall.snapshot.useQuery(
-    { token, dayStart: dayStart.toISOString(), weekStartsOn: 1 },
+    // No weekStartsOn: the display has no preference of its own, so the
+    // household's own setting decides.
+    { token, dayStart: dayStart.toISOString() },
     { refetchInterval: REFRESH_MS, refetchOnWindowFocus: false },
   );
   // Re-render at midnight so "today" moves without a reload.
@@ -133,11 +135,28 @@ export function WallScreen({ token }: { token: string }) {
   })();
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh', overflow: 'hidden' }}>
+    // Centred rather than pinned to the corner: a kitchen tablet is rarely 4:3,
+    // and the board sat top-left with all the black gathered on one side.
+    <div
+      style={{
+        background: '#111',
+        minHeight: '100dvh',
+        overflow: 'hidden',
+        display: 'grid',
+        placeContent: 'center',
+      }}
+    >
       <style>{css}</style>
-      <div className="wall" style={{ transform: `scale(${scale})` }}>
+      <div
+        className="wall"
+        style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
+      >
         {error ? (
-          <div className="err">{error.message}</div>
+          // Nobody is sitting at the fridge to read "UNAUTHORIZED", and there
+          // is no sign-in here to act on it either — say what to do instead.
+          <div className="err">
+            This link no longer works. Get a new one from Family → Wall display.
+          </div>
         ) : isLoading || !data ? (
           <div className="err">Loading…</div>
         ) : (

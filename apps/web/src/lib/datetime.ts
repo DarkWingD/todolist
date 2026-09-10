@@ -77,10 +77,7 @@ export function recursOn(
   const freq = /FREQ=([A-Z]+)/.exec(rule)?.[1];
   if (!freq) return false;
   const interval = Math.max(1, Number(/INTERVAL=(\d+)/.exec(rule)?.[1] ?? 1));
-  const byDay = /BYDAY=([A-Z,]+)/
-    .exec(rule)?.[1]
-    ?.split(',')
-    .filter(Boolean);
+  const byDay = /BYDAY=([A-Z,]+)/.exec(rule)?.[1]?.split(',').filter(Boolean);
 
   const from = anchor ? new Date(anchor) : null;
   const start = from && !isNaN(from.getTime()) ? from : null;

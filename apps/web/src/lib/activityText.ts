@@ -89,7 +89,8 @@ export function describeActivity(
       return { icon: '🍽️', text: d ? `took ${t} off ${d}` : `took ${t} off the plan` };
     }
     case 'dose.given': {
-      const amt = typeof it.meta?.amount === 'string' && it.meta.amount ? ` (${it.meta.amount})` : '';
+      const amt =
+        typeof it.meta?.amount === 'string' && it.meta.amount ? ` (${it.meta.amount})` : '';
       return { icon: '💊', text: `gave ${who(it.meta?.personId) || 'someone'} ${t}${amt}` };
     }
     case 'child.added':

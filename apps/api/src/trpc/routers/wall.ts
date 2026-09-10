@@ -10,6 +10,7 @@ import {
   personWorkday,
   schoolPeriod,
   task,
+  userPrefs,
 } from '@todolist/db';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -46,23 +47,44 @@ export const wallRouter = router({
         token: z.string().min(16).max(64),
         // The display's local midnight, so "today" is its today, not the server's.
         dayStart: z.string().datetime(),
-        // 1 = Monday, 0 = Sunday, matching the household's calendar preference.
-        weekStartsOn: z.union([z.literal(0), z.literal(1)]).default(1),
+        // Optional override. Left out — which is the normal case, since the
+        // display has no session to read a preference from — the household's
+        // own setting is used, so a family on Sunday weeks gets one here too.
+        weekStartsOn: z.union([z.literal(0), z.literal(1)]).optional(),
       }),
     )
     .query(async ({ input }) => {
       const [hh] = await db
-        .select({ id: household.id, name: household.name, anchor: household.fortnightAnchor })
+        .select({
+          id: household.id,
+          name: household.name,
+          anchor: household.fortnightAnchor,
+          createdBy: household.createdBy,
+        })
         .from(household)
         .where(eq(household.wallToken, input.token))
         .limit(1);
       if (!hh) throw new TRPCError({ code: 'NOT_FOUND', message: 'No display with that link.' });
 
+      // Whoever set the household up stands in for it: the wall has no session,
+      // so without this the fridge shows a Monday week to a household that
+      // chose Sunday everywhere else.
+      let weekStartsOn = input.weekStartsOn;
+      if (weekStartsOn === undefined && hh.createdBy) {
+        const [p] = await db
+          .select({ weekStartsOn: userPrefs.weekStartsOn })
+          .from(userPrefs)
+          .where(eq(userPrefs.userId, hh.createdBy))
+          .limit(1);
+        weekStartsOn = (p?.weekStartsOn ?? 1) as 0 | 1;
+      }
+      weekStartsOn ??= 1;
+
       const dayStart = new Date(input.dayStart);
       const dayEnd = new Date(dayStart.getTime() + DAY);
       const todayKey = keyOf(dayStart);
       const dow = dayStart.getDay();
-      const back = (dow - input.weekStartsOn + 7) % 7;
+      const back = (dow - weekStartsOn + 7) % 7;
       const weekStart = new Date(dayStart.getTime() - back * DAY);
       const weekEnd = new Date(weekStart.getTime() + 7 * DAY);
       const aheadEnd = new Date(dayStart.getTime() + 22 * DAY);

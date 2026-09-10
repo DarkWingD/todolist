@@ -41,7 +41,7 @@ const COPY: Record<string, { title: string; blurb: string; steps: ReactNode[] }>
       'iPhones and iPads only allow notifications from apps on the Home Screen, and Safari is the only browser that can put one there.',
     steps: [
       <>
-        Open <Strong>todolist.dansownsite.com</Strong> in Safari.
+        Open <Strong>{window.location.host}</Strong> in Safari.
       </>,
       <>
         Tap <Strong>Share</Strong> — the square with an arrow coming out of it.

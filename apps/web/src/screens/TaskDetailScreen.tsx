@@ -2,6 +2,7 @@ import type { Priority } from '@todolist/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
+import { QueryState } from '../components/QueryState';
 import {
   formatDateTime,
   freqToRule,
@@ -37,7 +38,7 @@ export function TaskDetailScreen({
   embedded?: boolean;
 }) {
   const utils = trpc.useUtils();
-  const { data: task, isLoading } = trpc.tasks.get.useQuery({ id: taskId });
+  const { data: task, isLoading, isError, refetch } = trpc.tasks.get.useQuery({ id: taskId });
   const { data: reminders = [] } = trpc.reminders.byTask.useQuery({ taskId });
   // Anyone in the household can hold a task, a child included.
   const { data: household } = trpc.household.get.useQuery();
@@ -60,6 +61,7 @@ export function TaskDetailScreen({
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
   const [showCustomReminder, setShowCustomReminder] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   // Set while a field is mid-edit, so a background refetch — switching apps and
   // coming back is enough to trigger one — doesn't overwrite what you typed
@@ -136,13 +138,15 @@ export function TaskDetailScreen({
     });
   }
 
-  if (isLoading || !task) {
+  if (!task) {
     return (
       <>
         {embedded ? <CloseButton onClick={onBack} /> : <BackButton label="Back" onClick={onBack} />}
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          Loading…
-        </p>
+        {/* A failed fetch is neither loading nor holding a task, so without
+            this the screen sat on "Loading…" for good. */}
+        <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
+          {null}
+        </QueryState>
       </>
     );
   }
@@ -157,12 +161,15 @@ export function TaskDetailScreen({
     <>
       <div className="flex items-center justify-between">
         {embedded ? <CloseButton onClick={onBack} /> : <BackButton label="Back" onClick={onBack} />}
+        {/* Asks first, the way swiping the same task away does. It was the one
+            route to deleting a task that didn't. */}
         <button
           className="font-semibold text-danger"
           style={{ fontSize: 'var(--fs-sm)' }}
-          onClick={() => remove.mutate({ id: taskId })}
+          disabled={remove.isPending}
+          onClick={() => (confirmDel ? remove.mutate({ id: taskId }) : setConfirmDel(true))}
         >
-          Delete
+          {remove.isPending ? 'Deleting…' : confirmDel ? 'Delete for good?' : 'Delete'}
         </button>
       </div>
 

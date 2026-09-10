@@ -122,7 +122,9 @@ export const dosesRouter = router({
 
   /** The last week of doses for one child, newest first, with who gave each. */
   recent: protectedProcedure
-    .input(z.object({ listId: z.string().uuid(), days: z.number().int().min(1).max(30).default(7) }))
+    .input(
+      z.object({ listId: z.string().uuid(), days: z.number().int().min(1).max(30).default(7) }),
+    )
     .query(async ({ ctx, input }) => {
       await assertListAccess(ctx.user.id, input.listId);
       const who = await personForList(ctx.person.householdId, input.listId);
@@ -149,7 +151,10 @@ export const dosesRouter = router({
         )
         .orderBy(desc(dose.givenAt));
       // What this child has had before, so the next entry is a tap not a type.
-      const presets = new Map<string, { medicine: string; amount: string | null; intervalHours: number | null }>();
+      const presets = new Map<
+        string,
+        { medicine: string; amount: string | null; intervalHours: number | null }
+      >();
       const all = await db
         .select({ medicine: dose.medicine, amount: dose.amount, intervalHours: dose.intervalHours })
         .from(dose)

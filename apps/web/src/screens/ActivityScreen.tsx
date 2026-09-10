@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Avatar } from '../components/Avatar';
 import { BackButton } from '../components/BackButton';
+import { QueryState } from '../components/QueryState';
 import { actorLabel, describeActivity, relativeTime, type ActivityItem } from '../lib/activityText';
 import { trpc } from '../lib/trpc';
 
@@ -67,7 +68,7 @@ export function ActivityRow({
  */
 export function ActivityScreen({ onBack }: { onBack: () => void }) {
   const utils = trpc.useUtils();
-  const { data, isLoading } = trpc.activity.recent.useQuery({ limit: 120 });
+  const { data, isLoading, isError, refetch } = trpc.activity.recent.useQuery({ limit: 120 });
   const { data: household } = trpc.household.get.useQuery();
   const markSeen = trpc.activity.markSeen.useMutation({
     onSuccess: () => utils.activity.recent.invalidate(),
@@ -112,18 +113,22 @@ export function ActivityScreen({ onBack }: { onBack: () => void }) {
         What's been happening
       </h1>
 
-      {isLoading ? (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          Loading…
-        </p>
-      ) : groups.length === 0 ? (
-        <div className="mt-8 text-center text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          <div className="mb-2 text-4xl">🌱</div>
-          Nothing yet. As the family ticks things off, plans dinners and adds events, it shows up
-          here.
-        </div>
-      ) : (
-        groups.map((g) => (
+      {/* A feed that failed to load used to say "Nothing yet" — which reads as
+          a fact about the family rather than about the network. */}
+      <QueryState
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => void refetch()}
+        isEmpty={groups.length === 0}
+        empty={
+          <span className="mt-8 block text-center">
+            <span className="mb-2 block text-4xl">🌱</span>
+            Nothing yet. As the family ticks things off, plans dinners and adds events, it shows up
+            here.
+          </span>
+        }
+      >
+        {groups.map((g) => (
           <section key={g.label} className="mb-d4">
             <h2
               className="mb-d2 font-bold uppercase text-muted"
@@ -137,8 +142,8 @@ export function ActivityScreen({ onBack }: { onBack: () => void }) {
               ))}
             </div>
           </section>
-        ))
-      )}
+        ))}
+      </QueryState>
     </>
   );
 }

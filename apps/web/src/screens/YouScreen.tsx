@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Avatar } from '../components/Avatar';
 import { signOut } from '../lib/auth';
+import { useErrorReporter } from '../lib/errors';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
 
@@ -40,6 +41,7 @@ export function YouScreen({
   onOpenManageLists: () => void;
   onOpenNotifications: () => void;
 }) {
+  const { report } = useErrorReporter();
   const fileInput = useRef<HTMLInputElement>(null);
   // Reload after changing the photo so the Better Auth session picks up the new image.
   const setPhoto = trpc.account.setPhoto.useMutation({ onSuccess: () => location.reload() });
@@ -116,7 +118,8 @@ export function YouScreen({
             try {
               setPhoto.mutate({ image: await fileToSquareDataUrl(file) });
             } catch {
-              alert("Couldn't read that image — try a different photo.");
+              // The app has an error toast; a native alert doesn't belong here.
+              report("Couldn't read that image.", 'Try a different photo.');
             }
           }}
         />

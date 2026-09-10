@@ -55,9 +55,13 @@ export function FamilyScreen({
   const [showWall, setShowWall] = useState(false);
   const { data: wall } = trpc.household.wallLink.useQuery(undefined, { enabled: showWall });
   const rotateWall = trpc.household.rotateWallToken.useMutation({
-    onSuccess: () => utils.household.wallLink.invalidate(),
+    onSuccess: () => {
+      utils.household.wallLink.invalidate();
+      setConfirmRotate(false);
+    },
   });
   const [copied, setCopied] = useState(false);
+  const [confirmRotate, setConfirmRotate] = useState(false);
 
   const refresh = () => {
     utils.household.get.invalidate();
@@ -97,7 +101,7 @@ export function FamilyScreen({
     const sub =
       p.kind === 'child'
         ? 'Child · tap for their week'
-        : `${isMe ? 'You' : (p.email ?? 'Adult')} · tap for their work week`;
+        : `${isMe ? 'You' : (p.email ?? 'Grown-up')} · tap for their work week`;
     return (
       <div
         key={p.id}
@@ -131,11 +135,6 @@ export function FamilyScreen({
           >
             ⋯
           </button>
-        )}
-        {p.kind === 'adult' && p.childListId === null && !isMe && (
-          <span className="text-muted" style={{ fontSize: 18 }}>
-            {' '}
-          </span>
         )}
       </div>
     );
@@ -189,7 +188,7 @@ export function FamilyScreen({
           <p className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {people.length === 1
               ? 'Just you so far'
-              : `${adults.length} ${adults.length === 1 ? 'adult' : 'adults'}${
+              : `${adults.length} ${adults.length === 1 ? 'grown-up' : 'grown-ups'}${
                   kids.length ? ` · ${kids.length} ${kids.length === 1 ? 'kid' : 'kids'}` : ''
                 }`}
           </p>
@@ -391,16 +390,30 @@ export function FamilyScreen({
                   >
                     Open
                   </a>
+                  {/* This is the one control here that breaks something
+                      elsewhere: every screen already showing the old link goes
+                      dead the moment it is tapped. It says so first. */}
                   <button
                     type="button"
                     disabled={rotateWall.isPending}
-                    onClick={() => rotateWall.mutate()}
+                    onClick={() => (confirmRotate ? rotateWall.mutate() : setConfirmRotate(true))}
+                    onBlur={() => setConfirmRotate(false)}
                     className="ml-auto font-semibold text-danger"
                     style={{ fontSize: 'var(--fs-sm)' }}
                   >
-                    New link
+                    {rotateWall.isPending
+                      ? 'Making one…'
+                      : confirmRotate
+                        ? 'Yes, replace'
+                        : 'New link'}
                   </button>
                 </div>
+                {confirmRotate && (
+                  <p className="mt-2 text-danger" style={{ fontSize: 'var(--fs-xs)' }}>
+                    Any screen using the old link stops working, and you'll need to set each one up
+                    again.
+                  </p>
+                )}
               </div>
             ) : (
               <button

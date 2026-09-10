@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BackButton } from '../components/BackButton';
+import { QueryState } from '../components/QueryState';
 import { trpc } from '../lib/trpc';
 import { ChildSetup } from './ChildSetup';
 import { DoseSheet } from '../components/DoseSheet';
@@ -58,9 +59,10 @@ export function ChildScreen({
   addSignal?: number;
 }) {
   const utils = trpc.useUtils();
-  const { data: child, isLoading } = trpc.children.get.useQuery({ listId });
+  const { data: child, isLoading, isError, refetch } = trpc.children.get.useQuery({ listId });
   const [setupOpen, setSetupOpen] = useState(false);
   const [dosing, setDosing] = useState(false);
+  const [confirmDose, setConfirmDose] = useState<string | null>(null);
   const { data: meds } = trpc.doses.recent.useQuery({ listId });
   const removeDose = trpc.doses.remove.useMutation({
     onSuccess: () => {
@@ -203,13 +205,13 @@ export function ChildScreen({
     };
   }, [child]);
 
-  if (isLoading || !child) {
+  if (!child) {
     return (
       <>
-        {!embedded && <BackButton label="Lists" onClick={onBack} />}
-        <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
-          Loading…
-        </p>
+        {!embedded && <BackButton label="Back" onClick={onBack} />}
+        <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
+          {null}
+        </QueryState>
       </>
     );
   }
@@ -245,7 +247,7 @@ export function ChildScreen({
 
   return (
     <>
-      {!embedded && <BackButton label="Lists" onClick={onBack} />}
+      {!embedded && <BackButton label="Back" onClick={onBack} />}
 
       <header className="mb-d3 flex items-center gap-d3">
         <span
@@ -391,14 +393,28 @@ export function ChildScreen({
                     {d.givenByName ? ` · ${d.givenByName.split(' ')[0]}` : ''}
                   </span>
                 </span>
+                {/* A dose is a medical record — the app's own copy says
+                    everyone can see when the next one is due — so removing one
+                    asks, and the target is big enough to mean it. */}
                 <button
                   type="button"
-                  aria-label="Remove this dose"
-                  onClick={() => removeDose.mutate({ id: d.id })}
-                  className="text-muted"
-                  style={{ fontSize: 16 }}
+                  aria-label={
+                    confirmDose === d.id
+                      ? `Remove the ${d.medicine} dose for good?`
+                      : `Remove this ${d.medicine} dose`
+                  }
+                  onClick={() =>
+                    confirmDose === d.id ? removeDose.mutate({ id: d.id }) : setConfirmDose(d.id)
+                  }
+                  onBlur={() => setConfirmDose((c) => (c === d.id ? null : c))}
+                  className="grid h-11 w-11 flex-none place-items-center rounded-full"
+                  style={{
+                    fontSize: confirmDose === d.id ? 'var(--fs-xs)' : 16,
+                    color: confirmDose === d.id ? 'var(--color-danger)' : 'var(--color-muted)',
+                    background: confirmDose === d.id ? 'var(--color-danger-soft)' : 'transparent',
+                  }}
                 >
-                  ×
+                  {confirmDose === d.id ? 'Sure?' : '×'}
                 </button>
               </div>
             ))}
