@@ -88,10 +88,16 @@ UPDATE "list" l SET private = true
      );
 --> statement-breakpoint
 -- Each child list becomes a child in the household, coloured as the list was.
+-- l.type is compared as text on purpose. 'child' was added to the list_type enum
+-- back in 0011, and Postgres refuses to let a newly added enum value be used in
+-- the transaction that added it — drizzle runs every pending migration inside one
+-- transaction, so on a database built from scratch 0011 and 0014 are the same
+-- transaction and this line failed with "unsafe use of new value". Comparing the
+-- text rendering sidesteps the check and means the same rows either way.
 INSERT INTO "person" ("household_id", "kind", "name", "avatar_emoji", "avatar_color", "child_list_id")
   SELECT l.household_id, 'child', l.name, l.emoji_icon, coalesce(l.color, '#F59E0B'), l.id
     FROM "list" l
-   WHERE l.type = 'child' AND l.deleted_at IS NULL AND l.household_id IS NOT NULL;
+   WHERE l.type::text = 'child' AND l.deleted_at IS NULL AND l.household_id IS NOT NULL;
 --> statement-breakpoint
 UPDATE "meal_plan" mp SET household_id = p.household_id
   FROM "person" p WHERE p.user_id = mp.owner_id;
