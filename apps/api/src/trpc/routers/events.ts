@@ -1,9 +1,10 @@
 import { and, asc, eq, gte, isNull } from 'drizzle-orm';
-import { db, event } from '@todolist/db';
+import { db, event, list, listMember } from '@todolist/db';
 import { createEventSchema, updateEventSchema } from '@todolist/shared';
 import { z } from 'zod';
 import { assertListAccess } from '../access.js';
 import { logActivity } from '../activity.js';
+import { shareListWithHousehold } from '../household.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 /**
@@ -26,13 +27,57 @@ async function eventListId(id: string): Promise<string | null> {
   return rows[0]?.listId ?? null;
 }
 
+/**
+ * Find (or create) the household's app-managed Events list.
+ *
+ * Same systemKey pattern as Birthdays, Reminders and Shopping, with one
+ * deliberate difference: those are private and one per user, because what you
+ * are reminded of is yours. A family calendar is not. So this is one list per
+ * *household*, shared like an ordinary list, which is why the lookup is by
+ * householdId rather than ownerId.
+ *
+ * The unique index is on (ownerId, systemKey), so two adults creating an event
+ * at the same moment could each get one. Ordering by createdAt means every
+ * later lookup converges on the older of the two rather than flip-flopping;
+ * the loser is an empty list nobody can see, since `mine` hides systemKey lists.
+ */
+export async function eventsListId(householdId: string, userId: string): Promise<string> {
+  const rows = await db
+    .select({ id: list.id })
+    .from(list)
+    .where(
+      and(eq(list.householdId, householdId), eq(list.systemKey, 'events'), isNull(list.deletedAt)),
+    )
+    .orderBy(asc(list.createdAt))
+    .limit(1);
+  if (rows[0]) return rows[0].id;
+  const [created] = await db
+    .insert(list)
+    .values({
+      ownerId: userId,
+      name: 'Events',
+      emojiIcon: '📅',
+      systemKey: 'events',
+      householdId,
+      private: false,
+    })
+    .returning();
+  if (!created) throw new Error('Failed to create the Events list');
+  await db.insert(listMember).values({ listId: created.id, userId, role: 'owner' });
+  await shareListWithHousehold(created.id, householdId);
+  return created.id;
+}
+
 export const eventsRouter = router({
   create: protectedProcedure.input(createEventSchema).mutation(async ({ ctx, input }) => {
-    await assertListAccess(ctx.user.id, input.listId);
+    // Only a caller-supplied list needs checking. The Events list is resolved
+    // from the caller's own household, so there is nothing to authorise.
+    if (input.listId) await assertListAccess(ctx.user.id, input.listId);
+    const listId = input.listId ?? (await eventsListId(ctx.person.householdId, ctx.user.id));
     const [created] = await db
       .insert(event)
       .values({
-        listId: input.listId,
+        listId,
         title: input.title,
         notes: input.notes,
         startAt: new Date(input.startAt),
@@ -48,7 +93,7 @@ export const eventsRouter = router({
         householdId: ctx.person.householdId,
         actorId: ctx.person.id,
         kind: 'event.created',
-        listId: input.listId,
+        listId,
         targetId: created.id,
         title: created.title,
         meta: {

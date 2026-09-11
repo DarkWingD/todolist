@@ -14,6 +14,7 @@ import { sendEmail } from '../../email.js';
 import { assertListAccess } from '../access.js';
 import { shareListWithHousehold, unshareListFromHousehold } from '../household.js';
 import { logActivity, logNoteEdit } from '../activity.js';
+import { eventsListId } from './events.js';
 import { groceriesListId } from './mealPlan.js';
 import { remindersListId } from './reminders.js';
 import { protectedProcedure, router } from '../trpc.js';
@@ -75,6 +76,31 @@ export const listsRouter = router({
   // list "Send week to shopping list" writes into appeared nowhere in the UI.
   shopping: protectedProcedure.query(async ({ ctx }) => {
     const id = await groceriesListId(ctx.user.id);
+    const rows = await db
+      .select({
+        ...getTableColumns(list),
+        remaining: sql<number>`(
+          select count(*)::int from ${task}
+          where ${task.listId} = ${list.id}
+            and ${task.completedAt} is null
+            and ${task.deletedAt} is null
+        )`,
+        memberCount: sql<number>`(
+          select count(*)::int from ${listMember} lm where lm.list_id = ${list.id}
+        )`,
+      })
+      .from(list)
+      .where(eq(list.id, id))
+      .limit(1);
+    return rows[0]!;
+  }),
+
+  // The household's app-managed Events list, resolved exactly as Shopping is.
+  // `mine` hides every systemKey list, so without this the event sheet could
+  // offer every list *except* the one events default to — you could move an
+  // event out of Events and then have no way to put it back.
+  events: protectedProcedure.query(async ({ ctx }) => {
+    const id = await eventsListId(ctx.person.householdId, ctx.user.id);
     const rows = await db
       .select({
         ...getTableColumns(list),

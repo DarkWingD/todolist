@@ -117,6 +117,9 @@ export function CalScreen({
       : null;
   const { data: birthdays = [] } = trpc.birthdays.list.useQuery();
   const { data: lists = [] } = trpc.lists.mine.useQuery();
+  // `mine` hides systemKey lists, so the default home for an event has to be
+  // fetched on its own or the sheet could not name it.
+  const { data: eventsList } = trpc.lists.events.useQuery();
   const { data: range } = trpc.calendar.range.useQuery({
     from: from.toISOString(),
     to: to.toISOString(),
@@ -667,6 +670,7 @@ export function CalScreen({
           items={itemsFor(selDay)}
           people={people}
           lists={lists}
+          eventsList={eventsList}
           onClose={() => setSheet(null)}
           onPick={(m) => setSheet(m)}
           onOpenTask={onOpenTask}
@@ -700,6 +704,7 @@ export function CalScreen({
                 assigneeId: ev.assigneeId,
               }}
               lists={lists}
+              eventsList={eventsList}
               people={people}
               onClose={() => setEditEventId(null)}
               onDone={() => {
@@ -729,6 +734,7 @@ function CalSheet({
   items,
   people,
   lists,
+  eventsList,
   onClose,
   onPick,
   onOpenTask,
@@ -746,6 +752,8 @@ function CalSheet({
     image?: string | null;
   }[];
   lists: { id: string; name: string; emojiIcon: string }[];
+  /** The household's app-managed Events list — where an event goes by default. */
+  eventsList?: { id: string; name: string; emojiIcon: string } | null;
   onClose: () => void;
   onPick: (m: SheetMode) => void;
   onOpenTask: (id: string) => void;
@@ -756,7 +764,10 @@ function CalSheet({
   const createBirthday = trpc.birthdays.create.useMutation({ onSuccess: onDone });
 
   const [title, setTitle] = useState('');
-  const [listId, setListId] = useState(lists[0]?.id ?? '');
+  // null = the household's Events list. Left unset the server resolves it, so the
+  // common case needs no decision and does not depend on that query having loaded.
+  const [listId, setListId] = useState<string | null>(null);
+  const [pickingList, setPickingList] = useState(false);
   const [allDay, setAllDay] = useState(false);
   const [repeatEvery, setRepeatEvery] = useState<0 | 1 | 2>(0);
   const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -772,12 +783,14 @@ function CalSheet({
   const [bmonth, setBmonth] = useState(day.getMonth() + 1);
   const [bday, setBday] = useState(day.getDate());
 
-  useEffect(() => setListId(lists[0]?.id ?? ''), [lists]);
 
   const field = 'w-full rounded-lg border border-border bg-surface px-3 py-2 outline-none';
   const fieldStyle = { fontSize: 'var(--fs-base)', color: 'var(--color-text)' };
   const label = 'mb-1.5 mt-3 block font-semibold text-muted';
   const labelStyle = { fontSize: 'var(--fs-sm)' };
+
+  // eventsList may still be loading; the fallback keeps the line from going blank.
+  const chosenList = listId ? (lists.find((l) => l.id === listId) ?? null) : (eventsList ?? null);
 
   const sheetTitle =
     mode === 'day'
@@ -875,21 +888,48 @@ function CalSheet({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <label className={label} style={labelStyle}>
-            List
-          </label>
-          <select
-            className={field}
-            style={fieldStyle}
-            value={listId}
-            onChange={(e) => setListId(e.target.value)}
-          >
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.emojiIcon} {l.name}
+          {/* Which list an event files under is not a question worth asking: you
+              look for an event on the calendar, not in a list. So it states the
+              answer and gets out of the way, and Change is there for the event
+              that genuinely does belong in House. */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-muted" style={labelStyle}>
+              Saving to
+            </span>
+            <span className="font-semibold" style={labelStyle}>
+              {chosenList ? `${chosenList.emojiIcon} ${chosenList.name}` : '📅 Events'}
+            </span>
+            {!pickingList && (
+              <button
+                type="button"
+                onClick={() => setPickingList(true)}
+                className="font-semibold text-accent"
+                style={labelStyle}
+              >
+                Change
+              </button>
+            )}
+          </div>
+          {pickingList && (
+            <select
+              autoFocus
+              aria-label="List"
+              className={`${field} mt-1.5`}
+              style={fieldStyle}
+              value={listId ?? ''}
+              onChange={(e) => setListId(e.target.value || null)}
+            >
+              {/* Empty value = leave it to the server, which files it under Events. */}
+              <option value="">
+                {eventsList ? `${eventsList.emojiIcon} ${eventsList.name}` : '📅 Events'}
               </option>
-            ))}
-          </select>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.emojiIcon} {l.name}
+                </option>
+              ))}
+            </select>
+          )}
           <label
             className="mt-3 flex items-center gap-2 font-semibold"
             style={{ fontSize: 'var(--fs-sm)' }}
@@ -977,7 +1017,7 @@ function CalSheet({
             )}
           </div>
           <button
-            disabled={!title.trim() || !listId || createEvent.isPending}
+            disabled={!title.trim() || createEvent.isPending}
             className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
             style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
             onClick={() => {
@@ -985,7 +1025,7 @@ function CalSheet({
               const e = fromLocalInput(end);
               if (!s || !e) return;
               createEvent.mutate({
-                listId,
+                listId: listId ?? undefined,
                 title: title.trim(),
                 startAt: s,
                 endAt: e,

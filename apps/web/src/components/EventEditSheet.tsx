@@ -19,6 +19,12 @@ export interface EditableEvent {
 interface Props {
   event: EditableEvent;
   lists: { id: string; name: string; emojiIcon: string }[];
+  /**
+   * The household's app-managed Events list. `lists.mine` hides systemKey lists,
+   * so without it every event filed under Events — which is now the default —
+   * would open this sheet with nothing selected, and could never be put back.
+   */
+  eventsList?: { id: string; name: string; emojiIcon: string } | null;
   people: {
     id: string;
     name: string;
@@ -31,7 +37,7 @@ interface Props {
   onDone: () => void;
 }
 
-export function EventEditSheet({ event, lists, people, onClose, onDone }: Props) {
+export function EventEditSheet({ event, lists, eventsList, people, onClose, onDone }: Props) {
   const update = trpc.events.update.useMutation({ onSuccess: onDone });
   const remove = trpc.events.remove.useMutation({ onSuccess: onDone });
 
@@ -82,7 +88,10 @@ export function EventEditSheet({ event, lists, people, onClose, onDone }: Props)
         value={listId}
         onChange={(e) => setListId(e.target.value)}
       >
-        {lists.map((l) => (
+        {(eventsList && !lists.some((l) => l.id === eventsList.id)
+          ? [eventsList, ...lists]
+          : lists
+        ).map((l) => (
           <option key={l.id} value={l.id}>
             {l.emojiIcon} {l.name}
           </option>

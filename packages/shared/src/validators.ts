@@ -104,7 +104,12 @@ export const calendarRangeSchema = z.object({
 });
 
 export const createEventSchema = z.object({
-  listId: z.string().uuid(),
+  // Optional: an event that belongs to no particular list goes to the household's
+  // app-managed Events list, resolved server-side. The same idea as
+  // createBirthdaySchema having no listId at all — the calendar is the place you
+  // look for an event, so being asked which list it filed under is a question
+  // with no useful answer.
+  listId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(300),
   notes: z.string().max(5000).optional(),
   startAt: z.string().datetime(),
