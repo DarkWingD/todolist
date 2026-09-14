@@ -107,8 +107,9 @@ export function QuickAddSheet({
     });
   }
 
+  // min-h-10 (40px): these chips were 34px tall, which is under a fingertip on a phone.
   const optClass = (_on: boolean) =>
-    'inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold';
+    'inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 py-2 font-semibold';
   const optStyle = (on: boolean) => ({
     fontSize: 'var(--fs-sm)',
     background: on ? 'var(--color-accent-soft)' : 'var(--color-chip-bg)',
@@ -124,7 +125,9 @@ export function QuickAddSheet({
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         placeholder="What needs doing?"
         aria-label="What needs doing?"
-        className="mb-4 w-full bg-transparent font-head outline-none"
+        // min-h-10: the field itself was 24px tall, so a thumb aimed just above or below the
+        // text landed on nothing. The look is unchanged; the target is not.
+        className="mb-4 min-h-10 w-full bg-transparent font-head outline-none"
         style={{ fontSize: 'var(--fs-lg)', color: 'var(--color-text)' }}
       />
 

@@ -183,8 +183,11 @@ export function AppShell({
             type="button"
             onClick={() => onNavigate(t.id)}
             aria-current={active === t.id ? 'page' : undefined}
+            // flex-1 so each tab owns its share of the bar. They used to be only as wide as
+            // their label — 24 to 33px in a 384px bar, with 48px of dead space between them,
+            // so most of the bar did nothing when tapped. Measured on a phone.
             className={clsx(
-              'flex flex-col items-center gap-[3px]',
+              'flex flex-1 flex-col items-center justify-center gap-[3px] self-stretch',
               active === t.id ? 'font-bold text-accent' : 'text-muted',
             )}
             style={{ fontSize: 'calc(11.5px * var(--text-scale))' }}

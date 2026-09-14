@@ -169,7 +169,13 @@ export function TodayScreen({
             {today}
           </div>
         </div>
-        <button aria-label="Profile & settings" onClick={onOpenYou}>
+        {/* The avatar is 36px, which is the size it should look; the button around it is 44,
+            which is the size it needs to be to hit with a thumb. */}
+        <button
+          aria-label="Profile & settings"
+          onClick={onOpenYou}
+          className="-m-1 flex h-11 w-11 items-center justify-center"
+        >
           <Avatar emoji={me.avatarEmoji} color={me.avatarColor} image={me.image} size={36} />
         </button>
       </header>
