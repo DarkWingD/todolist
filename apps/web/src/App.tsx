@@ -6,6 +6,7 @@ import { CreateListForm } from './components/CreateListForm';
 import { ListsIndex } from './components/ListsIndex';
 import { QuickAddSheet } from './components/QuickAddSheet';
 import { useSession } from './lib/auth';
+import { takeIncomingTask, type IncomingTask } from './lib/incoming';
 import { trpc } from './lib/trpc';
 import { DESKTOP_QUERY, useMediaQuery } from './lib/useMediaQuery';
 import { AccountScreen } from './screens/AccountScreen';
@@ -180,6 +181,10 @@ function AuthedApp({ me }: { me: SessionUser }) {
     tab: 'today',
   });
   const [sheetOpen, setSheetOpen] = useState(false);
+  // A task handed over by another app on this box (danchat's "Send to Sorted"). Read once, on
+  // mount, and only here: the sign-in round trip keeps the original URL, so it survives being
+  // asked to log in first and is still waiting when the app finally opens.
+  const [incoming, setIncoming] = useState<IncomingTask | null>(null);
   const [createListSignal, setCreateListSignal] = useState(0);
   const [calCreateSignal, setCalCreateSignal] = useState(0);
   const [focusAddSignal, setFocusAddSignal] = useState(0);
@@ -188,6 +193,14 @@ function AuthedApp({ me }: { me: SessionUser }) {
   // Desktop only: the New list form takes the pane while this is set.
   const [creatingList, setCreatingList] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handed = takeIncomingTask();
+    if (handed) {
+      setIncoming(handed);
+      setSheetOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (serverPrefs) {
@@ -563,10 +576,24 @@ function AuthedApp({ me }: { me: SessionUser }) {
       overlay={
         <QuickAddSheet
           open={sheetOpen}
-          onClose={() => setSheetOpen(false)}
+          onClose={() => {
+            setSheetOpen(false);
+            setIncoming(null);
+          }}
           // A note holds text, not tasks, so it is not somewhere a task can go.
           lists={lists.filter((l) => l.type !== 'note')}
-          defaultListId={selectedList?.type === 'note' ? undefined : selectedList?.id}
+          // Something sent from another app has no list in mind, and Reminders is where a
+          // stray task belongs — not whichever list happened to be open last.
+          defaultListId={
+            incoming
+              ? remindersList?.id
+              : selectedList?.type === 'note'
+                ? undefined
+                : selectedList?.id
+          }
+          presetTitle={incoming?.title}
+          presetDueAt={incoming?.dueAt}
+          presetAllDay={incoming?.allDay}
         />
       }
     >

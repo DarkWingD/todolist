@@ -2,7 +2,7 @@ import { Sheet } from '@todolist/kitchen-ui';
 import { useEffect, useState } from 'react';
 import { Avatar } from './Avatar';
 import { trpc } from '../lib/trpc';
-import { freqToRule, type Freq } from '../lib/datetime';
+import { formatDateTime, freqToRule, type Freq } from '../lib/datetime';
 
 const REPEATS: { v: Freq | ''; label: string }[] = [
   { v: '', label: 'Once' },
@@ -13,10 +13,13 @@ const REPEATS: { v: Freq | ''; label: string }[] = [
 ];
 import type { ListSummary } from '../types';
 
-type DuePreset = 'none' | 'today' | 'tomorrow';
+// 'given' is a date that arrived with the task rather than being picked here — today only from
+// danchat, which reads it out of the message being sent over.
+type DuePreset = 'none' | 'today' | 'tomorrow' | 'given';
 
-function dueFromPreset(p: DuePreset): string | undefined {
+function dueFromPreset(p: DuePreset, given?: string): string | undefined {
   if (p === 'none') return undefined;
+  if (p === 'given') return given;
   const d = new Date();
   if (p === 'today') d.setHours(17, 0, 0, 0);
   else {
@@ -31,9 +34,21 @@ interface Props {
   onClose: () => void;
   lists: ListSummary[];
   defaultListId?: string;
+  /** Prefilled by a handover from another app — see lib/incoming.ts. */
+  presetTitle?: string;
+  presetDueAt?: string;
+  presetAllDay?: boolean;
 }
 
-export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
+export function QuickAddSheet({
+  open,
+  onClose,
+  lists,
+  defaultListId,
+  presetTitle,
+  presetDueAt,
+  presetAllDay,
+}: Props) {
   const utils = trpc.useUtils();
   const [title, setTitle] = useState('');
   const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '');
@@ -48,6 +63,15 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
   useEffect(() => {
     if (open) setListId(defaultListId ?? lists[0]?.id ?? '');
   }, [open, defaultListId, lists]);
+
+  // A task arriving from somewhere else fills the sheet in, and nothing more: it is still the
+  // ordinary add sheet, with the ordinary Add button, so a handover cannot write to a list
+  // without somebody looking at what it says first.
+  useEffect(() => {
+    if (!open || !presetTitle) return;
+    setTitle(presetTitle);
+    setDue(presetDueAt ? 'given' : 'none');
+  }, [open, presetTitle, presetDueAt]);
 
   // Clear a stale assignee when the list changes.
   useEffect(() => {
@@ -76,7 +100,7 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
     create.mutate({
       listId,
       title: title.trim(),
-      dueAt: dueFromPreset(due) ?? (repeat ? dueFromPreset('today') : undefined),
+      dueAt: dueFromPreset(due, presetDueAt) ?? (repeat ? dueFromPreset('today') : undefined),
       priority,
       assigneeId: assigneeId ?? undefined,
       recurrenceRule: freqToRule(repeat) ?? undefined,
@@ -123,10 +147,26 @@ export function QuickAddSheet({ open, onClose, lists, defaultListId }: Props) {
           className={optClass(due !== 'none')}
           style={optStyle(due !== 'none')}
           onClick={() =>
-            setDue((d) => (d === 'today' ? 'tomorrow' : d === 'tomorrow' ? 'none' : 'today'))
+            // A date that came with the task is first in the cycle and can be got back to,
+            // rather than being lost the moment the chip is tapped once.
+            setDue((d) => {
+              const order: DuePreset[] = presetDueAt
+                ? ['given', 'none', 'today', 'tomorrow']
+                : ['none', 'today', 'tomorrow'];
+              return order[(order.indexOf(d) + 1) % order.length]!;
+            })
           }
         >
-          📅 {due === 'none' ? 'No date' : due === 'today' ? 'Today' : 'Tomorrow'}
+          📅{' '}
+          {due === 'given' && presetDueAt
+            ? presetAllDay
+              ? new Date(presetDueAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+              : formatDateTime(presetDueAt)
+            : due === 'none'
+              ? 'No date'
+              : due === 'today'
+                ? 'Today'
+                : 'Tomorrow'}
         </button>
         <button
           className={optClass(repeat !== '')}
