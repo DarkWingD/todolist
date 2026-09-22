@@ -115,7 +115,9 @@ export function App() {
     window.location.pathname === '/wall'
       ? new URLSearchParams(window.location.search).get('token')
       : null;
-  if (wallToken) return <WallScreen token={wallToken} />;
+  // ?view=week is the portrait, kid-facing week-only layout; default is the board.
+  const wallView = new URLSearchParams(window.location.search).get('view') ?? undefined;
+  if (wallToken) return <WallScreen token={wallToken} view={wallView} />;
 
   if (isPending) return <Splash />;
   if (!session) return <SignInScreen />;

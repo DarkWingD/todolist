@@ -61,7 +61,12 @@ export function FamilyScreen({
     },
   });
   const [copied, setCopied] = useState(false);
+  const [copiedPortrait, setCopiedPortrait] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
+  // The portrait, kid-facing week view is the same link with ?view=week added.
+  const portraitUrl = wall?.url
+    ? `${wall.url}${wall.url.includes('?') ? '&' : '?'}view=week`
+    : null;
 
   const refresh = () => {
     utils.household.get.invalidate();
@@ -423,6 +428,53 @@ export function FamilyScreen({
                     Any screen using the old link stops working, and you'll need to set each one up
                     again.
                   </p>
+                )}
+                {portraitUrl && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <p
+                      className="font-semibold"
+                      style={{ fontSize: 'var(--fs-sm)', color: 'var(--color-text)' }}
+                    >
+                      Portrait view — the kids' week
+                    </p>
+                    <p className="mt-0.5 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                      Just this week, big emoji, for a screen turned upright. It's the same link with{' '}
+                      <span style={{ color: 'var(--color-text)' }}>?view=week</span> on the end.
+                    </p>
+                    <div
+                      className="mt-2 break-all rounded-lg border border-border bg-bg px-3 py-2"
+                      style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text)' }}
+                    >
+                      {portraitUrl}
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(portraitUrl);
+                            setCopiedPortrait(true);
+                            setTimeout(() => setCopiedPortrait(false), 1500);
+                          } catch {
+                            /* the link is on screen to copy by hand */
+                          }
+                        }}
+                        className="rounded-full px-3 py-1.5 font-bold text-accent"
+                        style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+                      >
+                        {copiedPortrait ? 'Copied' : 'Copy link'}
+                      </button>
+                      <a
+                        href={portraitUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full px-3 py-1.5 font-bold text-accent"
+                        style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+                      >
+                        Open
+                      </a>
+                    </div>
+                  </div>
                 )}
               </div>
             ) : (
