@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from 'drizzle-orm';
 import {
   birthday,
+  childDay,
   db,
   event,
   household,
@@ -15,7 +16,7 @@ import {
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { expandEvent } from '../../lib/recurrence.js';
-import { kidsToday } from './children.js';
+import { kidsToday, statusFor } from './children.js';
 import { doseStatusFor } from './doses.js';
 import { readRange } from './mealPlan.js';
 import { publicProcedure, router } from '../trpc.js';
@@ -26,6 +27,13 @@ function keyOf(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Same, but reading the UTC fields — used with the display-offset shift below. */
+function keyOfUtc(d: Date): string {
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${m}-${day}`;
 }
 
 function weekParity(anchor: string, day: string): 0 | 1 {
@@ -47,6 +55,14 @@ export const wallRouter = router({
         token: z.string().min(16).max(64),
         // The display's local midnight, so "today" is its today, not the server's.
         dayStart: z.string().datetime(),
+        // The display's own calendar date for `dayStart`. Without it the server
+        // names the day in ITS timezone: the API container runs UTC, so an
+        // Australian local midnight (Tue 00:00 = Mon 14:00Z) was being labelled
+        // Monday — "today" was a day behind for everyone east of UTC.
+        dayKey: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
         // Optional override. Left out — which is the normal case, since the
         // display has no session to read a preference from — the household's
         // own setting is used, so a family on Sunday weeks gets one here too.
@@ -82,8 +98,18 @@ export const wallRouter = router({
 
       const dayStart = new Date(input.dayStart);
       const dayEnd = new Date(dayStart.getTime() + DAY);
-      const todayKey = keyOf(dayStart);
-      const dow = dayStart.getDay();
+      // Shift every instant so that the display's local midnight sits on UTC
+      // midnight; then UTC formatting yields the display's own calendar day,
+      // whatever timezone this server happens to run in. Falls back to the old
+      // server-local behaviour when an older client sends no dayKey.
+      const shiftMs = input.dayKey
+        ? Date.parse(`${input.dayKey}T00:00:00Z`) - dayStart.getTime()
+        : 0;
+      const localKey = (d: Date) => (shiftMs ? keyOfUtc(new Date(d.getTime() + shiftMs)) : keyOf(d));
+      const localDow = (d: Date) =>
+        shiftMs ? new Date(d.getTime() + shiftMs).getUTCDay() : d.getDay();
+      const todayKey = localKey(dayStart);
+      const dow = localDow(dayStart);
       const back = (dow - weekStartsOn + 7) % 7;
       const weekStart = new Date(dayStart.getTime() - back * DAY);
       const weekEnd = new Date(weekStart.getTime() + 7 * DAY);
@@ -133,36 +159,39 @@ export const wallRouter = router({
             )
         : [];
       const offOn = (d: Date) => {
-        const parity = weekParity(hh.anchor, keyOf(d));
+        const parity = weekParity(hh.anchor, localKey(d));
         return adults.filter((a) => {
           const mine = work.filter((w) => w.personId === a.id);
           if (mine.length === 0) return false;
           const fortnightly = mine.some((w) => w.week === 1);
           return !mine.some(
-            (w) => w.weekday === d.getDay() && w.week === (fortnightly ? parity : 0),
+            (w) => w.weekday === localDow(d) && w.week === (fortnightly ? parity : 0),
           );
         });
       };
-      const grownUps = adults
-        .filter((a) => work.some((w) => w.personId === a.id))
-        .map((a) => {
-          const mine = work.filter((w) => w.personId === a.id);
-          const fortnightly = mine.some((w) => w.week === 1);
-          const today = mine.find(
-            (w) =>
-              w.weekday === dow && w.week === (fortnightly ? weekParity(hh.anchor, todayKey) : 0),
-          );
-          return {
-            id: a.id,
-            name: a.name,
-            avatarEmoji: a.avatarEmoji,
-            place: today?.place ?? null,
-            startTime: today?.startTime ?? null,
-            endTime: today?.endTime ?? null,
-            off: !today,
-            note: a.note,
-          };
-        });
+      // Every adult is returned, not only those with a work week: a screen that
+      // silently omits a parent cannot answer "where is everyone". `hasSchedule`
+      // separates "no work today" (a real day off) from "we were never told" —
+      // without it an unconfigured adult reads as permanently off.
+      const grownUps = adults.map((a) => {
+        const mine = work.filter((w) => w.personId === a.id);
+        const fortnightly = mine.some((w) => w.week === 1);
+        const today = mine.find(
+          (w) => w.weekday === dow && w.week === (fortnightly ? weekParity(hh.anchor, todayKey) : 0),
+        );
+        return {
+          id: a.id,
+          name: a.name,
+          avatarEmoji: a.avatarEmoji,
+          avatarColor: a.avatarColor,
+          place: today?.place ?? null,
+          startTime: today?.startTime ?? null,
+          endTime: today?.endTime ?? null,
+          off: !today,
+          hasSchedule: mine.length > 0,
+          note: a.note,
+        };
+      });
 
       // ── events across the week and the kids' three weeks ──
       const evRows = listIds.length
@@ -176,6 +205,7 @@ export const wallRouter = router({
               allDay: event.allDay,
               recurrenceRule: event.recurrenceRule,
               assigneeId: event.assigneeId,
+              emoji: event.emoji,
             })
             .from(event)
             .where(
@@ -198,6 +228,7 @@ export const wallRouter = router({
           endAt: o.end,
           allDay: ev.allDay,
           assigneeId: ev.assigneeId,
+          emoji: ev.emoji,
           who: people.find((p) => p.id === ev.assigneeId)?.name.split(' ')[0] ?? null,
           forKid:
             (ev.assigneeId !== null && kidIds.has(ev.assigneeId)) || childListIds.has(ev.listId),
@@ -271,7 +302,7 @@ export const wallRouter = router({
         .orderBy(asc(mealPlan.createdAt))
         .limit(1);
       const dinner = plan ? ((await readRange(plan.id, todayKey, todayKey))[0] ?? null) : null;
-      const kidsWhere = await kidsToday(childLists);
+      const kidsWhere = await kidsToday(childLists, { dayKey: todayKey, weekday: dow });
       const doses = await doseStatusFor(
         hh.id,
         kids.map((k) => k.id),
@@ -292,18 +323,58 @@ export const wallRouter = router({
                   schoolPeriod.listId,
                   childLists.map((l) => l.id),
                 ),
-                lte(schoolPeriod.startDate, keyOf(aheadEnd)),
+                lte(schoolPeriod.startDate, localKey(aheadEnd)),
                 gte(schoolPeriod.endDate, todayKey),
               ),
             )
         : [];
 
+      // The children's weekly pattern (which weekday each is at daycare/kindy/school),
+      // so the week view can show it — not just today's column. Crossed per-date with
+      // term dates below, so a holiday week shows no attendance.
+      const childDays = childLists.length
+        ? await db
+            .select({
+              listId: childDay.listId,
+              weekday: childDay.weekday,
+              place: childDay.place,
+              emoji: childDay.emoji,
+            })
+            .from(childDay)
+            .where(
+              inArray(
+                childDay.listId,
+                childLists.map((l) => l.id),
+              ),
+            )
+        : [];
+      const childListById = new Map(childLists.map((l) => [l.id, l]));
+
       const week = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(weekStart.getTime() + i * DAY);
         const e = new Date(d.getTime() + DAY);
         return {
-          date: keyOf(d),
-          isToday: keyOf(d) === todayKey,
+          date: localKey(d),
+          isToday: localKey(d) === todayKey,
+          // Who is where on this weekday (daycare/kindy/school), if term is running.
+          school: childDays.flatMap((cd) => {
+            if (cd.weekday !== localDow(d)) return [];
+            if (!statusFor(periods.filter((p) => p.listId === cd.listId), localKey(d)).attending) {
+              return [];
+            }
+            const l = childListById.get(cd.listId);
+            if (!l) return [];
+            return [
+              {
+                id: `${cd.listId}:${cd.weekday}`,
+                name: l.name.split(' ')[0],
+                // The place's own emoji (🏫 daycare) is the glanceable one; fall
+                // back to the child's icon until one is set.
+                emoji: cd.emoji ?? l.emojiIcon,
+                place: cd.place,
+              },
+            ];
+          }),
           off: offOn(d).map((a) => ({
             id: a.id,
             name: a.name.split(' ')[0],
@@ -314,6 +385,7 @@ export const wallRouter = router({
             .map((o) => ({
               id: o.id,
               title: o.title,
+              emoji: o.emoji,
               time: o.allDay ? null : o.startAt.toISOString(),
               who: o.who,
               forKid: o.forKid,
@@ -339,6 +411,9 @@ export const wallRouter = router({
           id: k.id,
           name: k.name,
           emojiIcon: k.emojiIcon,
+          // Keys this child's colour across the whole display, so "whose is it"
+          // is answerable without reading any text.
+          color: k.color,
           place: k.place,
           startTime: k.startTime,
           endTime: k.endTime,
@@ -357,6 +432,7 @@ export const wallRouter = router({
             .map((o) => ({
               id: o.id,
               title: o.title,
+              emoji: o.emoji,
               time: o.allDay ? null : o.startAt.toISOString(),
               who: o.who,
             })),
@@ -377,7 +453,7 @@ export const wallRouter = router({
             .filter((o) => o.forKid && o.startAt >= dayEnd && o.startAt < aheadEnd)
             .map((o) => ({
               id: o.id,
-              date: keyOf(o.startAt),
+              date: localKey(o.startAt),
               title: o.title,
               who: o.who,
               time: o.allDay ? null : o.startAt.toISOString(),

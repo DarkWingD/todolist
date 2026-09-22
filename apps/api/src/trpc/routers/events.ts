@@ -85,6 +85,7 @@ export const eventsRouter = router({
         allDay: input.allDay,
         assigneeId: input.assigneeId,
         recurrenceRule: input.recurrenceRule,
+        emoji: input.emoji,
         createdBy: ctx.user.id,
       })
       .returning();

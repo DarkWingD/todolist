@@ -54,6 +54,7 @@ export const calendarRouter = router({
         endAt: event.endAt,
         allDay: event.allDay,
         recurrenceRule: event.recurrenceRule,
+        emoji: event.emoji,
         listColor: list.color,
         assigneeId: event.assigneeId,
         assigneeName: person.name,

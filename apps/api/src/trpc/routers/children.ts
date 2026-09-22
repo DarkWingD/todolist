@@ -49,7 +49,7 @@ async function assertChild(userId: string, listId: string) {
  * A closure beats a term — a pupil-free day sits inside term time and is the
  * whole point of recording it. A break beats a term for the same reason.
  */
-function derivedBreaks(
+export function derivedBreaks(
   periods: { kind: 'term' | 'break' | 'closure'; startDate: string; endDate: string }[],
 ): { startDate: string; endDate: string }[] {
   const terms = periods
@@ -74,7 +74,7 @@ function shiftDay(iso: string, days: number): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
-function statusFor(
+export function statusFor(
   periods: {
     kind: 'term' | 'break' | 'closure';
     name: string;
@@ -105,11 +105,14 @@ function statusFor(
 /** Where each of these children is today, crossed with their term dates. */
 export async function kidsToday(
   lists: { id: string; name: string; emojiIcon: string; color: string | null }[],
+  // A wall display in another timezone must be told its own day: this server
+  // runs UTC, so its idea of "today" is a day behind for anywhere east of it.
+  on?: { dayKey: string; weekday: number },
 ) {
   if (lists.length === 0) return [];
   const ids = lists.map((l) => l.id);
-  const day = todayKey();
-  const weekday = new Date().getDay();
+  const day = on?.dayKey ?? todayKey();
+  const weekday = on?.weekday ?? new Date().getDay();
 
   const [days, periods, profiles] = await Promise.all([
     db
@@ -217,6 +220,7 @@ export const childrenRouter = router({
             endAt: event.endAt,
             allDay: event.allDay,
             recurrenceRule: event.recurrenceRule,
+            emoji: event.emoji,
           })
           .from(event)
           .where(and(eq(event.listId, input.listId), isNull(event.deletedAt)))
@@ -244,6 +248,9 @@ export const childrenRouter = router({
               expandEvent(ev, from, to).map((o) => ({
                 ...ev,
                 id: o.occurrenceId,
+                // The stable series id (ev.id is lost to the occurrence id above),
+                // so the agenda can collapse a weekly event to one "Wednesdays" row.
+                seriesId: ev.id,
                 startAt: o.start,
                 endAt: o.end,
               })),
@@ -279,6 +286,7 @@ export const childrenRouter = router({
           listId: input.listId,
           weekday: d.weekday,
           place: d.place,
+          emoji: d.emoji ?? null,
           startTime: d.startTime ?? null,
           endTime: d.endTime ?? null,
         })),
