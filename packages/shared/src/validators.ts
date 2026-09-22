@@ -119,6 +119,9 @@ export const createEventSchema = z.object({
   // A weekly swimming lesson is an event, not a task — nobody completes it, so
   // it cannot use the task model where finishing one spawns the next.
   recurrenceRule: recurrenceSchema.optional(),
+  // A glanceable emoji for the wall/week view. Grapheme clusters (flags, ZWJ)
+  // run long, hence 24.
+  emoji: z.string().max(24).optional(),
 });
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 
@@ -128,6 +131,7 @@ export const updateEventSchema = createEventSchema.partial().omit({ listId: true
   listId: z.string().uuid().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
   recurrenceRule: recurrenceSchema.nullable().optional(),
+  emoji: z.string().max(24).nullable().optional(),
 });
 
 export const createBirthdaySchema = z.object({
@@ -273,6 +277,7 @@ export const setChildDaysSchema = z.object({
       z.object({
         weekday: weekdaySchema,
         place: z.string().trim().min(1).max(120),
+        emoji: z.string().max(24).nullable().optional(),
         startTime: timeOfDaySchema.nullable().optional(),
         endTime: timeOfDaySchema.nullable().optional(),
       }),

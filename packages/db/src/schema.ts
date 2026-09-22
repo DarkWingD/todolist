@@ -459,6 +459,9 @@ export const event = pgTable(
     // is never completed, so occurrences are expanded when a date range is read
     // rather than materialised as rows.
     recurrenceRule: text('recurrence_rule'),
+    // A glanceable emoji for the wall/week view (🏊 for swimming). User-chosen
+    // per event; null shows the title alone.
+    emoji: text('emoji'),
     // Whose event it is (drives the per-person colour on the calendar). A
     // person, so a child's swimming lesson is theirs.
     assigneeId: uuid('assignee_id').references(() => person.id, { onDelete: 'set null' }),
@@ -698,6 +701,9 @@ export const childDay = pgTable(
     // translation when compared against a real date.
     weekday: smallint('weekday').notNull(),
     place: text('place').notNull(),
+    // A glanceable emoji for the place (🏫 daycare, 🎨 kindy), shown on the wall
+    // week view so kids can read the day at a glance. null shows the place text.
+    emoji: text('emoji'),
     // "HH:MM", local to the family. A day with no times is still a valid day.
     startTime: text('start_time'),
     endTime: text('end_time'),
