@@ -518,6 +518,7 @@ export function ListDetailScreen({
                 endAt: ev.endAt as unknown as string,
                 allDay: ev.allDay,
                 assigneeId: ev.assigneeId,
+                emoji: ev.emoji,
               }}
               lists={allLists}
               people={household?.people ?? []}

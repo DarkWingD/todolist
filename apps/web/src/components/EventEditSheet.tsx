@@ -1,8 +1,9 @@
 import { Sheet } from '@todolist/kitchen-ui';
 import { useState } from 'react';
-import { fromLocalInput, toLocalInput } from '../lib/datetime';
+import { endForNewStart, fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 import { Avatar } from './Avatar';
+import { EmojiPicker } from './EmojiPicker';
 
 export interface EditableEvent {
   id: string;
@@ -14,6 +15,7 @@ export interface EditableEvent {
   allDay: boolean;
   assigneeId: string | null;
   recurrenceRule?: string | null;
+  emoji?: string | null;
 }
 
 interface Props {
@@ -47,6 +49,14 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
   const [start, setStart] = useState(() => toLocalInput(event.startAt));
   const [end, setEnd] = useState(() => toLocalInput(event.endAt));
   const [assignee, setAssignee] = useState<string | null>(event.assigneeId);
+  const [emoji, setEmoji] = useState(event.emoji ?? '');
+  // `min` stops the picker offering an earlier end; a typed one still needs this.
+  const endsAfterStart = (() => {
+    const a = new Date(start);
+    const b = new Date(end);
+    return isNaN(a.getTime()) || isNaN(b.getTime()) ? false : b.getTime() > a.getTime();
+  })();
+
   // Weekly is the only repeat worth offering here: swimming, music, sport. A
   // full recurrence editor is a different feature, and none of the events
   // people attach to a child need one.
@@ -78,6 +88,11 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
+
+      <label className={label} style={labelStyle}>
+        Emoji <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>— shown on the wall</span>
+      </label>
+      <EmojiPicker value={emoji} onChange={setEmoji} />
 
       <label className={label} style={labelStyle}>
         List
@@ -114,7 +129,12 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
         className={field}
         style={fieldStyle}
         value={allDay ? start.slice(0, 10) : start}
-        onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
+        onChange={(e) => {
+          // Moving an existing event keeps its length rather than its end time.
+          const next = allDay ? e.target.value + 'T00:00' : e.target.value;
+          setEnd(endForNewStart(start, end, next, allDay));
+          setStart(next);
+        }}
       />
       <label className={label} style={labelStyle}>
         End
@@ -123,6 +143,7 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
         type={allDay ? 'date' : 'datetime-local'}
         className={field}
         style={fieldStyle}
+        min={allDay ? start.slice(0, 10) : start}
         value={allDay ? end.slice(0, 10) : end}
         onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
       />
@@ -187,7 +208,7 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
         )}
       </div>
       <button
-        disabled={!title.trim() || update.isPending}
+        disabled={!title.trim() || !endsAfterStart || update.isPending}
         className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
         style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
         onClick={() => {
@@ -202,6 +223,7 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
             endAt: e,
             allDay,
             assigneeId: assignee,
+            emoji: emoji || null,
             // Anchored to the day the event actually starts, so moving the
             // event moves the whole series with it.
             recurrenceRule:

@@ -13,6 +13,48 @@ export function fromLocalInput(local: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/**
+ * Where the end goes when the start moves.
+ *
+ * Moving the start used to leave the end where it was, so picking 2pm on an
+ * event that defaulted to 9–10am gave you an event ending four hours before it
+ * began. The end follows instead, keeping whatever gap the two already had: an
+ * event you had already stretched to two hours stays two hours when you move
+ * it, and a fresh one keeps its hour.
+ *
+ * All-day events keep their length in days for the same reason — a week away
+ * should not collapse to a single day because you shifted the departure.
+ *
+ * Falls back to an hour (or a single day) when there is no sensible gap to
+ * keep, which covers a blank field and a range someone had already inverted.
+ */
+export function endForNewStart(
+  prevStart: string,
+  prevEnd: string,
+  nextStart: string,
+  allDay = false,
+): string {
+  const next = new Date(nextStart);
+  if (isNaN(next.getTime())) return prevEnd;
+  const from = new Date(prevStart);
+  const to = new Date(prevEnd);
+  const span = isNaN(from.getTime()) || isNaN(to.getTime()) ? NaN : to.getTime() - from.getTime();
+
+  if (allDay) {
+    // Counted as calendar days, not milliseconds. An all-day event runs to
+    // 23:59, so a single day is 1439 minutes — dividing by 86400000 rounds a
+    // three-day span to four and a one-day span to zero depending which way it
+    // goes, and an hour of daylight saving in between moves it again.
+    const days = isNaN(from.getTime()) || isNaN(to.getTime())
+      ? 0
+      : Math.max(0, dayNumber(to) - dayNumber(from));
+    const end = new Date(next.getFullYear(), next.getMonth(), next.getDate() + days, 23, 59);
+    return toLocalInput(end.toISOString());
+  }
+  const keep = Number.isFinite(span) && span > 0 ? span : 3600000;
+  return toLocalInput(new Date(next.getTime() + keep).toISOString());
+}
+
 // FORTNIGHTLY is ours: it is stored as weekly with an interval of two, which
 // is what bins, pay and shared custody actually run on.
 const FREQS = ['DAILY', 'WEEKLY', 'FORTNIGHTLY', 'MONTHLY', 'YEARLY'] as const;
@@ -29,6 +71,39 @@ export function ruleToFreq(rule: string | null | undefined): Freq | '' {
 export function freqToRule(freq: Freq | ''): string | null {
   if (!freq) return null;
   return freq === 'FORTNIGHTLY' ? 'FREQ=WEEKLY;INTERVAL=2' : `FREQ=${freq}`;
+}
+
+const WEEKDAY_PLURAL = [
+  'Sundays',
+  'Mondays',
+  'Tuesdays',
+  'Wednesdays',
+  'Thursdays',
+  'Fridays',
+  'Saturdays',
+];
+
+/**
+ * A short human recurrence label for a collapsed agenda row: a weekly event
+ * becomes the weekday it lands on ("Wednesdays") so the list can say it once
+ * instead of repeating the occurrence down every future week; everything else
+ * falls back to the frequency word. `on` is any occurrence of the series.
+ */
+export function recurrenceSummary(rule: string | null | undefined, on: Date): string {
+  switch (ruleToFreq(rule)) {
+    case 'WEEKLY':
+      return WEEKDAY_PLURAL[on.getDay()] ?? 'Weekly';
+    case 'FORTNIGHTLY':
+      return 'Fortnightly';
+    case 'DAILY':
+      return 'Daily';
+    case 'MONTHLY':
+      return 'Monthly';
+    case 'YEARLY':
+      return 'Yearly';
+    default:
+      return '';
+  }
 }
 
 export function formatDateTime(iso: string | Date): string {

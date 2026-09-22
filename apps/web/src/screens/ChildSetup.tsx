@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
+import { EmojiPicker } from '../components/EmojiPicker';
 
 /**
  * Setup, folded behind one row on the child screen.
@@ -63,7 +64,13 @@ function profileDraft(p: Profile | null) {
 }
 
 type ChildData = {
-  days: { weekday: number; place: string; startTime: string | null; endTime: string | null }[];
+  days: {
+    weekday: number;
+    place: string;
+    emoji: string | null;
+    startTime: string | null;
+    endTime: string | null;
+  }[];
   periods: {
     id: string;
     kind: 'term' | 'break' | 'closure';
@@ -108,6 +115,7 @@ export function ChildSetup({
   // Place sheet
   const [placeOpen, setPlaceOpen] = useState(false);
   const [place, setPlace] = useState('');
+  const [placeEmoji, setPlaceEmoji] = useState('');
   const [picked, setPicked] = useState<number[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -133,12 +141,14 @@ export function ChildSetup({
     if (existing) {
       const rows = byPlace.get(existing)!;
       setPlace(existing);
+      setPlaceEmoji(rows[0]?.emoji ?? '');
       setPicked(rows.map((r) => r.weekday));
       setFrom(rows[0]?.startTime ?? '');
       setTo(rows[0]?.endTime ?? '');
       setEditingPlace(existing);
     } else {
       setPlace('');
+      setPlaceEmoji('');
       // The first place a child gets is nearly always the school week.
       setPicked(child.days.length === 0 ? [1, 2, 3, 4, 5] : []);
       setFrom('');
@@ -157,6 +167,7 @@ export function ChildSetup({
     const mine = picked.map((weekday) => ({
       weekday,
       place: name,
+      emoji: placeEmoji || null,
       startTime: from || null,
       endTime: to || null,
     }));
@@ -166,6 +177,9 @@ export function ChildSetup({
         days: [...kept, ...mine].map((d) => ({
           weekday: d.weekday,
           place: d.place,
+          // Preserve every place's emoji — this replaces the whole week, so a
+          // dropped field wipes it for all the days we aren't editing.
+          emoji: d.emoji ?? null,
           startTime: d.startTime,
           endTime: d.endTime,
         })),
@@ -184,6 +198,7 @@ export function ChildSetup({
         .map((d) => ({
           weekday: d.weekday,
           place: d.place,
+          emoji: d.emoji ?? null,
           startTime: d.startTime,
           endTime: d.endTime,
         })),
@@ -300,6 +315,7 @@ export function ChildSetup({
               className={field}
               style={fieldStyle}
             />
+            <EmojiPicker value={placeEmoji} onChange={setPlaceEmoji} />
             <div className="flex justify-between gap-1">
               {DAY_INITIALS.map((d, i) => {
                 const on = picked.includes(i);

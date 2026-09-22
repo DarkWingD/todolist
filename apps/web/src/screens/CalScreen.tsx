@@ -5,7 +5,7 @@ import { readableOn } from '../components/ColorPicker';
 import { Sheet } from '@todolist/kitchen-ui';
 import { EventEditSheet } from '../components/EventEditSheet';
 import { addDays, sameDay, startOfDay, startOfWeek, weekdayInitials } from '@todolist/kitchen-ui';
-import { fromLocalInput, toLocalInput } from '../lib/datetime';
+import { endForNewStart, fromLocalInput, toLocalInput } from '../lib/datetime';
 import { trpc } from '../lib/trpc';
 
 // Roughly what a month cell can show on a phone before it starts clipping.
@@ -694,7 +694,9 @@ export function CalScreen({
           return (
             <EventEditSheet
               event={{
-                id: ev.id,
+                // The series uuid, not the occurrence id ("<uuid>:<iso>") — the
+                // editor edits the whole series, and update/delete demand a uuid.
+                id: ev.seriesId,
                 listId: ev.listId,
                 title: ev.title,
                 notes: ev.notes,
@@ -702,6 +704,7 @@ export function CalScreen({
                 endAt: ev.endAt as unknown as string,
                 allDay: ev.allDay,
                 assigneeId: ev.assigneeId,
+                emoji: ev.emoji,
               }}
               lists={lists}
               eventsList={eventsList}
@@ -788,6 +791,14 @@ function CalSheet({
   const fieldStyle = { fontSize: 'var(--fs-base)', color: 'var(--color-text)' };
   const label = 'mb-1.5 mt-3 block font-semibold text-muted';
   const labelStyle = { fontSize: 'var(--fs-sm)' };
+
+  // `min` stops the picker offering an earlier end, but it does not stop a typed
+  // one, so the button checks too rather than trusting the input.
+  const endsAfterStart = (() => {
+    const s = new Date(start);
+    const e = new Date(end);
+    return isNaN(s.getTime()) || isNaN(e.getTime()) ? false : e.getTime() > s.getTime();
+  })();
 
   // eventsList may still be loading; the fallback keeps the line from going blank.
   const chosenList = listId ? (lists.find((l) => l.id === listId) ?? null) : (eventsList ?? null);
@@ -945,7 +956,13 @@ function CalSheet({
             className={field}
             style={fieldStyle}
             value={allDay ? start.slice(0, 10) : start}
-            onChange={(e) => setStart(allDay ? e.target.value + 'T00:00' : e.target.value)}
+            onChange={(e) => {
+              // The end comes along, or moving the start leaves the event
+              // ending before it begins.
+              const next = allDay ? e.target.value + 'T00:00' : e.target.value;
+              setEnd(endForNewStart(start, end, next, allDay));
+              setStart(next);
+            }}
           />
           <label className={label} style={labelStyle}>
             End
@@ -954,6 +971,9 @@ function CalSheet({
             type={allDay ? 'date' : 'datetime-local'}
             className={field}
             style={fieldStyle}
+            // Declaring the floor beats correcting the field as it is typed:
+            // an end is briefly earlier than the start on the way to being later.
+            min={allDay ? start.slice(0, 10) : start}
             value={allDay ? end.slice(0, 10) : end}
             onChange={(e) => setEnd(allDay ? e.target.value + 'T23:59' : e.target.value)}
           />
@@ -1017,7 +1037,7 @@ function CalSheet({
             )}
           </div>
           <button
-            disabled={!title.trim() || createEvent.isPending}
+            disabled={!title.trim() || !endsAfterStart || createEvent.isPending}
             className="mt-4 w-full rounded-card py-3 font-bold text-accent-contrast disabled:opacity-50"
             style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-base)' }}
             onClick={() => {

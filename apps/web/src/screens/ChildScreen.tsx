@@ -5,7 +5,7 @@ import { trpc } from '../lib/trpc';
 import { ChildSetup } from './ChildSetup';
 import { DoseSheet } from '../components/DoseSheet';
 import { relativeTime } from '../lib/activityText';
-import { recursOn } from '../lib/datetime';
+import { recursOn, recurrenceSummary } from '../lib/datetime';
 import { ChildTodayCard } from '../components/ChildTodayCard';
 import { TaskRow } from '../components/TaskRow';
 import { EventEditSheet } from '../components/EventEditSheet';
@@ -38,6 +38,8 @@ interface Item {
   timeLabel: string | null;
   /** A recurring chore, so the row can say so rather than repeat itself. */
   repeats?: boolean;
+  /** Human recurrence label for a collapsed series row, e.g. "Wednesdays". */
+  recurLabel?: string;
 }
 
 interface DayGroup {
@@ -214,8 +216,17 @@ export function ChildScreen({
       if (t.dueAt) all.push({ ...base, when: new Date(t.dueAt) });
     }
 
+    // A weekly event (e.g. swimming) arrives pre-expanded to one occurrence per
+    // week, which otherwise fills the list with a dozen identical rows and pushes
+    // everything else off the screen. Collapse each series to its next occurrence
+    // and let the row say "· Wednesdays" instead of repeating down the weeks.
+    const seenSeries = new Set<string>();
     for (const e of child.events) {
       const start = new Date(e.startAt);
+      if (e.recurrenceRule && e.seriesId) {
+        if (seenSeries.has(e.seriesId)) continue;
+        seenSeries.add(e.seriesId);
+      }
       all.push({
         id: e.id,
         title: e.title,
@@ -225,6 +236,9 @@ export function ChildScreen({
         timeLabel: e.allDay
           ? null
           : start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        ...(e.recurrenceRule
+          ? { repeats: true, recurLabel: recurrenceSummary(e.recurrenceRule, start) }
+          : {}),
       });
     }
 
@@ -302,6 +316,11 @@ export function ChildScreen({
           </span>
           <span className="min-w-0 flex-1" style={{ fontSize: 'var(--fs-base)' }}>
             {it.title}
+            {it.recurLabel ? (
+              <span className="text-muted" style={{ fontSize: 'var(--fs-xs)', marginLeft: 8 }}>
+                · {it.recurLabel}
+              </span>
+            ) : null}
           </span>
           <span className="flex-none text-muted" style={{ fontSize: 16 }}>
             ›
@@ -655,7 +674,9 @@ export function ChildScreen({
           return (
             <EventEditSheet
               event={{
-                id: ev.id,
+                // The series uuid, not the occurrence id ("<uuid>:<iso>") — the
+                // editor edits the whole series, and update/delete demand a uuid.
+                id: ev.seriesId,
                 listId,
                 title: ev.title,
                 startAt: new Date(ev.startAt as unknown as string).toISOString(),
@@ -663,6 +684,7 @@ export function ChildScreen({
                 allDay: ev.allDay,
                 assigneeId: null,
                 recurrenceRule: ev.recurrenceRule,
+                emoji: ev.emoji,
               }}
               lists={[{ id: listId, name: child.name, emojiIcon: child.emojiIcon }]}
               people={[]}
