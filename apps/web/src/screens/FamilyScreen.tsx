@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
+import { AvatarPhotoButton } from '../components/AvatarPhotoButton';
 import { WorkWeekSheet } from '../components/WorkWeekSheet';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
@@ -637,7 +638,23 @@ function EditChildSheet({
           className={`${field} bg-surface`}
           style={fieldStyle}
         />
+        {/* A photo wins over the emoji when set — Avatar already prefers it —
+            so it sits above, and removing it falls back to the emoji below. */}
         <div className="mt-3">
+          <AvatarPhotoButton
+            emoji={emoji}
+            color={color ?? p.avatarColor}
+            image={p.image}
+            label={`Change ${p.name}'s photo`}
+            busy={update.isPending}
+            onPick={(image) => update.mutate({ id: p.id, image })}
+            onClear={() => update.mutate({ id: p.id, image: null })}
+          />
+        </div>
+        <div className="mb-1 mt-3 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+          Their emoji
+        </div>
+        <div>
           <EmojiPicker value={emoji} onChange={setEmoji} />
         </div>
         <div className="mb-1 mt-3 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>

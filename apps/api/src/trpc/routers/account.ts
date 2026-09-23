@@ -1,13 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { birthday, db, event, list, listMember, task, user, userPrefs } from '@todolist/db';
+import { birthday, db, event, list, listMember, person, task, user, userPrefs } from '@todolist/db';
 import { z } from 'zod';
+import { photoSchema } from '@todolist/shared';
 import { protectedProcedure, router } from '../trpc.js';
-
-// Small square photo shipped as a data URL (~25KB after client-side resize).
-const photoSchema = z
-  .string()
-  .regex(/^data:image\/(jpeg|png|webp);base64,/, 'Must be an image data URL')
-  .max(300_000);
 
 export const accountRouter = router({
   // Set or clear the user's profile photo (null clears back to emoji avatar).
@@ -22,6 +17,42 @@ export const accountRouter = router({
     }),
 
   // A downloadable copy of everything this user owns/created.
+  /**
+   * Your own display name, emoji and colour.
+   *
+   * Written to the ACCOUNT first and the person row to match. That order matters:
+   * ensurePerson() copies the account's name onto the person on every request, so
+   * updating only the person would be silently reverted on the next page load.
+   *
+   * Names exist at all because a magic-link signup carries none — auth.ts falls
+   * back to the email's local part, which is how people end up called "dan-w".
+   */
+  setProfile: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1).max(80).optional(),
+        emojiIcon: z.string().min(1).max(24).optional(),
+        color: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const patch: {
+        name?: string;
+        avatarEmoji?: string;
+        avatarColor?: string;
+        updatedAt: Date;
+      } = { updatedAt: new Date() };
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.emojiIcon !== undefined) patch.avatarEmoji = input.emojiIcon;
+      if (input.color !== undefined) patch.avatarColor = input.color;
+      await db.update(user).set(patch).where(eq(user.id, ctx.user.id));
+      await db.update(person).set(patch).where(eq(person.id, ctx.person.id));
+      return { ok: true };
+    }),
+
   exportMe: protectedProcedure.query(async ({ ctx }) => {
     const uid = ctx.user.id;
     const [profile] = await db.select().from(user).where(eq(user.id, uid));

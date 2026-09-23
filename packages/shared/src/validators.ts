@@ -21,6 +21,14 @@ export const emojiSchema = z
 // #RRGGBB
 export const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Must be a hex color');
 
+// A small square photo shipped as a data URL (~25KB after client-side resize).
+// Stored inline rather than in object storage: an avatar is tiny and this app
+// has no upload pipeline to justify building for it.
+export const photoSchema = z
+  .string()
+  .regex(/^data:image\/(jpeg|png|webp);base64,/, 'Must be an image data URL')
+  .max(300_000);
+
 export const userPrefsSchema = z.object({
   theme: z.enum(THEMES),
   appearance: z.enum(APPEARANCES),
@@ -325,6 +333,9 @@ export const updatePersonSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   emojiIcon: emojiSchema.optional(),
   color: hexColorSchema.nullable().optional(),
+  // A child has no account to upload from, so their photo is set here by an
+  // adult. Same square data URL the account photo uses.
+  image: photoSchema.nullable().optional(),
 });
 
 export const logDoseSchema = z.object({

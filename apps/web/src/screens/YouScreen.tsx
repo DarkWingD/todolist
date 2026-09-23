@@ -1,5 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { EmojiPicker } from '../components/EmojiPicker';
+import { ColorPicker } from '../components/ColorPicker';
 import { signOut } from '../lib/auth';
 import { useErrorReporter } from '../lib/errors';
 import { trpc } from '../lib/trpc';
@@ -45,6 +47,9 @@ export function YouScreen({
   const fileInput = useRef<HTMLInputElement>(null);
   // Reload after changing the photo so the Better Auth session picks up the new image.
   const setPhoto = trpc.account.setPhoto.useMutation({ onSuccess: () => location.reload() });
+  const setProfile = trpc.account.setProfile.useMutation({ onSuccess: () => location.reload() });
+  const [draftName, setDraftName] = useState(me.name);
+  const [editAvatar, setEditAvatar] = useState(false);
 
   const row = (
     icon: string,
@@ -130,17 +135,66 @@ export function YouScreen({
           <div className="break-all text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {me.email}
           </div>
-          {me.image && (
+          <div className="mt-0.5 flex gap-3">
             <button
-              className="mt-0.5 font-semibold text-muted"
+              className="font-semibold text-muted"
               style={{ fontSize: 'var(--fs-xs)' }}
-              onClick={() => setPhoto.mutate({ image: null })}
+              onClick={() => setEditAvatar((v) => !v)}
             >
-              Remove photo
+              {editAvatar ? 'Done' : 'Edit name, emoji & colour'}
             </button>
-          )}
+            {me.image && (
+              <button
+                className="font-semibold text-muted"
+                style={{ fontSize: 'var(--fs-xs)' }}
+                onClick={() => setPhoto.mutate({ image: null })}
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Folded away by default: most people set this once. Without it an adult
+          had no way to change their own emoji or colour anywhere in the app. */}
+      {editAvatar && (
+        <div className="mb-d3 rounded-card bg-surface p-d3 shadow-card">
+          <div className="mb-1 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Your name
+          </div>
+          <div className="mb-3 flex gap-2">
+            <input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              aria-label="Your name"
+              placeholder="What should the family call you?"
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 outline-none"
+              style={{ fontSize: 'var(--fs-base)', color: 'var(--color-text)' }}
+            />
+            <button
+              type="button"
+              disabled={!draftName.trim() || draftName.trim() === me.name || setProfile.isPending}
+              onClick={() => setProfile.mutate({ name: draftName.trim() })}
+              className="flex-none rounded-full px-4 font-bold text-accent disabled:opacity-40"
+              style={{ background: 'var(--color-accent-soft)', fontSize: 'var(--fs-sm)' }}
+            >
+              Save
+            </button>
+          </div>
+          <div className="mb-1 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Your emoji
+          </div>
+          <EmojiPicker value={me.avatarEmoji} onChange={(emojiIcon) => setProfile.mutate({ emojiIcon })} />
+          <div className="mb-1 mt-3 font-semibold text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            Your colour
+          </div>
+          <ColorPicker
+            value={me.avatarColor}
+            onChange={(color) => color && setProfile.mutate({ color })}
+          />
+        </div>
+      )}
 
       <div className="mb-d3 overflow-hidden rounded-card bg-surface shadow-card">
         {row('🎨', 'Appearance', { onClick: onOpenAppearance, value: THEME_LABEL[themeName] })}

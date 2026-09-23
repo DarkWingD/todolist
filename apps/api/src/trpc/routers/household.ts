@@ -150,6 +150,7 @@ export const householdRouter = router({
     if (input.name !== undefined) patch.name = input.name;
     if (input.emojiIcon !== undefined) patch.avatarEmoji = input.emojiIcon;
     if (input.color !== undefined) patch.avatarColor = input.color ?? '#F59E0B';
+    if (input.image !== undefined) patch.image = input.image;
     await db.update(person).set(patch).where(eq(person.id, input.id));
     // The child's list wears the same name, icon and colour.
     if (found.childListId) {

@@ -1,5 +1,5 @@
 import { and, eq, isNull, ne } from 'drizzle-orm';
-import { db, household, list, listMember, mealPlan, mealPlanMember, person } from '@todolist/db';
+import { db, household, list, listMember, mealPlan, mealPlanMember, person, user } from '@todolist/db';
 
 /** What the signed-in user looks like to the household model. */
 export interface Me {
@@ -23,6 +23,33 @@ export interface PersonCtx {
  * up wherever a person is drawn.
  */
 export async function ensurePerson(me: Me): Promise<PersonCtx> {
+  // The account row, not the session, is the source of truth for name and avatar.
+  //
+  // The session payload is a snapshot taken at sign-in, so after someone renames
+  // themselves it still carries the old name — and the sync below would then
+  // quietly revert the person on their very next request. Reading the stored
+  // account instead makes a rename stick without waiting for a session refresh.
+  const accounts = await db
+    .select({
+      name: user.name,
+      avatarEmoji: user.avatarEmoji,
+      avatarColor: user.avatarColor,
+      image: user.image,
+    })
+    .from(user)
+    .where(eq(user.id, me.id))
+    .limit(1);
+  const account = accounts[0];
+  if (account) {
+    me = {
+      ...me,
+      name: account.name || me.name,
+      avatarEmoji: account.avatarEmoji ?? me.avatarEmoji,
+      avatarColor: account.avatarColor ?? me.avatarColor,
+      image: account.image ?? me.image,
+    };
+  }
+
   const rows = await db
     .select({
       id: person.id,
