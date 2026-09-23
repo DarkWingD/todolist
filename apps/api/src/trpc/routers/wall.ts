@@ -448,6 +448,29 @@ export const wallRouter = router({
           })),
         },
         week,
+        // Every birthday's NEXT occurrence, so the wall can show a horizon past
+        // this week. bdays is already fetched unfiltered for the week grid.
+        birthdaysAhead: bdays
+          .map((b) => {
+            const [y, m, d] = todayKey.split('-').map(Number);
+            // This year's, or next year's if it has already gone.
+            let year = y!;
+            if (b.month! < m! || (b.month === m && b.day! < d!)) year += 1;
+            const date = `${year}-${String(b.month).padStart(2, '0')}-${String(b.day).padStart(2, '0')}`;
+            const away = Math.round(
+              (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / DAY,
+            );
+            return {
+              id: b.id,
+              name: b.name,
+              date,
+              away,
+              age: b.year ? year - b.year : null,
+            };
+          })
+          .filter((b) => b.away >= 0 && b.away <= 120)
+          .sort((a, b) => a.away - b.away)
+          .slice(0, 5),
         kidsAhead: [
           ...occurrences
             .filter((o) => o.forKid && o.startAt >= dayEnd && o.startAt < aheadEnd)

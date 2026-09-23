@@ -208,7 +208,12 @@ const portraitCss = `
 .wallp .bar .s{margin-left:auto;font-size:calc(2*var(--u));font-weight:600;color:#6e6858;white-space:nowrap}
 
 /* ── rest of the week ── */
-.wallp .rest{border-top:calc(.35*var(--u)) solid #1c1a17;padding-top:calc(1.2*var(--u));display:flex;flex-direction:column;min-height:0}
+/* Two columns below the fold: on a 4:3 tablet a single left column leaves ~40%
+   of the sheet blank. The week keeps the wider half; the horizon sits beside it. */
+.wallp .low{border-top:calc(.35*var(--u)) solid #1c1a17;padding-top:calc(1.2*var(--u));display:grid;grid-template-columns:1.25fr 1fr;gap:calc(2.4*var(--u));min-height:0}
+.wallp .low .cx{min-width:0;display:flex;flex-direction:column}
+.wallp .low .cx+.cx{border-left:calc(.15*var(--u)) solid #8a8579;padding-left:calc(2.4*var(--u))}
+.wallp .rest{display:flex;flex-direction:column;min-height:0}
 .wallp .rest .rows{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
 .wallp .rest .rw{display:grid;grid-template-columns:calc(1.2*var(--u)) calc(10*var(--u)) 1fr auto;gap:calc(1.2*var(--u));align-items:center;flex:0 0 auto;min-height:calc(6*var(--u));padding:calc(.4*var(--u)) 0}
 /* Presence: a track always renders, so the colour reads as a column with a
@@ -218,19 +223,36 @@ const portraitCss = `
 .wallp .rest .dt{display:flex;align-items:baseline;gap:calc(.8*var(--u));white-space:nowrap}
 .wallp .rest .dt span{font-size:calc(2*var(--u));font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6e6858}
 .wallp .rest .dt b{font-family:Quicksand,system-ui,sans-serif;font-size:calc(3.4*var(--u));font-weight:700;font-variant-numeric:tabular-nums}
-.wallp .rest .ch{display:flex;align-items:center;gap:calc(1.6*var(--u));min-width:0;overflow:hidden}
+.wallp .rest .ch{display:flex;align-items:center;flex-wrap:wrap;gap:calc(.4*var(--u)) calc(1.4*var(--u));min-width:0;overflow:hidden}
 .wallp .rest .c{display:inline-flex;align-items:center;gap:calc(.8*var(--u));font-size:calc(2.5*var(--u));font-weight:600;min-width:0}
 .wallp .rest .c.soon{font-weight:800}
 /* Reserved, centred slot: without a width the glyphs landed at a different x on
    every row (and a trailing ♻️ sat in a different place again). */
 .wallp .rest .c em{font-size:calc(2.7*var(--u));font-style:normal;line-height:1;flex:none;width:calc(3*var(--u));text-align:center}
-.wallp .rest .c .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wallp .rest .c .t{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.15}
 .wallp .rest .more{font-size:calc(2*var(--u));font-weight:800;color:#6e6858;flex:none}
 .wallp .rest .none{font-size:calc(2*var(--u));font-weight:600;color:#6e6858}
 /* The sheet is bracketed at BOTH ends: it opened with a 7px rule and closed with
    nothing, so the page read as sliding off the bottom of the screen. */
 .wallp .foot{border-top:calc(.35*var(--u)) solid #1c1a17;margin-top:calc(1.2*var(--u))}
-.wallp.quiet .rest .rw{flex:0 0 auto}
+/* horizon column */
+.wallp .up{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
+.wallp .up .r{display:grid;grid-template-columns:auto 1fr;gap:calc(1.2*var(--u));align-items:start;padding:calc(.6*var(--u)) 0}
+.wallp .up .d{font-size:calc(2.2*var(--u));font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:#1c1a17;line-height:1.15}
+.wallp .up .d small{display:block;font-size:calc(1.8*var(--u));font-weight:700;color:#6e6858;text-transform:uppercase;letter-spacing:.06em}
+.wallp .up .w{font-size:calc(2.4*var(--u));font-weight:600;color:#4a463d;min-width:0;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.wallp .up .w b{color:#1c1a17;font-weight:800}
+.wallp .bd{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
+.wallp .bd .r{display:flex;align-items:baseline;gap:calc(.8*var(--u));padding:calc(.45*var(--u)) 0;font-size:calc(2.4*var(--u));font-weight:700}
+.wallp .bd .r .aw{margin-left:auto;font-size:calc(2*var(--u));font-weight:700;color:#6e6858;white-space:nowrap}
+/* A light today gives its share to the lower half rather than holding a void:
+   an empty state should cost less space than a full one, not more. */
+.wallp.quiet{grid-template-rows:auto auto auto minmax(0,1fr)}
+.wallp.quiet .rest .rows,.wallp.quiet .up{flex:1}
+/* Rows share the reclaimed height rather than leaving it at the foot, but keep a
+   ceiling: a row of 50px of type in 200px of air reads as broken, not spacious. */
+.wallp.quiet .rest .rw{flex:1 1 auto;min-height:calc(7*var(--u));max-height:calc(11*var(--u))}
+.wallp.quiet .up .r{flex:1 1 auto;max-height:calc(11*var(--u));align-content:center}
 `;
 
 /**
@@ -316,7 +338,7 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
     const nextUp = ahead.find((d) => d.events.length > 0 || d.birthdays.length > 0);
 
     return (
-      <div className={'wallp' + (todayTiles.length === 0 ? ' quiet' : '')}>
+      <div className={'wallp' + (todayTiles.length <= 1 ? ' quiet' : '')}>
         <style>{portraitCss}</style>
         {error ? (
           <div className="perr">
@@ -456,7 +478,8 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
               </div>
             </div>
 
-            {ahead.length > 0 && (
+            <div className="low">
+              <div className="cx">
               <div className="rest">
                 <span className="lab zone">Rest of the week</span>
                 <div className="rows">
@@ -505,9 +528,59 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                     );
                   })}
                 </div>
-                <div className="foot" />
               </div>
-            )}
+              </div>
+
+              <div className="cx">
+                <span className="lab zone">Coming up</span>
+                <div className="up">
+                  {data.kidsAhead.slice(0, 5).map((a) => {
+                    const d = new Date(`${a.date}T00:00:00`);
+                    return (
+                      <div key={a.id} className="r">
+                        <span className="d">
+                          {d.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                          <small>{whenLabel(a.date, dayStart)}</small>
+                        </span>
+                        <span className="w">
+                          <b>{a.title}</b>
+                          {a.who ? ` · ${a.who}` : ''}
+                          {a.endDate ? ` – ${new Date(`${a.endDate}T00:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' })}` : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {data.kidsAhead.length === 0 && <span className="none">Nothing in the next few weeks.</span>}
+                </div>
+
+                {data.birthdaysAhead.length > 0 && (
+                  <>
+                    <span className="lab zone" style={{ marginTop: 'calc(1.6*var(--u))' }}>
+                      Birthdays
+                    </span>
+                    <div className="bd">
+                      {data.birthdaysAhead.map((b) => (
+                        <div key={b.id} className="r">
+                          <span>🎂</span>
+                          <span>
+                            {b.name}
+                            {b.age ? ` (${b.age})` : ''}
+                          </span>
+                          <span className="aw">
+                            {b.away === 0
+                              ? 'today'
+                              : b.away === 1
+                                ? 'tomorrow'
+                                : `${new Date(`${b.date}T00:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' })} · ${b.away}d`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="foot" />
           </>
         )}
       </div>
