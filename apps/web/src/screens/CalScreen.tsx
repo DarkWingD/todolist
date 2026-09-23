@@ -773,7 +773,6 @@ function CalSheet({
   const [pickingList, setPickingList] = useState(false);
   const [allDay, setAllDay] = useState(false);
   const [repeatEvery, setRepeatEvery] = useState<0 | 1 | 2>(0);
-  const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const [start, setStart] = useState(() =>
     toLocalInput(new Date(day.getTime() + 9 * 3600_000).toISOString()),
@@ -1053,7 +1052,7 @@ function CalSheet({
                 assigneeId: assignee ?? undefined,
                 recurrenceRule:
                   repeatEvery > 0
-                    ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
+                    ? `FREQ=WEEKLY;INTERVAL=${repeatEvery}`
                     : undefined,
               });
             }}

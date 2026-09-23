@@ -26,8 +26,6 @@ import { Sheet } from '@todolist/kitchen-ui';
  */
 
 const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-/** RRULE day codes, indexed by Date.getDay(). */
-const RRULE_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 interface Item {
   id: string;
@@ -164,14 +162,13 @@ export function ChildScreen({
       // A time makes it an event, and an event can repeat weekly.
       const start = new Date(`${date}T${time}`);
       const end = new Date(start.getTime() + 60 * 60 * 1000);
-      const RR = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
       createEvent.mutate({
         listId,
         title: t,
         startAt: start.toISOString(),
         endAt: end.toISOString(),
         allDay: false,
-        ...(weekly ? { recurrenceRule: `FREQ=WEEKLY;BYDAY=${RR[start.getDay()]}` } : {}),
+        ...(weekly ? { recurrenceRule: `FREQ=WEEKLY` } : {}),
       });
       return;
     }
@@ -180,7 +177,7 @@ export function ChildScreen({
       title: t,
       dueAt: new Date(`${date}T09:00`).toISOString(),
       ...(weekly
-        ? { recurrenceRule: `FREQ=WEEKLY;BYDAY=${RRULE_DAYS[new Date(`${date}T09:00`).getDay()]}` }
+        ? { recurrenceRule: `FREQ=WEEKLY` }
         : {}),
     });
   }

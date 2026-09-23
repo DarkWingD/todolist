@@ -49,7 +49,20 @@ export function expandEvent<
 
   // rrule works from the rule's own DTSTART, which we do not store — so anchor
   // the series on the event's start and generate from there.
-  const anchored = new RRule({ ...rule.origOptions, dtstart: ev.startAt });
+  //
+  // BYDAY is dropped for plain weekly rules, and that is the whole point: the
+  // client derives it from the LOCAL weekday, but rrule expands in UTC. A 9am
+  // Brisbane lesson is 23:00 UTC the day before, so a Tuesday class was stored
+  // as BYDAY=TU against a dtstart that UTC calls Monday — and every occurrence
+  // landed on Wednesday. Anchoring on dtstart alone repeats every 7 days from
+  // the real instant, which keeps the local weekday whatever the offset.
+  // A multi-day rule (BYDAY=MO,WE,FR) is left alone: there the days are the
+  // intent, not a restatement of the start.
+  const origin = rule.origOptions;
+  const singleDay = Array.isArray(origin.byweekday) ? origin.byweekday.length <= 1 : true;
+  const opts =
+    origin.freq === RRule.WEEKLY && singleDay ? { ...origin, byweekday: undefined } : origin;
+  const anchored = new RRule({ ...opts, dtstart: ev.startAt });
 
   // Widen the search by the event's duration: a lesson that began before the
   // window but runs into it still belongs in the window.

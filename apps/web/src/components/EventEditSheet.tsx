@@ -65,7 +65,6 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
     if (!event.recurrenceRule) return 0;
     return /INTERVAL=2/.test(event.recurrenceRule) ? 2 : 1;
   });
-  const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -228,7 +227,7 @@ export function EventEditSheet({ event, lists, eventsList, people, onClose, onDo
             // event moves the whole series with it.
             recurrenceRule:
               repeatEvery > 0
-                ? `FREQ=WEEKLY;INTERVAL=${repeatEvery};BYDAY=${DAYS[new Date(s).getDay()]}`
+                ? `FREQ=WEEKLY;INTERVAL=${repeatEvery}`
                 : null,
           });
         }}
