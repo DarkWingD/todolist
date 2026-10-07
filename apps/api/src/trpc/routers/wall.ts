@@ -20,6 +20,7 @@ import { expandEvent } from '../../lib/recurrence.js';
 import { kidsToday, statusFor } from './children.js';
 import { doseStatusFor } from './doses.js';
 import { readRange } from './mealPlan.js';
+import { solarFor } from '../../lib/solar.js';
 import { publicProcedure, router } from '../trpc.js';
 
 const DAY = 86_400_000;
@@ -584,6 +585,8 @@ export const wallRouter = router({
           .sort((a, b) => a.date.localeCompare(b.date))
           .slice(0, 8),
         kidJobs,
+        // Only ever for the household the house's solar belongs to (see lib/solar.ts).
+        solar: await solarFor(hh.id),
       };
     }),
 });

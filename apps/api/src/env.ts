@@ -13,6 +13,10 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().default('mailto:hello@dansownsite.com'),
+  // The house's solar car charger (a separate app on the same box). When both are set, that one
+  // household's wall display shows the panels and the car; every other household sees nothing.
+  SOLAR_URL: z.string().url().optional(),
+  SOLAR_HOUSEHOLD_ID: z.string().uuid().optional(),
 });
 
 // Treat empty strings (Docker Compose passes "" for unset vars) as undefined

@@ -46,6 +46,12 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:hello@dansownsite.com}
+      # The house's solar car charger, which runs on this same box outside Docker (see
+      # apps/api/src/lib/solar.ts). Both unset: no solar panel on any wall.
+      SOLAR_URL: ${SOLAR_URL:-}
+      SOLAR_HOUSEHOLD_ID: ${SOLAR_HOUSEHOLD_ID:-}
+    extra_hosts:
+      - host.docker.internal:host-gateway
     depends_on:
       postgres:
         condition: service_healthy

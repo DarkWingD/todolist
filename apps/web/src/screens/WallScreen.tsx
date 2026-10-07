@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { useEffect, useState } from 'react';
 import { CookMode } from '@todolist/kitchen-ui';
+import type { inferRouterOutputs } from '@trpc/server';
+import type { AppRouter } from '@todolist/api/router';
 import { trpc } from '../lib/trpc';
 
 // Five minutes, not thirty: the portrait view shows a clock, today's times, doses
@@ -171,6 +173,13 @@ const portraitCss = `
    different systems — so no separator, italic, flag or accent colour is needed. */
 .wallp .ph .d .pt{font-size:calc(3.4*var(--u));font-weight:700;color:#1c1a17;letter-spacing:-.01em;line-height:1.02;margin-top:calc(.2*var(--u));white-space:nowrap}
 .wallp .ph .clock{font-size:calc(2.5*var(--u));font-weight:600;color:#4a463d;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Tonight's moon, between the date and the day number: ink for shadow, paper for light. */
+.wallp .ph .moon{display:flex;flex-direction:column;align-items:center;gap:calc(.5*var(--u));margin-left:auto;align-self:center}
+.wallp .ph .moon svg{width:calc(7.5*var(--u));height:calc(7.5*var(--u))}
+.wallp .ph .moon .dark{fill:#3a372f}
+.wallp .ph .moon .lit{fill:#fffdf7}
+.wallp .ph .moon .rim{fill:none;stroke:#1c1a17;stroke-width:3}
+.wallp .ph .moon small{font-size:calc(1.8*var(--u));font-weight:700;color:#6e6858;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
 
 /* ── who is where ── */
 .wallp .who{display:flex;flex-direction:column;gap:calc(.8*var(--u))}
@@ -214,6 +223,22 @@ const portraitCss = `
 .wallp .bar .v.none{font-weight:600;color:#4a463d}
 .wallp .bar .s{margin-left:auto;font-size:calc(2*var(--u));font-weight:600;color:#6e6858;white-space:nowrap}
 .wallp .bar .cook{margin-left:calc(1.5*var(--u));font:inherit;font-size:calc(2.2*var(--u));font-weight:800;background:#1c1a17;color:#fff;border:0;border-radius:999px;padding:calc(.8*var(--u)) calc(2*var(--u));cursor:pointer}
+/* ── the sun and the car ── one ruled row like dinner's, in the same ink */
+.wallp .sun{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:calc(1.2*var(--u));row-gap:calc(.4*var(--u));align-items:baseline;border-top:calc(.15*var(--u)) solid #8a8579;padding-top:calc(1.2*var(--u));margin-top:calc(1.2*var(--u))}
+.wallp .sun .hd{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:calc(1.2*var(--u));min-width:0}
+.wallp .sun .v{font-size:calc(3.4*var(--u));font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.wallp .sun .s{font-size:calc(2*var(--u));font-weight:600;color:#6e6858;white-space:nowrap}
+.wallp .sun .chart{grid-column:1/3;grid-row:2;display:flex;align-items:flex-end;gap:calc(.35*var(--u));height:calc(5*var(--u));border-bottom:calc(.2*var(--u)) solid #1c1a17}
+.wallp .sun .chart i{flex:1;background:#1c1a17;border-radius:calc(.3*var(--u)) calc(.3*var(--u)) 0 0;min-height:0}
+/* Hours the car drank from: hatched, so "the sun went into the car" reads without colour. */
+.wallp .sun .chart i.car{background:repeating-linear-gradient(135deg,#1c1a17 0 calc(.35*var(--u)),#f4f1e8 calc(.35*var(--u)) calc(.6*var(--u)));border:calc(.15*var(--u)) solid #1c1a17;border-bottom:0}
+.wallp .sun .chart i.now{outline:calc(.2*var(--u)) dashed #8a8579;outline-offset:calc(.2*var(--u))}
+.wallp .sun .car{grid-column:3;grid-row:1/3;align-self:center;display:flex;align-items:center;gap:calc(1*var(--u));padding-left:calc(2*var(--u));border-left:calc(.15*var(--u)) solid #8a8579}
+.wallp .sun .car em{font-size:calc(4.2*var(--u));font-style:normal;line-height:1}
+.wallp .sun .car>span{display:flex;flex-direction:column;font-size:calc(2.5*var(--u));font-weight:600;color:#4a463d;line-height:1.15;white-space:nowrap}
+.wallp .sun .car b{font-size:calc(3.4*var(--u));font-weight:800;color:#1c1a17}
+.wallp .sun .car small{font-size:calc(2*var(--u));font-weight:700;color:#6e6858}
+.wallp .sun .car small.old{font-weight:600;font-style:italic}
 
 /* ── rest of the week ── */
 /* Two columns below the fold: on a 4:3 tablet a single left column leaves ~40%
@@ -280,6 +305,135 @@ const portraitCss = `
  * to whatever window shows it, refreshed every half hour. Reached by
  * /wall?token=… with no sign-in; the token is the household's.
  */
+/**
+ * Tonight's moon, worked out from the date alone (mean synodic month from a known new moon;
+ * within a few hours, which is plenty for a picture). Drawn as the southern hemisphere sees it:
+ * from Brisbane a waxing moon is lit on the LEFT, the mirror of most moon emoji.
+ */
+const SYNODIC = 29.530588853;
+const NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14);
+function moonPhase(at: Date): { f: number; name: string; lit: number } {
+  const f = ((((at.getTime() - NEW_MOON_EPOCH) / 86_400_000 / SYNODIC) % 1) + 1) % 1;
+  const lit = Math.round(((1 - Math.cos(2 * Math.PI * f)) / 2) * 100);
+  const name =
+    f < 0.0339 || f >= 0.9661
+      ? 'New moon'
+      : f < 0.216
+        ? 'Waxing crescent'
+        : f < 0.284
+          ? 'First quarter'
+          : f < 0.466
+            ? 'Waxing gibbous'
+            : f < 0.534
+              ? 'Full moon'
+              : f < 0.716
+                ? 'Waning gibbous'
+                : f < 0.784
+                  ? 'Last quarter'
+                  : 'Waning crescent';
+  return { f, name, lit };
+}
+
+function Moon({ at }: { at: Date }) {
+  const { f, name, lit } = moonPhase(at);
+  // Built as the northern view (waxing lit on the right), then mirrored for the south.
+  const waxing = f < 0.5;
+  const rx = Math.abs(Math.cos(2 * Math.PI * f)) * 46;
+  const gibbous = f > 0.25 && f < 0.75;
+  const outer = waxing ? 1 : 0; // which semicircle is lit
+  const inner = gibbous === waxing ? 1 : 0;
+  const d = `M50 4 A46 46 0 0 ${outer} 50 96 A${rx.toFixed(2)} 46 0 0 ${inner} 50 4 Z`;
+  return (
+    <span className="moon" title={`${name}, ${lit}% lit`}>
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="46" className="dark" />
+        {lit > 0 && <path d={d} className="lit" transform="translate(100 0) scale(-1 1)" />}
+        <circle cx="50" cy="50" r="46" className="rim" />
+      </svg>
+      <small>{name}</small>
+    </span>
+  );
+}
+
+type Solar = NonNullable<inferRouterOutputs<AppRouter>['wall']['snapshot']['solar']>;
+
+/** "31.2 kWh", "850 Wh". */
+function energy(wh: number): string {
+  return wh >= 1000 ? `${(wh / 1000).toFixed(wh >= 10_000 ? 0 : 1)} kWh` : `${Math.round(wh)} Wh`;
+}
+
+/**
+ * The house's sun and the car, in the sheet's own ink. It answers what this kitchen actually
+ * asks: was it a good solar day, and is the car charged and plugged in. Today's total and the
+ * day's shape still read true on a screen that only refreshes every half hour (the planned
+ * e-ink one); "making 3.8 kW now" is small, because that is the part that goes stale.
+ */
+function SunBar({ s }: { s: Solar }) {
+  // 5am to 7pm covers every hour these panels make anything, all year in Brisbane.
+  const hours = Array.from({ length: 15 }, (_, i) => i + 5);
+  const byHour = new Map(s.hours.map((x) => [x.h, x] as const));
+  // One scale for every day: the best hour a 7 kW system can make, so a grey day LOOKS grey
+  // rather than being stretched to fill the box.
+  const peak = Math.max(7000, ...s.hours.map((x) => x.wh));
+  const nowHour = new Date().getHours();
+  const car = s.car;
+  const carAge = car?.readAt ? Date.now() - Date.parse(car.readAt) : Infinity;
+  const carState = !car
+    ? null
+    : car.charging || car.amps > 0
+      ? s.forced
+        ? 'Charging (full speed)'
+        : 'Charging from the sun'
+      : car.pluggedIn
+        ? 'Plugged in'
+        : 'Not plugged in';
+  return (
+    <div className="sun">
+      <span className="lab">Solar</span>
+      <span className="hd">
+        <span className="v">{energy(s.todayWh)}</span>
+        <span className="s">
+          today
+          {s.nowW > 50 ? ` · ${(s.nowW / 1000).toFixed(1)} kW now` : ''}
+        </span>
+      </span>
+      <span className="chart" aria-hidden="true">
+        {hours.map((h) => {
+          const x = byHour.get(h);
+          const wh = x?.wh ?? 0;
+          return (
+            <i
+              key={h}
+              className={(x && x.carWh > 0 ? 'car' : '') + (h === nowHour ? ' now' : '')}
+              style={{ height: `${Math.max(wh > 0 ? 6 : 0, Math.round((wh / peak) * 100))}%` }}
+            />
+          );
+        })}
+      </span>
+      {car && (
+        <span className="car">
+          <em>🚗</em>
+          <span>
+            <span>
+              <b>{car.soc != null ? `${car.soc}%` : '—'}</b>
+              {car.km ? ` · ${car.km} km` : ''}
+            </span>
+            <small>{carState}</small>
+            {/* The charger only asks the car when it needs to, so the battery reading can be a
+                day old even though "plugged in" is live; say so rather than pass it off as now. */}
+            {carAge > 6 * 3_600_000 && car.readAt ? (
+              <small className="old">
+                as of{' '}
+                {new Date(car.readAt).toLocaleString([], { weekday: 'short', hour: 'numeric' })}
+              </small>
+            ) : null}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function WallScreen({ token, view }: { token: string; view?: string }) {
   const [tick, setTick] = useState(0);
   // Cook mode for tonight's dinner, opened from the dinner panel.
@@ -384,6 +538,7 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                 </span>
                 <span className="mo">{today.toLocaleDateString([], { month: 'long' })}</span>
               </span>
+              <Moon at={today} />
               <span className="num">
                 <b>{today.getDate()}</b>
                 <span className="clock">{clock}</span>
@@ -534,6 +689,7 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                   <span className="v none">Not planned yet</span>
                 )}
               </div>
+              {data.solar && <SunBar s={data.solar} />}
             </div>
 
             <div className="low">
