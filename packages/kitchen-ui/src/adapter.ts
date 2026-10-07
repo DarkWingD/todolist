@@ -1,4 +1,5 @@
-import type { MealEntry, MealOption } from './components/MealDayCard';
+import type { RecipeDraft } from '@todolist/shared';
+import type { MealEntry, MealOption, RecipeFields } from './components/MealDayCard';
 
 /**
  * The seam between the meal planner's UI and wherever its data lives.
@@ -22,11 +23,47 @@ export interface SetDayInput {
   cookSpan: number;
 }
 
-export interface UpdateMealInput {
+export interface UpdateMealInput extends RecipeFields {
   id: string;
+  name?: string;
   recipeUrl?: string | null;
   notes?: string | null;
   ingredients?: string | null;
+}
+
+export interface CreateMealInput extends RecipeFields {
+  planId: string;
+  name: string;
+  recipeUrl?: string;
+  notes?: string;
+  ingredients?: string;
+  isFavourite?: boolean;
+}
+
+/** What "send week to shopping list" did; the newer fields only when the host can say. */
+export interface ShoppingResult {
+  added: number;
+  updated?: number;
+  /** Left off because the pantry has them. */
+  pantry?: string[];
+  /** Perishables only one meal uses, in a pack it will not finish. */
+  spare?: { key: string; label: string; pack: string; meal: string; date: string }[];
+}
+
+export interface PlanSettings {
+  /** How many a cook feeds; null means the whole household. */
+  servings: number | null;
+  /** One per line; null means the defaults. */
+  pantry: string | null;
+  defaultPantry: string[];
+  householdSize: number;
+}
+
+export interface WeekProposal {
+  date: string;
+  mealId: string;
+  name: string;
+  reasons: string[];
 }
 
 export interface MealPlannerAdapter {
@@ -39,7 +76,23 @@ export interface MealPlannerAdapter {
   moveDay(planId: string, from: string, to: string): Promise<void>;
   updateMeal(input: UpdateMealInput): Promise<void>;
   toggleFavourite(id: string, isFavourite: boolean): Promise<void>;
-  sendToShoppingList(planId: string, from: string, to: string): Promise<{ added: number }>;
+  sendToShoppingList(planId: string, from: string, to: string): Promise<ShoppingResult>;
+  /** The recipe book. Each is optional: a host without it simply hides that control. */
+  createMeal?: (input: CreateMealInput) => Promise<{ id: string }>;
+  removeMeal?: (id: string) => Promise<void>;
+  /** Read a recipe from a web page: a server can, a phone on its own cannot. */
+  importRecipe?: (planId: string, url: string) => Promise<RecipeDraft & { recipeUrl: string }>;
+  suggestWeek?: (
+    planId: string,
+    from: string,
+    to: string,
+    seed: number,
+  ) => Promise<{ proposals: WeekProposal[]; catalogSize: number }>;
+  getSettings?: (planId: string) => Promise<PlanSettings>;
+  updateSettings?: (
+    planId: string,
+    v: { servings?: number | null; pantry?: string | null },
+  ) => Promise<void>;
   /**
    * Fill this week from the one before it, leaving planned days alone.
    * Returns what happened so the screen can say "5 copied, 2 already planned".

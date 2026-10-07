@@ -1,9 +1,17 @@
 import clsx from 'clsx';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MealDayCard, type MealEntry } from '../components/MealDayCard';
+import { sharedThisWeek } from '@todolist/shared';
+import { MealDayCard, type MealEntry, type MealOption } from '../components/MealDayCard';
+import { CookMode, type CookRecipe } from '../components/CookMode';
+import { RecipeEditor } from '../components/RecipeEditor';
+import { RecipeView } from '../components/RecipeView';
+import { ShoppingSettings } from '../components/ShoppingSettings';
+import { SuggestSheet } from '../components/SuggestSheet';
+import { ChipButton } from '../components/ui';
 import { addDays, sameDay, startOfWeek, weekdayShort } from '../lib/caldate';
-import type { MealPlannerAdapter } from '../adapter';
+import type { MealPlannerAdapter, WeekProposal } from '../adapter';
+import { RecipeBook } from './RecipeBook';
 
 /** Local calendar day as "YYYY-MM-DD" — never via toISOString, which shifts by UTC. */
 export function toKey(d: Date): string {
@@ -37,6 +45,15 @@ export function MealWeek({
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  // The recipe book (PLAN: recipes, cook mode, suggestions). Every control below
+  // checks the adapter first, so a host without a capability never shows it.
+  const [view, setView] = useState<'week' | 'recipes'>('week');
+  const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<MealOption | 'new' | null>(null);
+  const [cooking, setCooking] = useState<{ recipe: CookRecipe; factor: number } | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [seed, setSeed] = useState(1);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -65,6 +82,13 @@ export function MealWeek({
     queryFn: () => adapter.getMeals(planId!),
     enabled,
   });
+
+  const { data: settings } = useQuery({
+    queryKey: ['mealSettings', planId],
+    queryFn: () => adapter.getSettings!(planId!),
+    enabled: enabled && Boolean(adapter.getSettings),
+  });
+  const people = settings ? (settings.servings ?? settings.householdSize) : null;
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['mealWeek'] });
@@ -101,6 +125,37 @@ export function MealWeek({
       adapter.copyWeek!(v.planId, v.from, v.to),
     onSuccess: invalidate,
   });
+  const removeMeal = useMutation({
+    mutationFn: (id: string) => adapter.removeMeal!(id),
+    onSuccess: () => {
+      setOpenRecipeId(null);
+      invalidate();
+    },
+  });
+  // From today on this week; a past night is not worth suggesting for.
+  const todayKey = toKey(today);
+  const suggestFrom = from < todayKey && todayKey <= to ? todayKey : from;
+  const suggest = useMutation({
+    mutationFn: (s: number) => adapter.suggestWeek!(planId!, suggestFrom, to, s),
+  });
+  const applySuggestions = useMutation({
+    mutationFn: async (kept: WeekProposal[]) => {
+      for (const p of kept)
+        await adapter.setDay({ planId: planId!, date: p.date, mealId: p.mealId, cookSpan: 1 });
+    },
+    onSuccess: () => {
+      setSuggestOpen(false);
+      invalidate();
+    },
+  });
+  const saveSettings = useMutation({
+    mutationFn: (v: { servings: number | null; pantry: string | null }) =>
+      adapter.updateSettings!(planId!, v),
+    onSuccess: () => {
+      setSettingsOpen(false);
+      qc.invalidateQueries({ queryKey: ['mealSettings'] });
+    },
+  });
   const toShopping = useMutation({
     mutationFn: (v: { planId: string; from: string; to: string }) =>
       adapter.sendToShoppingList(v.planId, v.from, v.to),
@@ -121,6 +176,41 @@ export function MealWeek({
 
   const showingThisWeek = sameDay(weekStart, startOfWeek(today, weekStartsOn));
   const dayNames = weekdayShort(weekStartsOn);
+
+  // Perishables two of this week's cooks share, e.g. "coriander (Tue + Thu)".
+  const shared = useMemo(
+    () =>
+      sharedThisWeek(
+        entries
+          .filter((e) => !e.isLeftover)
+          .map((e) => ({ date: e.date, mealName: e.name, ingredients: e.ingredients })),
+      ),
+    [entries],
+  );
+  const openRecipe = openRecipeId ? (meals.find((m) => m.id === openRecipeId) ?? null) : null;
+  const weekDays = days.map((d, i) => ({
+    label: `${dayNames[i]} ${d.getDate()}`,
+    date: toKey(d),
+    taken: byDate.has(toKey(d)),
+  }));
+  const cook = (
+    m: {
+      name: string;
+      ingredients: string | null;
+      method?: string | null;
+      servings?: number | null;
+    },
+    factor = 1,
+  ) =>
+    setCooking({
+      recipe: { name: m.name, ingredients: m.ingredients, method: m.method, servings: m.servings },
+      factor,
+    });
+  const runSuggest = (s: number) => {
+    setSeed(s);
+    setSuggestOpen(true);
+    suggest.mutate(s);
+  };
 
   // Changing the setting mid-session should move the board, not leave it on a
   // week that no longer starts where the labels say it does.
@@ -195,6 +285,29 @@ export function MealWeek({
           >
             Meals
           </h1>
+          {/* The week, or every recipe the family has. */}
+          <div
+            className="flex flex-none gap-1 rounded-full p-0.5"
+            style={{ background: 'var(--color-chip-bg)' }}
+          >
+            {(['week', 'recipes'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                aria-pressed={view === v}
+                className="rounded-full px-3 py-1 font-semibold"
+                style={{
+                  fontSize: 'var(--fs-xs)',
+                  background: view === v ? 'var(--color-surface)' : 'transparent',
+                  color: view === v ? 'var(--color-text)' : 'var(--color-muted)',
+                  boxShadow: view === v ? 'var(--shadow-card)' : undefined,
+                }}
+              >
+                {v === 'week' ? '📅 Week' : `📖 Recipes${meals.length ? ` (${meals.length})` : ''}`}
+              </button>
+            ))}
+          </div>
           {/* No adapter.invite means no server to share through — the phone. */}
           {planId && adapter.invite && (
             <button
@@ -245,53 +358,79 @@ export function MealWeek({
           </div>
         )}
 
-        <div className="flex items-center gap-d2 md:ml-auto md:flex-none">
-          <button
-            type="button"
-            aria-label="Previous week"
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
-            className="grid h-8 w-8 flex-none place-items-center rounded-full text-muted"
-            style={{ background: 'var(--color-chip-bg)' }}
-          >
-            ‹
-          </button>
-          <span
-            className="flex-1 whitespace-nowrap text-center font-semibold md:flex-none"
-            style={{ fontSize: 'var(--fs-base)' }}
-          >
-            {fmtDay(days[0]!)} – {fmtDay(days[6]!)} {days[6]!.getFullYear()}
-          </span>
-          <button
-            type="button"
-            aria-label="Next week"
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
-            className="grid h-8 w-8 flex-none place-items-center rounded-full text-muted"
-            style={{ background: 'var(--color-chip-bg)' }}
-          >
-            ›
-          </button>
-          {!showingThisWeek && (
+        {view === 'week' && (
+          <div className="flex items-center gap-d2 md:ml-auto md:flex-none">
             <button
               type="button"
-              onClick={() => setWeekStart(startOfWeek(new Date(), weekStartsOn))}
-              className="flex-none rounded-full px-3 py-1 font-bold"
-              style={{
-                background: 'var(--color-accent-soft)',
-                color: 'var(--color-accent)',
-                fontSize: 'var(--fs-xs)',
-              }}
+              aria-label="Previous week"
+              onClick={() => setWeekStart((w) => addDays(w, -7))}
+              className="grid h-8 w-8 flex-none place-items-center rounded-full text-muted"
+              style={{ background: 'var(--color-chip-bg)' }}
             >
-              Today
+              ‹
             </button>
-          )}
-        </div>
+            <span
+              className="flex-1 whitespace-nowrap text-center font-semibold md:flex-none"
+              style={{ fontSize: 'var(--fs-base)' }}
+            >
+              {fmtDay(days[0]!)} – {fmtDay(days[6]!)} {days[6]!.getFullYear()}
+            </span>
+            <button
+              type="button"
+              aria-label="Next week"
+              onClick={() => setWeekStart((w) => addDays(w, 7))}
+              className="grid h-8 w-8 flex-none place-items-center rounded-full text-muted"
+              style={{ background: 'var(--color-chip-bg)' }}
+            >
+              ›
+            </button>
+            {!showingThisWeek && (
+              <button
+                type="button"
+                onClick={() => setWeekStart(startOfWeek(new Date(), weekStartsOn))}
+                className="flex-none rounded-full px-3 py-1 font-bold"
+                style={{
+                  background: 'var(--color-accent-soft)',
+                  color: 'var(--color-accent)',
+                  fontSize: 'var(--fs-xs)',
+                }}
+              >
+                Today
+              </button>
+            )}
+          </div>
+        )}
+
+        {view === 'week' && (adapter.suggestWeek || adapter.getSettings) && (
+          <div className="flex flex-wrap items-center gap-d2 md:flex-none">
+            {adapter.suggestWeek && entries.length < 7 && (
+              <ChipButton
+                disabled={!planId}
+                onClick={() => runSuggest(Math.floor(Math.random() * 1e9))}
+                style={{ fontSize: 'var(--fs-sm)', padding: '0.45rem 0.9rem' }}
+              >
+                ✨ Suggest the week
+              </ChipButton>
+            )}
+            {adapter.getSettings && (
+              <ChipButton
+                disabled={!planId}
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Shopping settings"
+                style={{ fontSize: 'var(--fs-sm)', padding: '0.45rem 0.9rem' }}
+              >
+                ⚙ {people ? `For ${people}` : 'Settings'}
+              </ChipButton>
+            )}
+          </div>
+        )}
 
         {/* Only where the adapter can do it, and only on a week with room to fill:
 
 
             offering "copy" on a full week is offering nothing. */}
 
-        {adapter.copyWeek && entries.length < 7 && (
+        {view === 'week' && adapter.copyWeek && entries.length < 7 && (
           <button
             type="button"
 
@@ -311,18 +450,40 @@ export function MealWeek({
             the list, which is where your thumb already is after reading the
             week; on a wide screen that button would be a stripe of accent
             colour a long way from everything else. */}
-        <button
-          type="button"
-          disabled={!planId || toShopping.isPending || entries.length === 0}
-          onClick={() => planId && toShopping.mutate({ planId, from, to })}
-          className="hidden flex-none rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50 md:inline-flex"
-          style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
-        >
-          {toShopping.isPending ? 'Adding…' : '🛒 Send week to shopping list'}
-        </button>
+        {view === 'week' && (
+          <button
+            type="button"
+            disabled={!planId || toShopping.isPending || entries.length === 0}
+            onClick={() => planId && toShopping.mutate({ planId, from, to })}
+            className="hidden flex-none rounded-full px-4 py-2 font-bold text-accent-contrast disabled:opacity-50 md:inline-flex"
+            style={{ background: 'var(--color-accent)', fontSize: 'var(--fs-sm)' }}
+          >
+            {toShopping.isPending ? 'Adding…' : '🛒 Send week to shopping list'}
+          </button>
+        )}
       </header>
 
-      {planLoading || (weekLoading && entries.length === 0) ? (
+      {view === 'week' && shared.length > 0 && (
+        <p
+          className="mb-d3 rounded-card px-d3 py-d2"
+          style={{
+            background: 'var(--color-accent-soft)',
+            color: 'var(--color-accent)',
+            fontSize: 'var(--fs-sm)',
+          }}
+        >
+          🌿 Shared this week: {shared.map((s) => `${s.label} (${s.days.join(' + ')})`).join(', ')}.
+          One lot does both nights.
+        </p>
+      )}
+
+      {view === 'recipes' ? (
+        <RecipeBook
+          meals={meals}
+          onOpen={(m) => setOpenRecipeId(m.id)}
+          onAdd={adapter.createMeal && planId ? () => setEditing('new') : undefined}
+        />
+      ) : planLoading || (weekLoading && entries.length === 0) ? (
         <p className="text-muted" style={{ fontSize: 'var(--fs-base)' }}>
           Loading…
         </p>
@@ -425,6 +586,25 @@ export function MealWeek({
                     onEditMeal={(v) => editMeal.mutate(v)}
                     onToggleFavourite={(id, next) => favourite.mutate({ id, isFavourite: next })}
                     onDragEndY={(offsetY) => onDropFrom(i, offsetY)}
+                    onOpenRecipe={
+                      entry
+                        ? () => {
+                            setOpenDate(null);
+                            setOpenRecipeId(entry.mealId);
+                          }
+                        : undefined
+                    }
+                    onCook={
+                      entry && (entry.ingredients || entry.method)
+                        ? () => {
+                            setOpenDate(null);
+                            const m = meals.find((x) => x.id === entry.mealId);
+                            const factor =
+                              m?.servings && people ? (people * entry.cookSpan) / m.servings : 1;
+                            cook(m ?? entry, factor);
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               </div>
@@ -433,7 +613,7 @@ export function MealWeek({
         </div>
       )}
 
-      <div className="mt-d4 flex gap-d2 pb-2 md:hidden">
+      <div className={clsx('mt-d4 flex gap-d2 pb-2 md:hidden', view !== 'week' && 'hidden')}>
         <button
           type="button"
           disabled={!planId || toShopping.isPending || entries.length === 0}
@@ -460,11 +640,33 @@ export function MealWeek({
             color: toShopping.data.added > 0 ? 'var(--color-accent)' : 'var(--color-muted)',
           }}
         >
-          {toShopping.data.added > 0
-            ? `Added ${toShopping.data.added} ${
-                toShopping.data.added === 1 ? 'item' : 'items'
-              } to Shopping.`
+          {toShopping.data.added > 0 || toShopping.data.updated
+            ? [
+                toShopping.data.added > 0
+                  ? `Added ${toShopping.data.added} ${toShopping.data.added === 1 ? 'item' : 'items'}`
+                  : null,
+                toShopping.data.updated ? `updated ${toShopping.data.updated}` : null,
+              ]
+                .filter(Boolean)
+                .join(', ')
+                .replace(/^u/, 'U') + ' on Shopping.'
             : 'Everything from this week is already on the list.'}
+          {toShopping.data.pantry && toShopping.data.pantry.length > 0 && (
+            <span className="block text-muted">
+              Check you have: {toShopping.data.pantry.join(', ')}.
+            </span>
+          )}
+          {toShopping.data.spare && toShopping.data.spare.length > 0 && (
+            <span className="block text-muted">
+              Only one meal uses the{' '}
+              {toShopping.data.spare
+                .slice(0, 3)
+                .map((s) => `${s.label.toLowerCase()} (a ${s.pack})`)
+                .join(', ')}
+              {toShopping.data.spare.length > 3 ? ' and more' : ''}: planning another meal that uses{' '}
+              {toShopping.data.spare.length === 1 ? 'it' : 'them'} saves throwing some out.
+            </span>
+          )}
         </p>
       )}
       {/* The adapter has always returned what it copied and what it left alone;
@@ -485,6 +687,77 @@ export function MealWeek({
               }.`
             : 'Every night this week was already planned.'}
         </p>
+      )}
+
+      {openRecipe && (
+        <RecipeView
+          open
+          meal={openRecipe}
+          people={people}
+          weekDays={weekDays}
+          onClose={() => setOpenRecipeId(null)}
+          onCook={(factor) => cook(openRecipe, factor)}
+          // Editing writes the recipe fields; a host that cannot store them (the
+          // phone's adapter has no createMeal) would drop them silently.
+          onEdit={adapter.createMeal ? () => setEditing(openRecipe) : undefined}
+          onPlan={(date) => {
+            if (!planId) return;
+            setDay.mutate({ planId, date, mealId: openRecipe.id, cookSpan: 1 });
+            setOpenRecipeId(null);
+            setView('week');
+          }}
+          onFavourite={(next) => favourite.mutate({ id: openRecipe.id, isFavourite: next })}
+          onDelete={adapter.removeMeal ? () => removeMeal.mutate(openRecipe.id) : undefined}
+        />
+      )}
+      {editing && planId && (
+        <RecipeEditor
+          open
+          planId={planId}
+          adapter={adapter}
+          meal={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={(id) => {
+            setEditing(null);
+            invalidate();
+            setOpenRecipeId(id);
+          }}
+        />
+      )}
+      {adapter.suggestWeek && (
+        <SuggestSheet
+          open={suggestOpen}
+          proposals={suggest.data?.proposals ?? []}
+          catalogSize={suggest.data?.catalogSize ?? meals.length}
+          loading={suggest.isPending}
+          applying={applySuggestions.isPending}
+          error={
+            suggest.error
+              ? (suggest.error as Error).message
+              : applySuggestions.error
+                ? (applySuggestions.error as Error).message
+                : null
+          }
+          onShuffle={() => runSuggest(seed + 1)}
+          onApply={(kept) => applySuggestions.mutate(kept)}
+          onClose={() => setSuggestOpen(false)}
+        />
+      )}
+      {adapter.getSettings && (
+        <ShoppingSettings
+          open={settingsOpen}
+          settings={settings}
+          saving={saveSettings.isPending}
+          onSave={(v) => saveSettings.mutate(v)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {cooking && (
+        <CookMode
+          recipe={cooking.recipe}
+          factor={cooking.factor}
+          onClose={() => setCooking(null)}
+        />
       )}
     </div>
   );

@@ -92,17 +92,20 @@ export const createTaskSchema = z.object({
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
-export const updateTaskSchema = createTaskSchema.partial().omit({ listId: true }).extend({
-  id: z.string().uuid(),
-  completed: z.boolean().optional(),
-  // Nullable so the UI can clear these fields.
-  dueAt: z.string().datetime().nullable().optional(),
-  assigneeId: z.string().uuid().nullable().optional(),
-  recurrenceRule: recurrenceSchema.nullable().optional(),
-  emoji: z.string().max(24).nullable().optional(),
-  // Null promotes a checklist item back to a heading of its own.
-  parentTaskId: z.string().uuid().nullable().optional(),
-});
+export const updateTaskSchema = createTaskSchema
+  .partial()
+  .omit({ listId: true })
+  .extend({
+    id: z.string().uuid(),
+    completed: z.boolean().optional(),
+    // Nullable so the UI can clear these fields.
+    dueAt: z.string().datetime().nullable().optional(),
+    assigneeId: z.string().uuid().nullable().optional(),
+    recurrenceRule: recurrenceSchema.nullable().optional(),
+    emoji: z.string().max(24).nullable().optional(),
+    // Null promotes a checklist item back to a heading of its own.
+    parentTaskId: z.string().uuid().nullable().optional(),
+  });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
 /**
@@ -156,14 +159,17 @@ export const createEventSchema = z.object({
 });
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 
-export const updateEventSchema = createEventSchema.partial().omit({ listId: true }).extend({
-  id: z.string().uuid(),
-  // Moving an event to another list is allowed; access to the target is checked server-side.
-  listId: z.string().uuid().optional(),
-  assigneeId: z.string().uuid().nullable().optional(),
-  recurrenceRule: recurrenceSchema.nullable().optional(),
-  emoji: z.string().max(24).nullable().optional(),
-});
+export const updateEventSchema = createEventSchema
+  .partial()
+  .omit({ listId: true })
+  .extend({
+    id: z.string().uuid(),
+    // Moving an event to another list is allowed; access to the target is checked server-side.
+    listId: z.string().uuid().optional(),
+    assigneeId: z.string().uuid().nullable().optional(),
+    recurrenceRule: recurrenceSchema.nullable().optional(),
+    emoji: z.string().max(24).nullable().optional(),
+  });
 
 export const createBirthdaySchema = z.object({
   // No listId — birthdays go to the user's app-managed Birthdays list automatically.
@@ -195,6 +201,7 @@ export type QuickAddReminderInput = z.infer<typeof quickAddReminderSchema>;
 export const planDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
 
 export const MEAL_NAME_MAX = 120;
+export const MEAL_SERVINGS_MAX = 40;
 export const COOK_SPAN_MAX = 7;
 
 export const createMealSchema = z.object({
@@ -206,6 +213,24 @@ export const createMealSchema = z.object({
   // One ingredient per line; each becomes a shopping-list item under this meal.
   ingredients: z.string().max(10_000).optional(),
   isFavourite: z.boolean().optional(),
+  // The recipe book: how many the ingredients feed, steps one per line, times, tags.
+  servings: z.number().int().min(1).max(MEAL_SERVINGS_MAX).nullable().optional(),
+  method: z.string().max(20_000).nullable().optional(),
+  prepMinutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60)
+    .nullable()
+    .optional(),
+  cookMinutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(48 * 60)
+    .nullable()
+    .optional(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(12).nullable().optional(),
 });
 export type CreateMealInput = z.infer<typeof createMealSchema>;
 
@@ -391,3 +416,29 @@ export const setWorkWeekSchema = z.object({
     .max(14),
 });
 export type SetWorkWeekInput = z.infer<typeof setWorkWeekSchema>;
+
+/** Read a recipe from a page: the server fetches it, never the browser. */
+export const importRecipeSchema = z.object({
+  planId: z.string().uuid(),
+  url: z.string().trim().url().max(2048),
+});
+
+/** The plan's shopping settings: how many a cook feeds, and what the pantry always has. */
+export const mealPlanSettingsSchema = z.object({
+  planId: z.string().uuid(),
+  servings: z.number().int().min(1).max(MEAL_SERVINGS_MAX).nullable().optional(),
+  pantry: z.string().max(5_000).nullable().optional(),
+});
+
+/** Fill a week's empty nights from the catalog; `seed` makes "shuffle" repeatable. */
+export const suggestWeekSchema = z.object({
+  planId: z.string().uuid(),
+  from: planDateSchema,
+  to: planDateSchema,
+  seed: z
+    .number()
+    .int()
+    .min(0)
+    .max(2 ** 31)
+    .optional(),
+});

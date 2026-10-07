@@ -43,6 +43,22 @@ export function MealsScreen({ weekStartsOn = 1 }: { weekStartsOn?: 0 | 1 }) {
       invite: async (planId, email) => {
         await utils.client.mealPlan.invite.mutate({ planId, email });
       },
+      // The recipe book, suggestions and shopping settings (server-only, so the
+      // phone's on-device adapter simply leaves these out).
+      createMeal: async (input) => {
+        const created = await utils.client.mealPlan.createMeal.mutate(input);
+        return { id: created!.id };
+      },
+      removeMeal: async (id) => {
+        await utils.client.mealPlan.removeMeal.mutate({ id });
+      },
+      importRecipe: (planId, url) => utils.client.mealPlan.importRecipe.mutate({ planId, url }),
+      suggestWeek: (planId, from, to, seed) =>
+        utils.client.mealPlan.suggestWeek.mutate({ planId, from, to, seed }),
+      getSettings: (planId) => utils.client.mealPlan.settings.query({ planId }),
+      updateSettings: async (planId, v) => {
+        await utils.client.mealPlan.updateSettings.mutate({ planId, ...v });
+      },
     }),
     [utils],
   );

@@ -155,6 +155,13 @@
       "when": 1790160571775,
       "tag": "0021_lovely_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791341623903,
+      "tag": "0022_black_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

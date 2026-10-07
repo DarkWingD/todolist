@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "clsx": "^2.1.1"
+    "clsx": "^2.1.1",
+    "@todolist/shared": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.59.0",

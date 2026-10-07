@@ -9,6 +9,7 @@ import {
   mealPlanDay,
   mealPlanInvite,
   mealPlanMember,
+  person,
   task,
 } from '@todolist/db';
 import {
@@ -22,7 +23,18 @@ import {
   sendToShoppingListSchema,
   setMealDaySchema,
   updateMealSchema,
+  importRecipeSchema,
+  mealPlanSettingsSchema,
+  suggestWeekSchema,
+  DEFAULT_PANTRY,
+  AISLES,
+  extractRecipe,
+  ingredientKey,
+  mergeForShopping,
+  pantryKeys,
+  suggestWeek,
 } from '@todolist/shared';
+import { fetchPage, PageError } from '../../lib/fetchPage.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { env } from '../../env.js';
@@ -128,6 +140,15 @@ async function truncateOverlappingCook(planId: string, date: string): Promise<vo
   }
 }
 
+/** The recipe-book columns, selected wherever a meal is read. */
+const RECIPE_FIELDS = {
+  servings: meal.servings,
+  method: meal.method,
+  prepMinutes: meal.prepMinutes,
+  cookMinutes: meal.cookMinutes,
+  tags: meal.tags,
+};
+
 export interface MealPlanEntry {
   date: string;
   mealId: string;
@@ -136,6 +157,11 @@ export interface MealPlanEntry {
   notes: string | null;
   ingredients: string | null;
   isFavourite: boolean;
+  servings: number | null;
+  method: string | null;
+  prepMinutes: number | null;
+  cookMinutes: number | null;
+  tags: string[] | null;
   /** Nights this cook feeds, on the cook's own day. */
   cookSpan: number;
   /** True when this day is eating an earlier day's cook. */
@@ -244,6 +270,7 @@ export async function readRange(planId: string, from: string, to: string) {
         notes: meal.notes,
         ingredients: meal.ingredients,
         isFavourite: meal.isFavourite,
+        ...RECIPE_FIELDS,
       })
       .from(mealPlanDay)
       .innerJoin(meal, eq(meal.id, mealPlanDay.mealId))
@@ -282,6 +309,11 @@ export async function readRange(planId: string, from: string, to: string) {
         notes: cook.notes,
         ingredients: cook.ingredients,
         isFavourite: cook.isFavourite,
+        servings: cook.servings,
+        method: cook.method,
+        prepMinutes: cook.prepMinutes,
+        cookMinutes: cook.cookMinutes,
+        tags: cook.tags,
         cookSpan: cook.cookSpan,
         isLeftover: night > 1,
         cookDate: cook.date,
@@ -418,6 +450,7 @@ const _mealPlanRest = router({
           notes: meal.notes,
           ingredients: meal.ingredients,
           isFavourite: meal.isFavourite,
+          ...RECIPE_FIELDS,
           lastCooked: sql<string | null>`(
             select max(mpd.date) from ${mealPlanDay} mpd where mpd.meal_id = ${meal.id}
           )`,
@@ -429,6 +462,23 @@ const _mealPlanRest = router({
 
   createMeal: protectedProcedure.input(createMealSchema).mutation(async ({ ctx, input }) => {
     await assertMealPlanAccess(ctx.user.id, input.planId);
+    // Names are unique per plan; say so, rather than surface a constraint error.
+    const clash = await db
+      .select({ id: meal.id })
+      .from(meal)
+      .where(
+        and(
+          eq(meal.planId, input.planId),
+          ilike(meal.name, input.name.trim()),
+          isNull(meal.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (clash[0])
+      throw new TRPCError({
+        code: 'CONFLICT',
+        message: `There's already a recipe called "${input.name.trim()}".`,
+      });
     const [created] = await db
       .insert(meal)
       .values({
@@ -438,6 +488,11 @@ const _mealPlanRest = router({
         notes: input.notes,
         ingredients: input.ingredients,
         isFavourite: input.isFavourite ?? false,
+        servings: input.servings ?? null,
+        method: input.method ?? null,
+        prepMinutes: input.prepMinutes ?? null,
+        cookMinutes: input.cookMinutes ?? null,
+        tags: input.tags ?? null,
         createdBy: ctx.user.id,
       })
       .returning();
@@ -454,6 +509,24 @@ const _mealPlanRest = router({
     if (!found) return { ok: false };
     await assertMealPlanAccess(ctx.user.id, found.planId);
     const { id, recipeUrl, ...rest } = input;
+    if (rest.name !== undefined) {
+      const clash = await db
+        .select({ id: meal.id })
+        .from(meal)
+        .where(
+          and(
+            eq(meal.planId, found.planId),
+            ilike(meal.name, rest.name.trim()),
+            isNull(meal.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (clash[0] && clash[0].id !== id)
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `There's already a recipe called "${rest.name.trim()}".`,
+        });
+    }
     await db
       .update(meal)
       .set({
@@ -638,12 +711,34 @@ const _mealPlanRest = router({
     return { copied: rows.length, skipped };
   }),
 
+  /**
+   * The week's dinners into the Shopping list, the way you walk the shop: every
+   * cook's ingredients read and added up across meals (2 onions + 1 onion is 3),
+   * scaled to how many the plan cooks for when the recipe says how many it
+   * serves, what the pantry always has left off, and grouped under aisles.
+   * Each line says what it is for, "Coriander — 1 bunch (Tue + Thu)", so the
+   * meal context a heading-per-meal list gave is not lost.
+   *
+   * Leftover nights are not cooks, so they add nothing. Sending again updates
+   * the amounts of what is still unticked rather than adding it twice.
+   */
   sendToShoppingList: protectedProcedure
     .input(sendToShoppingListSchema)
     .mutation(async ({ ctx, input }) => {
       await assertMealPlanAccess(ctx.user.id, input.planId);
+      const [plan] = await db
+        .select({ servings: mealPlan.servings, pantry: mealPlan.pantry })
+        .from(mealPlan)
+        .where(eq(mealPlan.id, input.planId))
+        .limit(1);
       const rows = await db
-        .select({ mealId: meal.id, name: meal.name, ingredients: meal.ingredients })
+        .select({
+          date: mealPlanDay.date,
+          cookSpan: mealPlanDay.cookSpan,
+          name: meal.name,
+          ingredients: meal.ingredients,
+          servings: meal.servings,
+        })
         .from(mealPlanDay)
         .innerJoin(meal, eq(meal.id, mealPlanDay.mealId))
         .where(
@@ -655,71 +750,207 @@ const _mealPlanRest = router({
         )
         .orderBy(asc(mealPlanDay.date));
 
+      const people = plan?.servings ?? (await householdSize(ctx.person.householdId));
+      // Scaled only when the recipe says how many it serves; a meal whose
+      // ingredients were typed in for this family is taken as written.
+      const cooks = rows.map((r) => ({
+        mealName: r.name.trim(),
+        date: r.date,
+        ingredients: r.ingredients,
+        factor: r.servings ? (people * r.cookSpan) / r.servings : 1,
+      }));
+      const merged = mergeForShopping(cooks, pantryKeys(plan?.pantry));
+
       const listId = await groceriesListId(ctx.user.id);
-      // Everything still to buy. A meal already on the list is topped up with
-      // whatever it is missing rather than skipped: otherwise adding ingredients
-      // to a meal you had already sent would never reach the list.
       const existing = await db
         .select({ id: task.id, title: task.title, parentTaskId: task.parentTaskId })
         .from(task)
         .where(and(eq(task.listId, listId), isNull(task.completedAt), isNull(task.deletedAt)));
 
-      const key = (s: string) => s.trim().toLowerCase();
-      const headingByName = new Map<string, string>();
-      for (const t of existing) if (!t.parentTaskId) headingByName.set(key(t.title), t.id);
-      const childrenOf = new Map<string, Set<string>>();
-      for (const t of existing) {
-        if (!t.parentTaskId) continue;
-        const have = childrenOf.get(t.parentTaskId) ?? new Set<string>();
-        have.add(key(t.title));
-        childrenOf.set(t.parentTaskId, have);
-      }
-
-      const wanted: { name: string; ingredients: string[] }[] = [];
-      const seen = new Set<string>();
-      for (const r of rows) {
-        // A cook feeding several nights appears once per night; its ingredients
-        // are only wanted once.
-        if (seen.has(r.mealId)) continue;
-        seen.add(r.mealId);
-        wanted.push({
-          name: r.name.trim(),
-          ingredients: (r.ingredients ?? '')
-            .split('\n')
-            .map((s) => s.trim())
-            .filter(Boolean),
-        });
-      }
-
-      // Headings first, in one statement, so each ingredient has a parent to
-      // point at. Ingredients then follow in a second batch.
-      const missing = wanted.filter((m) => !headingByName.has(key(m.name)));
-      let created: { id: string; title: string }[] = [];
-      if (missing.length > 0) {
-        created = await db
+      // Aisle headings, made once and reused.
+      const headingTitle = (id: string) => {
+        const a = AISLES.find((x) => x.id === id)!;
+        return `${a.emoji} ${a.label}`;
+      };
+      const headingByTitle = new Map<string, string>();
+      for (const t of existing) if (!t.parentTaskId) headingByTitle.set(t.title, t.id);
+      const missingHeadings = merged.aisles
+        .map((a) => headingTitle(a.id))
+        .filter((t) => !headingByTitle.has(t));
+      let headings = 0;
+      if (missingHeadings.length > 0) {
+        const made = await db
           .insert(task)
-          .values(missing.map((m) => ({ listId, title: m.name, createdBy: ctx.user.id })))
+          .values(missingHeadings.map((title) => ({ listId, title, createdBy: ctx.user.id })))
           .returning({ id: task.id, title: task.title });
-        for (const h of created) headingByName.set(key(h.title), h.id);
+        for (const h of made) headingByTitle.set(h.title, h.id);
+        headings = made.length;
       }
+
+      // An unticked line already under an aisle heading is the same item when
+      // its name reads the same; its amount is brought up to date.
+      const aisleHeadingIds = new Set(
+        merged.aisles.map((a) => headingByTitle.get(headingTitle(a.id))!),
+      );
+      const keyOfTitle = (title: string) => ingredientKey(title.split(' — ')[0]!.split(' (')[0]!);
+      const existingByKey = new Map<string, { id: string; title: string }>();
+      for (const t of existing)
+        if (t.parentTaskId && aisleHeadingIds.has(t.parentTaskId))
+          existingByKey.set(keyOfTitle(t.title), t);
 
       const toAdd: { listId: string; title: string; parentTaskId: string; createdBy: string }[] =
         [];
-      for (const m of wanted) {
-        const parentTaskId = headingByName.get(key(m.name));
-        if (!parentTaskId) continue;
-        const have = childrenOf.get(parentTaskId) ?? new Set<string>();
-        for (const ingredient of m.ingredients) {
-          if (have.has(key(ingredient))) continue;
-          have.add(key(ingredient));
-          toAdd.push({ listId, title: ingredient, parentTaskId, createdBy: ctx.user.id });
+      let updated = 0;
+      for (const a of merged.aisles) {
+        const parentTaskId = headingByTitle.get(headingTitle(a.id))!;
+        for (const item of a.items) {
+          const have = existingByKey.get(item.key);
+          if (have) {
+            if (have.title !== item.title) {
+              await db
+                .update(task)
+                .set({ title: item.title, updatedAt: new Date() })
+                .where(eq(task.id, have.id));
+              updated++;
+            }
+            continue;
+          }
+          toAdd.push({ listId, title: item.title, parentTaskId, createdBy: ctx.user.id });
         }
-        childrenOf.set(parentTaskId, have);
       }
       if (toAdd.length > 0) await db.insert(task).values(toAdd);
 
-      return { listId, added: created.length + toAdd.length, headings: created.length };
+      return {
+        listId,
+        added: toAdd.length,
+        updated,
+        headings,
+        pantry: merged.pantry,
+        spare: merged.spare,
+      };
     }),
 });
 
-export const mealPlanRouter = mergeRouters(mealPlanHead, _mealPlanRest);
+// ─────────────────────────── the recipe book ───────────────────────────
+/** How many people the household cooks for: everyone in it, adults and children. */
+async function householdSize(householdId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(person)
+    .where(eq(person.householdId, householdId));
+  return Math.max(1, row?.n ?? 1);
+}
+
+const _mealPlanRecipes = router({
+  /** One meal with its recipe, for cook mode opened from the wall or a link. */
+  meal: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [row] = await db
+        .select({
+          id: meal.id,
+          planId: meal.planId,
+          name: meal.name,
+          recipeUrl: meal.recipeUrl,
+          notes: meal.notes,
+          ingredients: meal.ingredients,
+          isFavourite: meal.isFavourite,
+          ...RECIPE_FIELDS,
+        })
+        .from(meal)
+        .where(and(eq(meal.id, input.id), isNull(meal.deletedAt)))
+        .limit(1);
+      if (!row) throw new TRPCError({ code: 'NOT_FOUND' });
+      await assertMealPlanAccess(ctx.user.id, row.planId);
+      return row;
+    }),
+
+  /** How many a cook feeds and what the pantry has; with the defaults for the editor. */
+  settings: protectedProcedure
+    .input(z.object({ planId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertMealPlanAccess(ctx.user.id, input.planId);
+      const [plan] = await db
+        .select({ servings: mealPlan.servings, pantry: mealPlan.pantry })
+        .from(mealPlan)
+        .where(eq(mealPlan.id, input.planId))
+        .limit(1);
+      return {
+        servings: plan?.servings ?? null,
+        pantry: plan?.pantry ?? null,
+        defaultPantry: DEFAULT_PANTRY,
+        householdSize: await householdSize(ctx.person.householdId),
+      };
+    }),
+
+  updateSettings: protectedProcedure
+    .input(mealPlanSettingsSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertMealPlanAccess(ctx.user.id, input.planId);
+      await db
+        .update(mealPlan)
+        .set({
+          ...(input.servings !== undefined ? { servings: input.servings } : {}),
+          ...(input.pantry !== undefined ? { pantry: input.pantry } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(mealPlan.id, input.planId));
+      return { ok: true };
+    }),
+
+  /**
+   * Read the recipe on a page. Nothing is saved: the draft comes back for the
+   * editor, so a page that reads oddly is fixed before it becomes a recipe.
+   */
+  importRecipe: protectedProcedure.input(importRecipeSchema).mutation(async ({ ctx, input }) => {
+    await assertMealPlanAccess(ctx.user.id, input.planId);
+    try {
+      const page = await fetchPage(input.url);
+      const draft = extractRecipe(page.html);
+      if (!draft || (draft.ingredients.length === 0 && draft.method.length === 0))
+        throw new PageError("Couldn't find a recipe on that page. Paste the recipe in instead.");
+      return { ...draft, recipeUrl: page.url };
+    } catch (err) {
+      if (err instanceof PageError)
+        throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+      throw new TRPCError({ code: 'BAD_REQUEST', message: "Couldn't read that page." });
+    }
+  }),
+
+  /**
+   * Proposals for the week's empty nights, from meals the family already has,
+   * favouring ones that share perishables with what is planned. Nothing is
+   * written: the screen shows the proposals and plans the ones that are kept.
+   */
+  suggestWeek: protectedProcedure.input(suggestWeekSchema).mutation(async ({ ctx, input }) => {
+    await assertMealPlanAccess(ctx.user.id, input.planId);
+    const [catalog, entries] = await Promise.all([
+      db
+        .select({
+          id: meal.id,
+          name: meal.name,
+          ingredients: meal.ingredients,
+          isFavourite: meal.isFavourite,
+          lastCooked: sql<string | null>`(
+            select max(mpd.date) from ${mealPlanDay} mpd where mpd.meal_id = ${meal.id}
+          )`,
+        })
+        .from(meal)
+        .where(and(eq(meal.planId, input.planId), isNull(meal.deletedAt))),
+      readRange(input.planId, input.from, input.to),
+    ]);
+    const taken = new Set(entries.map((e) => e.date));
+    const empty: string[] = [];
+    for (let d = input.from; daysBetween(d, input.to) >= 0; d = addDays(d, 1))
+      if (!taken.has(d)) empty.push(d);
+    const planned = entries
+      .filter((e) => !e.isLeftover)
+      .map((e) => ({ date: e.date, mealId: e.mealId }));
+    return {
+      proposals: suggestWeek({ catalog, planned, empty, seed: input.seed }),
+      catalogSize: catalog.length,
+    };
+  }),
+});
+
+export const mealPlanRouter = mergeRouters(mealPlanHead, _mealPlanRest, _mealPlanRecipes);

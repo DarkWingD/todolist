@@ -567,6 +567,12 @@ export const mealPlan = pgTable(
     name: text('name').notNull().default('Meals'),
     emojiIcon: text('emoji_icon').notNull().default('🍽️'),
     householdId: uuid('household_id').references(() => household.id, { onDelete: 'set null' }),
+    // How many people a cook feeds, for scaling recipes on the shopping list.
+    // Null means "everyone in the household".
+    servings: integer('servings'),
+    // What the kitchen always has, one per line, left off the shopping list.
+    // Null means the defaults (salt, pepper, oil…); an empty string means none.
+    pantry: text('pantry'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -634,6 +640,14 @@ export const meal = pgTable(
     // plain strings at this scale, and a textarea of lines is a far simpler
     // editor than a repeating row form. Each line becomes a shopping-list child.
     ingredients: text('ingredients'),
+    // The recipe itself (the recipe book): how many the ingredients feed, the
+    // steps one per line, how long it takes, and a few tags to find it by. All
+    // optional — a meal can still be just a name, as it always could.
+    servings: integer('servings'),
+    method: text('method'),
+    prepMinutes: integer('prep_minutes'),
+    cookMinutes: integer('cook_minutes'),
+    tags: text('tags').array(),
     isFavourite: boolean('is_favourite').notNull().default(false),
     createdBy: text('created_by')
       .notNull()

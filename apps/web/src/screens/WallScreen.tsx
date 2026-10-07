@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useEffect, useState } from 'react';
+import { CookMode } from '@todolist/kitchen-ui';
 import { trpc } from '../lib/trpc';
 
 // Five minutes, not thirty: the portrait view shows a clock, today's times, doses
@@ -72,6 +73,7 @@ const css = `
 .wall .dinner .k{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:#7a7a7a}
 .wall .dinner .v{font-size:30px;font-weight:900}
 .wall .dinner .s{font-size:20px;color:#7a7a7a;margin-left:auto}
+.wall .dinner .cook{font:inherit;font-size:20px;font-weight:800;background:#1c1a17;color:#fff;border:0;border-radius:999px;padding:8px 18px;cursor:pointer}
 .wall .todo{display:flex;flex-direction:column;gap:10px}
 .wall .todo .row{display:flex;align-items:center;gap:14px;font-size:25px}
 .wall .box{width:30px;height:30px;border:3px solid #1c1a17;border-radius:7px;flex:none;position:relative;background:#fff}
@@ -211,6 +213,7 @@ const portraitCss = `
 .wallp .bar .v{font-size:calc(3.4*var(--u));font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wallp .bar .v.none{font-weight:600;color:#4a463d}
 .wallp .bar .s{margin-left:auto;font-size:calc(2*var(--u));font-weight:600;color:#6e6858;white-space:nowrap}
+.wallp .bar .cook{margin-left:calc(1.5*var(--u));font:inherit;font-size:calc(2.2*var(--u));font-weight:800;background:#1c1a17;color:#fff;border:0;border-radius:999px;padding:calc(.8*var(--u)) calc(2*var(--u));cursor:pointer}
 
 /* ── rest of the week ── */
 /* Two columns below the fold: on a 4:3 tablet a single left column leaves ~40%
@@ -279,6 +282,8 @@ const portraitCss = `
  */
 export function WallScreen({ token, view }: { token: string; view?: string }) {
   const [tick, setTick] = useState(0);
+  // Cook mode for tonight's dinner, opened from the dinner panel.
+  const [cooking, setCooking] = useState(false);
   const dayStart = startOfToday();
   const { data, error, isLoading } = trpc.wall.snapshot.useQuery(
     // No weekStartsOn: the display has no preference of its own, so the
@@ -357,6 +362,12 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
     return (
       <div className={'wallp' + (todayTiles.length <= 1 ? ' quiet' : '')}>
         <style>{portraitCss}</style>
+        {cooking && data?.today.dinner?.recipe && (
+          <CookMode
+            recipe={{ name: data.today.dinner.name, ...data.today.dinner.recipe }}
+            onClose={() => setCooking(false)}
+          />
+        )}
         {error ? (
           <div className="perr">
             This link no longer works. Get a new one from Family → Wall display.
@@ -368,7 +379,9 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
             <div className="ph">
               <span className="d">
                 <b>{today.toLocaleDateString([], { weekday: 'long' })}</b>
-                <span className="pt" lang="pt">{PT_DAYS[today.getDay()]}</span>
+                <span className="pt" lang="pt">
+                  {PT_DAYS[today.getDay()]}
+                </span>
                 <span className="mo">{today.toLocaleDateString([], { month: 'long' })}</span>
               </span>
               <span className="num">
@@ -456,14 +469,21 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                       ? `Tomorrow (${new Date(`${nextUp.date}T00:00:00`).toLocaleDateString([], { weekday: 'long' })})`
                       : `Next · ${new Date(`${nextUp.date}T00:00:00`).toLocaleDateString([], { weekday: 'long' })}`}
                   </span>
-                  {[...nextUp.birthdays.map((b) => ({ k: b.id, g: '🎂', t: b.name, m: 'birthday' })),
+                  {[
+                    ...nextUp.birthdays.map((b) => ({
+                      k: b.id,
+                      g: '🎂',
+                      t: b.name,
+                      m: 'birthday',
+                    })),
                     ...nextUp.events.map((e) => ({
                       k: e.id,
                       g: e.emoji || '',
                       t: e.title,
                       m: e.time ? fmtTime(e.time) : 'All day',
                     })),
-                    ...nextUp.tasks.map((t) => ({ k: t.id, g: '', t: t.title, m: '' }))]
+                    ...nextUp.tasks.map((t) => ({ k: t.id, g: '', t: t.title, m: '' })),
+                  ]
                     .slice(0, 3)
                     .map((n) => (
                       <div key={n.k} className="it">
@@ -504,6 +524,11 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                         ? `Leftovers · night ${data.today.dinner.night}`
                         : 'Cooking tonight'}
                     </span>
+                    {data.today.dinner.recipe && !data.today.dinner.leftover && (
+                      <button type="button" className="cook" onClick={() => setCooking(true)}>
+                        🍳 Cook
+                      </button>
+                    )}
                   </>
                 ) : (
                   <span className="v none">Not planned yet</span>
@@ -513,74 +538,82 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
 
             <div className="low">
               <div className="cx">
-              <div className="rest">
-                <span className="lab zone">Rest of the week</span>
-                <div className="rows">
-                  {ahead.map((d, i) => {
-                    const dt = new Date(`${d.date}T00:00:00`);
-                    const weekend = dt.getDay() === 0 || dt.getDay() === 6;
-                    const chips = [
-                      ...d.binsOut.map((b) => ({ k: `bin${b.id}`, e: b.emoji, t: b.name })),
-                      ...d.birthdays.map((b) => ({ k: `b${b.id}`, e: '🎂', t: b.name })),
-                      ...d.events.map((e) => ({ k: `e${e.id}`, e: e.emoji || '', t: e.title })),
-                      // A parent not working at the weekend is the calendar, not news.
-                      ...(weekend ? [] : d.off.map((o) => ({ k: `o${o.id}`, e: o.avatarEmoji, t: `${o.name} off` }))),
-                      ...d.tasks.map((t) => ({ k: `t${t.id}`, e: t.emoji || '', t: t.title })),
-                    ];
-                    return (
-                      <div key={d.date} className="rw">                        <span className="dt">
-                          <span>{dt.toLocaleDateString([], { weekday: 'short' })}</span>
+                <div className="rest">
+                  <span className="lab zone">Rest of the week</span>
+                  <div className="rows">
+                    {ahead.map((d, i) => {
+                      const dt = new Date(`${d.date}T00:00:00`);
+                      const weekend = dt.getDay() === 0 || dt.getDay() === 6;
+                      const chips = [
+                        ...d.binsOut.map((b) => ({ k: `bin${b.id}`, e: b.emoji, t: b.name })),
+                        ...d.birthdays.map((b) => ({ k: `b${b.id}`, e: '🎂', t: b.name })),
+                        ...d.events.map((e) => ({ k: `e${e.id}`, e: e.emoji || '', t: e.title })),
+                        // A parent not working at the weekend is the calendar, not news.
+                        ...(weekend
+                          ? []
+                          : d.off.map((o) => ({
+                              k: `o${o.id}`,
+                              e: o.avatarEmoji,
+                              t: `${o.name} off`,
+                            }))),
+                        ...d.tasks.map((t) => ({ k: `t${t.id}`, e: t.emoji || '', t: t.title })),
+                      ];
+                      return (
+                        <div key={d.date} className="rw">
+                          {' '}
+                          <span className="dt">
+                            <span>{dt.toLocaleDateString([], { weekday: 'short' })}</span>
 
-                        <span className="pres">
-                          {d.working.map((w) => (
-                            <i
-                              key={w.id}
-                              title={`${w.name} · ${w.place}`}
-                              style={{ background: tint(w.color, 0.35) }}
-                            >
-                              {w.emoji}
-                            </i>
-                          ))}
-                          {d.school.map((sc) => {
-                            const kid = data.kids.find((k) => sc.id.startsWith(k.id));
-                            return (
-                              <i
-                                key={sc.id}
-                                className="kid"
-                                title={`${sc.name} · ${sc.place}`}
-                                style={{ background: tint(kid?.color, 0.35) }}
-                              >
-                                {sc.emoji}
-                              </i>
-                            );
-                          })}
-                        </span>
-                          <b>{dt.getDate()}</b>
-                        </span>
-                        <span className="ch">
-                          {chips.slice(0, 2).map((c) => (
-                            // Weight, not a border, carries "soon" — and only for the
-                            // next couple of days, so Saturday can't outshout tomorrow.
-                            // A chosen emoji speaks for itself; only an item
-                            // without one spends the row's width on words.
-                            <span
-                              key={c.k}
-                              className={'c' + (i < 2 ? ' soon' : '') + (c.e ? ' solo' : '')}
-                              title={c.t}
-                            >
-                              {c.e ? <em>{c.e}</em> : <span className="t">{c.t}</span>}
+                            <span className="pres">
+                              {d.working.map((w) => (
+                                <i
+                                  key={w.id}
+                                  title={`${w.name} · ${w.place}`}
+                                  style={{ background: tint(w.color, 0.35) }}
+                                >
+                                  {w.emoji}
+                                </i>
+                              ))}
+                              {d.school.map((sc) => {
+                                const kid = data.kids.find((k) => sc.id.startsWith(k.id));
+                                return (
+                                  <i
+                                    key={sc.id}
+                                    className="kid"
+                                    title={`${sc.name} · ${sc.place}`}
+                                    style={{ background: tint(kid?.color, 0.35) }}
+                                  >
+                                    {sc.emoji}
+                                  </i>
+                                );
+                              })}
                             </span>
-                          ))}
-                          {chips.length > 2 ? (
-                            <span className="more">+{chips.length - 2}</span>
-                          ) : null}
-                          {chips.length === 0 ? <span className="none">—</span> : null}
-                        </span>
-                      </div>
-                    );
-                  })}
+                            <b>{dt.getDate()}</b>
+                          </span>
+                          <span className="ch">
+                            {chips.slice(0, 2).map((c) => (
+                              // Weight, not a border, carries "soon" — and only for the
+                              // next couple of days, so Saturday can't outshout tomorrow.
+                              // A chosen emoji speaks for itself; only an item
+                              // without one spends the row's width on words.
+                              <span
+                                key={c.k}
+                                className={'c' + (i < 2 ? ' soon' : '') + (c.e ? ' solo' : '')}
+                                title={c.t}
+                              >
+                                {c.e ? <em>{c.e}</em> : <span className="t">{c.t}</span>}
+                              </span>
+                            ))}
+                            {chips.length > 2 ? (
+                              <span className="more">+{chips.length - 2}</span>
+                            ) : null}
+                            {chips.length === 0 ? <span className="none">—</span> : null}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
               </div>
 
               <div className="cx">
@@ -605,7 +638,9 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                       </div>
                     );
                   })}
-                  {data.kidsAhead.length === 0 && <span className="none">Nothing in the next few weeks.</span>}
+                  {data.kidsAhead.length === 0 && (
+                    <span className="none">Nothing in the next few weeks.</span>
+                  )}
                 </div>
 
                 {data.birthdaysAhead.length > 0 && (
@@ -655,6 +690,12 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
       }}
     >
       <style>{css}</style>
+      {cooking && data?.today.dinner?.recipe && (
+        <CookMode
+          recipe={{ name: data.today.dinner.name, ...data.today.dinner.recipe }}
+          onClose={() => setCooking(false)}
+        />
+      )}
       <div
         className="wall"
         style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}
@@ -698,16 +739,16 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                   {data.grownUps
                     .filter((a) => a.hasSchedule)
                     .map((a) => (
-                    <div key={a.id} className={`row${a.off ? ' off' : ''}`}>
-                      <span className="av">{a.avatarEmoji}</span>
-                      <span className="name">{a.name.split(' ')[0]}</span>
-                      <span className="where">
-                        {a.off
-                          ? 'Day off'
-                          : `${a.place}${a.startTime ? ` · ${fmtRange(a.startTime, a.endTime)}` : ''}`}
-                      </span>
-                    </div>
-                  ))}
+                      <div key={a.id} className={`row${a.off ? ' off' : ''}`}>
+                        <span className="av">{a.avatarEmoji}</span>
+                        <span className="name">{a.name.split(' ')[0]}</span>
+                        <span className="where">
+                          {a.off
+                            ? 'Day off'
+                            : `${a.place}${a.startTime ? ` · ${fmtRange(a.startTime, a.endTime)}` : ''}`}
+                        </span>
+                      </div>
+                    ))}
                   {data.kids.map((k) => (
                     <div key={k.id} className={`row${k.offReason || !k.place ? ' off' : ''}`}>
                       <span className="av kid">{k.emojiIcon}</span>
@@ -774,6 +815,11 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                       ? `Leftovers, night ${data.today.dinner.night}`
                       : 'Cooking tonight'}
                   </span>
+                  {data.today.dinner.recipe && !data.today.dinner.leftover && (
+                    <button type="button" className="cook" onClick={() => setCooking(true)}>
+                      🍳 Cook
+                    </button>
+                  )}
                 </div>
               )}
               <div>

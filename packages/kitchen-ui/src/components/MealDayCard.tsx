@@ -2,7 +2,19 @@ import clsx from 'clsx';
 import { motion, useDragControls, type PanInfo } from 'framer-motion';
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 
-export interface MealEntry {
+/**
+ * The recipe-book fields. Optional on the type because the phone's on-device
+ * store may not have them; the screens treat a missing field as empty.
+ */
+export interface RecipeFields {
+  servings?: number | null;
+  method?: string | null;
+  prepMinutes?: number | null;
+  cookMinutes?: number | null;
+  tags?: string[] | null;
+}
+
+export interface MealEntry extends RecipeFields {
   date: string;
   mealId: string;
   name: string;
@@ -16,8 +28,10 @@ export interface MealEntry {
   night: number;
 }
 
-export interface MealOption {
+export interface MealOption extends RecipeFields {
   id: string;
+  /** The last date it was planned, when the host knows it. */
+  lastCooked?: string | null;
   name: string;
   recipeUrl: string | null;
   notes: string | null;
@@ -57,6 +71,10 @@ interface Props {
   onToggleFavourite: (id: string, next: boolean) => void;
   /** How far the card was dragged vertically; the screen maps that to a day. */
   onDragEndY: (offsetY: number) => void;
+  /** Open this meal in the recipe book; absent where there is none. */
+  onOpenRecipe?: () => void;
+  /** Cook mode; absent when the meal has nothing to cook from yet. */
+  onCook?: () => void;
 }
 
 export function MealDayCard({
@@ -74,6 +92,8 @@ export function MealDayCard({
   onEditMeal,
   onToggleFavourite,
   onDragEndY,
+  onOpenRecipe,
+  onCook,
 }: Props) {
   const dragControls = useDragControls();
   const [dragging, setDragging] = useState(false);
@@ -493,6 +513,35 @@ export function MealDayCard({
                 <p className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
                   The recipe, ingredients and notes belong to {entry.name} everywhere it appears.
                 </p>
+
+                {(onOpenRecipe || onCook) && (
+                  <div className="flex flex-wrap gap-d2">
+                    {onCook && (
+                      <button
+                        type="button"
+                        onClick={onCook}
+                        className="rounded-full px-3 py-2 font-bold"
+                        style={{
+                          background: 'var(--color-accent-soft)',
+                          color: 'var(--color-accent)',
+                          fontSize: 'var(--fs-sm)',
+                        }}
+                      >
+                        🍳 Cook mode
+                      </button>
+                    )}
+                    {onOpenRecipe && (
+                      <button
+                        type="button"
+                        onClick={onOpenRecipe}
+                        className="rounded-full border border-border px-3 py-2 font-bold"
+                        style={{ fontSize: 'var(--fs-sm)' }}
+                      >
+                        📖 Full recipe
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-d2">
                   {/* Was "Push to next week", which sat where a save button belongs and

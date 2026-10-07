@@ -106,7 +106,8 @@ export const wallRouter = router({
       const shiftMs = input.dayKey
         ? Date.parse(`${input.dayKey}T00:00:00Z`) - dayStart.getTime()
         : 0;
-      const localKey = (d: Date) => (shiftMs ? keyOfUtc(new Date(d.getTime() + shiftMs)) : keyOf(d));
+      const localKey = (d: Date) =>
+        shiftMs ? keyOfUtc(new Date(d.getTime() + shiftMs)) : keyOf(d);
       const localDow = (d: Date) =>
         shiftMs ? new Date(d.getTime() + shiftMs).getUTCDay() : d.getDay();
       const todayKey = localKey(dayStart);
@@ -178,7 +179,8 @@ export const wallRouter = router({
         const mine = work.filter((w) => w.personId === a.id);
         const fortnightly = mine.some((w) => w.week === 1);
         const today = mine.find(
-          (w) => w.weekday === dow && w.week === (fortnightly ? weekParity(hh.anchor, todayKey) : 0),
+          (w) =>
+            w.weekday === dow && w.week === (fortnightly ? weekParity(hh.anchor, todayKey) : 0),
         );
         return {
           id: a.id,
@@ -420,7 +422,12 @@ export const wallRouter = router({
           // Who is where on this weekday (daycare/kindy/school), if term is running.
           school: childDays.flatMap((cd) => {
             if (cd.weekday !== localDow(d)) return [];
-            if (!statusFor(periods.filter((p) => p.listId === cd.listId), localKey(d)).attending) {
+            if (
+              !statusFor(
+                periods.filter((p) => p.listId === cd.listId),
+                localKey(d),
+              ).attending
+            ) {
               return [];
             }
             const l = childListById.get(cd.listId);
@@ -499,8 +506,22 @@ export const wallRouter = router({
               who: o.who,
             })),
           birthdays: week.find((d) => d.isToday)?.birthdays ?? [],
+          // Tonight's recipe comes with it, so the kitchen display can open cook
+          // mode with no sign-in. Only tonight's: the wall already shows its name.
           dinner: dinner
-            ? { name: dinner.name, leftover: dinner.isLeftover, night: dinner.night }
+            ? {
+                name: dinner.name,
+                leftover: dinner.isLeftover,
+                night: dinner.night,
+                recipe:
+                  dinner.ingredients || dinner.method
+                    ? {
+                        ingredients: dinner.ingredients,
+                        method: dinner.method,
+                        servings: dinner.servings,
+                      }
+                    : null,
+              }
             : null,
           due: dueToday.map((t) => ({
             id: t.id,
