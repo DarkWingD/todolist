@@ -11,6 +11,7 @@ import {
   toLocalInput,
   type Freq,
 } from '../lib/datetime';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { trpc } from '../lib/trpc';
 
 function CloseButton({ onClick }: { onClick: () => void }) {
@@ -50,6 +51,7 @@ export function TaskDetailScreen({
     due: string;
     priority: Priority;
     freq: Freq | '';
+    emoji: string;
     assigneeId: string | null;
   };
 
@@ -58,6 +60,7 @@ export function TaskDetailScreen({
   const [due, setDue] = useState('');
   const [priority, setPriority] = useState<Priority>('none');
   const [freq, setFreq] = useState<Freq | ''>('');
+  const [emoji, setEmoji] = useState('');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState('');
   const [showCustomReminder, setShowCustomReminder] = useState(false);
@@ -76,6 +79,7 @@ export function TaskDetailScreen({
     setDue(toLocalInput(task.dueAt as unknown as string));
     setPriority(task.priority);
     setFreq(ruleToFreq(task.recurrenceRule));
+    setEmoji(task.emoji ?? '');
     setAssigneeId(task.assigneeId);
   }, [task]);
 
@@ -126,7 +130,7 @@ export function TaskDetailScreen({
    */
   function onSave(patch: Partial<Fields> = {}) {
     dirty.current = false;
-    const f = { title, notes, due, priority, freq, assigneeId, ...patch };
+    const f = { title, notes, due, priority, freq, assigneeId, emoji, ...patch };
     save.mutate({
       id: taskId,
       title: f.title.trim() || 'Untitled',
@@ -134,6 +138,7 @@ export function TaskDetailScreen({
       dueAt: fromLocalInput(f.due),
       priority: f.priority,
       recurrenceRule: freqToRule(f.freq),
+      emoji: f.emoji || null,
       assigneeId: f.assigneeId,
     });
   }
@@ -259,6 +264,17 @@ export function TaskDetailScreen({
       >
         <span>⚑</span> {priority === 'high' ? 'High priority' : 'Flag as priority'}
       </button>
+
+      <h2 className={sectionH} style={sectionStyle}>
+        Emoji
+      </h2>
+      <EmojiPicker
+        value={emoji}
+        onChange={(e) => {
+          setEmoji(e);
+          onSave({ emoji: e });
+        }}
+      />
 
       <h2 className={sectionH} style={sectionStyle}>
         Repeat

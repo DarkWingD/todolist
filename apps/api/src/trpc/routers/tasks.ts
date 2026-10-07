@@ -17,6 +17,7 @@ const taskWithAssignee = {
   priority: task.priority,
   completedAt: task.completedAt,
   recurrenceRule: task.recurrenceRule,
+  emoji: task.emoji,
   // Lets a checklist nest ingredients under the meal they belong to.
   parentTaskId: task.parentTaskId,
   sortOrder: task.sortOrder,
@@ -110,6 +111,7 @@ export const tasksRouter = router({
         priority: input.priority,
         assigneeId: input.assigneeId,
         recurrenceRule: input.recurrenceRule,
+        emoji: input.emoji,
         parentTaskId: input.parentTaskId,
         createdBy: ctx.user.id,
       })

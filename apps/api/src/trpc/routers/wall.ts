@@ -1,5 +1,6 @@
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from 'drizzle-orm';
 import {
+  bin,
   birthday,
   childDay,
   db,
@@ -243,6 +244,7 @@ export const wallRouter = router({
               id: task.id,
               listId: task.listId,
               title: task.title,
+              emoji: task.emoji,
               dueAt: task.dueAt,
               priority: task.priority,
               completedAt: task.completedAt,
@@ -350,12 +352,71 @@ export const wallRouter = router({
         : [];
       const childListById = new Map(childLists.map((l) => [l.id, l]));
 
+      // ── bins ──
+      const bins = await db
+        .select()
+        .from(bin)
+        .where(eq(bin.householdId, hh.id))
+        .orderBy(asc(bin.sortOrder));
+      /**
+       * Which bins are collected on a given date. Fortnightly rows fall on the
+       * same parity as their anchor, so "which bin this week" is derived rather
+       * than maintained — the failure mode of doing it with repeating tasks was
+       * duplicates drifting out of step.
+       */
+      const binsOn = (key: string) => {
+        const d = new Date(`${key}T00:00:00Z`);
+        return bins.filter((b) => {
+          if (b.weekday !== d.getUTCDay()) return false;
+          if (!b.fortnightly) return true;
+          const weeks = Math.round(
+            (Date.parse(`${key}T00:00:00Z`) - Date.parse(`${b.anchorDate}T00:00:00Z`)) / (7 * DAY),
+          );
+          return weeks % 2 === 0;
+        });
+      };
+      /** Bins to put out on the EVENING of `key` — i.e. collected the next day. */
+      const binsOutOn = (key: string) => {
+        const next = new Date(Date.parse(`${key}T00:00:00Z`) + DAY);
+        return binsOn(keyOfUtc(next)).map((b) => ({
+          id: `${b.id}:${key}`,
+          name: b.name,
+          emoji: b.emoji,
+          who: people.find((p) => p.id === b.assigneeId)?.name.split(' ')[0] ?? null,
+        }));
+      };
+
       const week = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(weekStart.getTime() + i * DAY);
         const e = new Date(d.getTime() + DAY);
         return {
           date: localKey(d),
           isToday: localKey(d) === todayKey,
+          // Bins to put out that evening — the moment someone must act.
+          binsOut: binsOutOn(localKey(d)),
+          // Which grown-ups are AT WORK this day — the inverse of offOn(). The week
+          // should answer "what days is Dan working", which nothing on the screen
+          // could say before: only today's band knew, and only about today.
+          working: adults.flatMap((a) => {
+            const mine = work.filter((w) => w.personId === a.id);
+            if (mine.length === 0) return [];
+            const fortnightly = mine.some((w) => w.week === 1);
+            const shift = mine.find(
+              (w) =>
+                w.weekday === localDow(d) &&
+                w.week === (fortnightly ? weekParity(hh.anchor, localKey(d)) : 0),
+            );
+            if (!shift) return [];
+            return [
+              {
+                id: `${a.id}:${localKey(d)}`,
+                name: a.name.split(' ')[0],
+                emoji: a.avatarEmoji,
+                color: a.avatarColor,
+                place: shift.place,
+              },
+            ];
+          }),
           // Who is where on this weekday (daycare/kindy/school), if term is running.
           school: childDays.flatMap((cd) => {
             if (cd.weekday !== localDow(d)) return [];
@@ -392,7 +453,7 @@ export const wallRouter = router({
             })),
           tasks: weekTasks
             .filter((t) => t.dueAt && t.dueAt >= d && t.dueAt < e)
-            .map((t) => ({ id: t.id, title: t.title })),
+            .map((t) => ({ id: t.id, title: t.title, emoji: t.emoji })),
           birthdays: bdays
             .filter((b) => b.month === d.getMonth() + 1 && b.day === d.getDate())
             .map((b) => ({
@@ -427,6 +488,7 @@ export const wallRouter = router({
             })),
         })),
         today: {
+          binsOut: binsOutOn(todayKey),
           events: occurrences
             .filter((o) => o.startAt < dayEnd && o.endAt >= dayStart)
             .map((o) => ({
@@ -478,6 +540,9 @@ export const wallRouter = router({
               id: o.id,
               date: localKey(o.startAt),
               title: o.title,
+              // The wall leads with the emoji where one is set, so it travels
+              // with every horizon entry rather than only the week grid.
+              emoji: o.emoji as string | null,
               who: o.who,
               time: o.allDay ? null : o.startAt.toISOString(),
               endDate: null as string | null,
@@ -488,6 +553,8 @@ export const wallRouter = router({
               id: `${p.listId}:${p.startDate}`,
               date: p.startDate < todayKey ? todayKey : p.startDate,
               title: p.name,
+              // A break or a pupil-free day has no emoji of its own to inherit.
+              emoji: (p.kind === 'break' ? '🏖️' : '🚫') as string | null,
               who: people.find((k) => k.childListId === p.listId)?.name.split(' ')[0] ?? null,
               time: null,
               endDate: p.endDate,

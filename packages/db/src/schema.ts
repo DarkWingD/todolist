@@ -396,6 +396,10 @@ export const task = pgTable(
     assigneeId: uuid('assignee_id').references(() => person.id, { onDelete: 'set null' }),
     // iCal RRULE, e.g. "FREQ=WEEKLY;BYDAY=MO,WE,FR"
     recurrenceRule: text('recurrence_rule'),
+    // A glanceable emoji for the wall display, as events have. A fortnightly
+    // bin run is the case that wanted it: green waste one week, recycling the
+    // next, told apart at a glance rather than read.
+    emoji: text('emoji'),
     // For subtasks / recurrence instances.
     parentTaskId: uuid('parent_task_id'),
     createdBy: text('created_by')
@@ -710,6 +714,38 @@ export const childDay = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('child_day_list_weekday_idx').on(t.listId, t.weekday)],
+);
+
+/**
+ * A household's bins.
+ *
+ * A list rather than a fixed rubbish/recycling/green triple: plenty of places
+ * have only a weekly rubbish bin, and some councils collect on different days.
+ * One row per bin says everything — which day, how often, and whose job it is —
+ * so "which bin this week" is computed rather than kept up to date by hand.
+ */
+export const bin = pgTable(
+  'bin',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => household.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    emoji: text('emoji').notNull(),
+    // Date.getDay() numbering: 0 = Sunday. The day it is COLLECTED; the display
+    // flags the evening before, which is when someone has to act.
+    weekday: smallint('weekday').notNull(),
+    fortnightly: boolean('fortnightly').notNull().default(false),
+    // A date this bin is genuinely collected on. Only meaningful when
+    // fortnightly, where it decides which of the two weeks it falls on.
+    anchorDate: date('anchor_date', { mode: 'string' }).notNull(),
+    assigneeId: uuid('assignee_id').references(() => person.id, { onDelete: 'set null' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('bin_household_idx').on(t.householdId)],
 );
 
 /**

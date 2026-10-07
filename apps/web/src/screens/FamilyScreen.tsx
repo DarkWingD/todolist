@@ -3,6 +3,7 @@ import { Avatar } from '../components/Avatar';
 import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { AvatarPhotoButton } from '../components/AvatarPhotoButton';
+import { BinSettings } from '../components/BinSettings';
 import { WorkWeekSheet } from '../components/WorkWeekSheet';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
@@ -54,6 +55,7 @@ export function FamilyScreen({
   const [editing, setEditing] = useState<Person | null>(null);
   const [workFor, setWorkFor] = useState<Person | null>(null);
   const [showWall, setShowWall] = useState(false);
+  const [showBins, setShowBins] = useState(false);
   const { data: wall } = trpc.household.wallLink.useQuery(undefined, { enabled: showWall });
   const rotateWall = trpc.household.rotateWallToken.useMutation({
     onSuccess: () => {
@@ -363,6 +365,44 @@ export function FamilyScreen({
               </div>
             )}
           </div>
+          <h2 className={sectionH} style={sectionStyle}>
+            Bins
+          </h2>
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            {showBins ? (
+              <div className="px-3.5 py-3">
+                <BinSettings
+                  people={people}
+                  onDone={() => {
+                    setShowBins(false);
+                    refresh();
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowBins(true)}
+                className="flex w-full items-center gap-d3 px-3.5 py-3 text-left"
+              >
+                <span
+                  className="grid h-10 w-10 flex-none place-items-center rounded-full"
+                  style={{ background: 'var(--color-accent-soft)', fontSize: 18 }}
+                >
+                  🗑️
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    Bin nights
+                  </span>
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    Which bins, which day, and whose job
+                  </span>
+                </span>
+              </button>
+            )}
+          </div>
+
           <h2 className={sectionH} style={sectionStyle}>
             Wall display
           </h2>

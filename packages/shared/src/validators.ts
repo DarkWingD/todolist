@@ -84,6 +84,7 @@ export const createTaskSchema = z.object({
   // A person id (household member, adult or child).
   assigneeId: z.string().uuid().optional(),
   recurrenceRule: recurrenceSchema.optional(),
+  emoji: z.string().max(24).optional(),
   tagIds: z.array(z.string().uuid()).max(20).optional(),
   // Groups an item under another, e.g. an ingredient under its meal on a
   // shopping list.
@@ -98,10 +99,32 @@ export const updateTaskSchema = createTaskSchema.partial().omit({ listId: true }
   dueAt: z.string().datetime().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
   recurrenceRule: recurrenceSchema.nullable().optional(),
+  emoji: z.string().max(24).nullable().optional(),
   // Null promotes a checklist item back to a heading of its own.
   parentTaskId: z.string().uuid().nullable().optional(),
 });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+
+/**
+ * The household's bins, edited as a set — the same reasoning as a child's week:
+ * you decide the whole arrangement at once, and replacing it avoids a
+ * half-applied schedule if one row of several fails.
+ */
+export const setBinsSchema = z.object({
+  bins: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(60),
+        emoji: z.string().min(1).max(24),
+        weekday: z.number().int().min(0).max(6),
+        fortnightly: z.boolean(),
+        // A date this bin really is collected; fixes which fortnight it lands on.
+        anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        assigneeId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .max(6),
+});
 
 export const acceptInviteSchema = z.object({ token: z.string().min(1) });
 

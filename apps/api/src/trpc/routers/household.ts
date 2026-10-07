@@ -1,9 +1,19 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import { db, household, householdInvite, list, person, personWorkday, user } from '@todolist/db';
+import {
+  bin,
+  db,
+  household,
+  householdInvite,
+  list,
+  person,
+  personWorkday,
+  user,
+} from '@todolist/db';
 import {
   addChildSchema,
   inviteToHouseholdSchema,
   renameHouseholdSchema,
+  setBinsSchema,
   setWorkWeekSchema,
   updatePersonSchema,
 } from '@todolist/shared';
@@ -133,6 +143,34 @@ export const householdRouter = router({
    * Rename or re-colour a child. Adults edit themselves through their account;
    * their person row follows automatically.
    */
+  /** The household's bins, in the order they should be listed. */
+  bins: protectedProcedure.query(async ({ ctx }) => {
+    return db
+      .select()
+      .from(bin)
+      .where(eq(bin.householdId, ctx.person.householdId))
+      .orderBy(asc(bin.sortOrder), asc(bin.createdAt));
+  }),
+
+  setBins: protectedProcedure.input(setBinsSchema).mutation(async ({ ctx, input }) => {
+    await db.delete(bin).where(eq(bin.householdId, ctx.person.householdId));
+    if (input.bins.length > 0) {
+      await db.insert(bin).values(
+        input.bins.map((b, i) => ({
+          householdId: ctx.person.householdId,
+          name: b.name,
+          emoji: b.emoji,
+          weekday: b.weekday,
+          fortnightly: b.fortnightly,
+          anchorDate: b.anchorDate,
+          assigneeId: b.assigneeId ?? null,
+          sortOrder: i,
+        })),
+      );
+    }
+    return { ok: true };
+  }),
+
   updatePerson: protectedProcedure.input(updatePersonSchema).mutation(async ({ ctx, input }) => {
     const rows = await db
       .select({ kind: person.kind, childListId: person.childListId })

@@ -202,6 +202,11 @@ const portraitCss = `
 .wallp .tod .it.done{opacity:.4}
 .wallp .tod .more{font-size:calc(2*var(--u));font-weight:800;color:#6e6858}
 .wallp .tod .next{display:flex;flex-direction:column;gap:calc(.8*var(--u));margin-top:calc(.4*var(--u))}
+.wallp .bins{display:flex;align-items:center;flex-wrap:wrap;gap:calc(.8*var(--u)) calc(1.6*var(--u));border-top:calc(.15*var(--u)) solid #8a8579;padding-top:calc(1.2*var(--u));margin-top:auto}
+.wallp .bins .b{display:inline-flex;align-items:center;gap:calc(.8*var(--u));font-size:calc(3*var(--u));font-weight:800}
+.wallp .bins .b em{font-size:calc(4.2*var(--u));font-style:normal;line-height:1}
+.wallp .bins .b small{font-size:calc(2.2*var(--u));font-weight:700;color:#4a463d}
+.wallp .bins+.bar{margin-top:calc(1.2*var(--u))}
 .wallp .bar{display:flex;align-items:baseline;gap:calc(1.2*var(--u));border-top:calc(.15*var(--u)) solid #8a8579;padding-top:calc(1.2*var(--u));margin-top:auto}
 .wallp .bar .v{font-size:calc(3.4*var(--u));font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wallp .bar .v.none{font-weight:600;color:#4a463d}
@@ -215,12 +220,16 @@ const portraitCss = `
 .wallp .low .cx+.cx{border-left:calc(.15*var(--u)) solid #8a8579;padding-left:calc(2.4*var(--u))}
 .wallp .rest{display:flex;flex-direction:column;min-height:0}
 .wallp .rest .rows{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
-.wallp .rest .rw{display:grid;grid-template-columns:calc(1.2*var(--u)) calc(10*var(--u)) 1fr auto;gap:calc(1.2*var(--u));align-items:center;flex:0 0 auto;min-height:calc(6*var(--u));padding:calc(.4*var(--u)) 0}
+.wallp .rest .rw{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:calc(1.2*var(--u));align-items:center;flex:0 0 auto;min-height:calc(6*var(--u));padding:calc(.4*var(--u)) 0}
 /* Presence: a track always renders, so the colour reads as a column with a
    visible BREAK on the day the routine changes. An absent bar cannot be seen. */
-.wallp .rest .pres{display:flex;flex-direction:column;gap:calc(.2*var(--u));height:calc(4.6*var(--u));background:#e2ddd0;overflow:hidden}
-.wallp .rest .pres i{flex:1;display:block}
-.wallp .rest .dt{display:flex;align-items:baseline;gap:calc(.8*var(--u));white-space:nowrap}
+/* Who is OUT that day — Dan at work, Lucas at daycare — as their own face in
+   their own colour. A bare colour bar could not say which of those it meant,
+   and the week is exactly where you look to ask "which days is he in?". */
+.wallp .rest .pres{display:flex;gap:calc(.5*var(--u));flex:none}
+.wallp .rest .pres i{width:calc(3*var(--u));height:calc(3*var(--u));border-radius:50%;display:grid;place-items:center;font-size:calc(1.7*var(--u));font-style:normal;border:calc(.22*var(--u)) solid #1c1a17;flex:none}
+.wallp .rest .pres i.kid{border-style:dashed}
+.wallp .rest .dt{display:flex;align-items:baseline;gap:calc(.8*var(--u));white-space:nowrap;min-width:calc(9*var(--u))}
 .wallp .rest .dt span{font-size:calc(2*var(--u));font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#6e6858}
 .wallp .rest .dt b{font-family:Quicksand,system-ui,sans-serif;font-size:calc(3.4*var(--u));font-weight:700;font-variant-numeric:tabular-nums}
 .wallp .rest .ch{display:flex;align-items:center;flex-wrap:wrap;gap:calc(.4*var(--u)) calc(1.4*var(--u));min-width:0;overflow:hidden}
@@ -229,6 +238,8 @@ const portraitCss = `
 /* Reserved, centred slot: without a width the glyphs landed at a different x on
    every row (and a trailing ♻️ sat in a different place again). */
 .wallp .rest .c em{font-size:calc(2.7*var(--u));font-style:normal;line-height:1;flex:none;width:calc(3*var(--u));text-align:center}
+/* Standing alone it carries the row, so it takes the size the words had. */
+.wallp .rest .c.solo em{font-size:calc(4.2*var(--u));width:auto}
 .wallp .rest .c .t{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.15}
 .wallp .rest .more{font-size:calc(2*var(--u));font-weight:800;color:#6e6858;flex:none}
 .wallp .rest .none{font-size:calc(2*var(--u));font-weight:600;color:#6e6858}
@@ -237,10 +248,16 @@ const portraitCss = `
 .wallp .foot{border-top:calc(.35*var(--u)) solid #1c1a17;margin-top:calc(1.2*var(--u))}
 /* horizon column */
 .wallp .up{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
-.wallp .up .r{display:grid;grid-template-columns:auto 1fr;gap:calc(1.2*var(--u));align-items:start;padding:calc(.6*var(--u)) 0}
+.wallp .up .r{display:grid;grid-template-columns:auto auto 1fr;gap:calc(1.4*var(--u));align-items:center;padding:calc(.6*var(--u)) 0}
+/* Where a recurring thing has been given an emoji, the emoji IS the entry: the
+   titles ("Swimming class" three weeks running) wrapped to two lines and said
+   the same thing each time. Text only stands in when no emoji was chosen. */
+.wallp .up .gl{font-size:calc(4.6*var(--u));line-height:1;flex:none}
 .wallp .up .d{font-size:calc(2.2*var(--u));font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:#1c1a17;line-height:1.15}
 .wallp .up .d small{display:block;font-size:calc(1.8*var(--u));font-weight:700;color:#6e6858;text-transform:uppercase;letter-spacing:.06em}
 .wallp .up .w{font-size:calc(2.4*var(--u));font-weight:600;color:#4a463d;min-width:0;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+/* Beside a glyph the words shrink to a caption: who it is for, and the span. */
+.wallp .up .w.side{font-size:calc(2.2*var(--u));font-weight:700;color:#6e6858;-webkit-line-clamp:1}
 .wallp .up .w b{color:#1c1a17;font-weight:800}
 .wallp .bd{display:flex;flex-direction:column;margin-top:calc(.8*var(--u))}
 .wallp .bd .r{display:flex;align-items:baseline;gap:calc(.8*var(--u));padding:calc(.45*var(--u)) 0;font-size:calc(2.4*var(--u));font-weight:700}
@@ -459,6 +476,22 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                     ))}
                 </div>
               ) : null}
+              {/* The evening before collection is when someone has to act, so it
+                  sits in today's zone rather than on the collection day itself. */}
+              {data.today.binsOut.length > 0 && (
+                <div className="bins">
+                  <span className="lab">Bins out tonight</span>
+                  {data.today.binsOut.map((b) => (
+                    <span key={b.id} className="b">
+                      <em>{b.emoji}</em>
+                      <span>
+                        {b.name}
+                        {b.who ? <small> · {b.who}</small> : null}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
               {/* Always rendered: "what's for dinner" is the question this room asks,
                   and "not planned" is the most actionable answer it can give. */}
               <div className="bar">
@@ -487,36 +520,55 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                     const dt = new Date(`${d.date}T00:00:00`);
                     const weekend = dt.getDay() === 0 || dt.getDay() === 6;
                     const chips = [
+                      ...d.binsOut.map((b) => ({ k: `bin${b.id}`, e: b.emoji, t: b.name })),
                       ...d.birthdays.map((b) => ({ k: `b${b.id}`, e: '🎂', t: b.name })),
                       ...d.events.map((e) => ({ k: `e${e.id}`, e: e.emoji || '', t: e.title })),
                       // A parent not working at the weekend is the calendar, not news.
                       ...(weekend ? [] : d.off.map((o) => ({ k: `o${o.id}`, e: o.avatarEmoji, t: `${o.name} off` }))),
-                      ...d.tasks.map((t) => ({ k: `t${t.id}`, e: '', t: t.title })),
+                      ...d.tasks.map((t) => ({ k: `t${t.id}`, e: t.emoji || '', t: t.title })),
                     ];
                     return (
-                      <div key={d.date} className="rw">
-                        <span className="pres">
-                          {d.school.map((s) => (
-                            <i
-                              key={s.id}
-                              style={{
-                                background:
-                                  data.kids.find((k) => s.id.startsWith(k.id))?.color ?? '#111',
-                              }}
-                            />
-                          ))}
-                        </span>
-                        <span className="dt">
+                      <div key={d.date} className="rw">                        <span className="dt">
                           <span>{dt.toLocaleDateString([], { weekday: 'short' })}</span>
+
+                        <span className="pres">
+                          {d.working.map((w) => (
+                            <i
+                              key={w.id}
+                              title={`${w.name} · ${w.place}`}
+                              style={{ background: tint(w.color, 0.35) }}
+                            >
+                              {w.emoji}
+                            </i>
+                          ))}
+                          {d.school.map((sc) => {
+                            const kid = data.kids.find((k) => sc.id.startsWith(k.id));
+                            return (
+                              <i
+                                key={sc.id}
+                                className="kid"
+                                title={`${sc.name} · ${sc.place}`}
+                                style={{ background: tint(kid?.color, 0.35) }}
+                              >
+                                {sc.emoji}
+                              </i>
+                            );
+                          })}
+                        </span>
                           <b>{dt.getDate()}</b>
                         </span>
                         <span className="ch">
                           {chips.slice(0, 2).map((c) => (
                             // Weight, not a border, carries "soon" — and only for the
                             // next couple of days, so Saturday can't outshout tomorrow.
-                            <span key={c.k} className={'c' + (i < 2 ? ' soon' : '')}>
-                              <em>{c.e}</em>
-                              <span className="t">{c.t}</span>
+                            // A chosen emoji speaks for itself; only an item
+                            // without one spends the row's width on words.
+                            <span
+                              key={c.k}
+                              className={'c' + (i < 2 ? ' soon' : '') + (c.e ? ' solo' : '')}
+                              title={c.t}
+                            >
+                              {c.e ? <em>{c.e}</em> : <span className="t">{c.t}</span>}
                             </span>
                           ))}
                           {chips.length > 2 ? (
@@ -542,10 +594,13 @@ export function WallScreen({ token, view }: { token: string; view?: string }) {
                           {d.toLocaleDateString([], { day: 'numeric', month: 'short' })}
                           <small>{whenLabel(a.date, dayStart)}</small>
                         </span>
-                        <span className="w">
-                          <b>{a.title}</b>
-                          {a.who ? ` · ${a.who}` : ''}
-                          {a.endDate ? ` – ${new Date(`${a.endDate}T00:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' })}` : ''}
+                        <span className="gl">{a.emoji ?? ''}</span>
+                        <span className={'w' + (a.emoji ? ' side' : '')}>
+                          {a.emoji ? null : <b>{a.title}</b>}
+                          {a.who ?? ''}
+                          {a.endDate
+                            ? ` – ${new Date(`${a.endDate}T00:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
+                            : ''}
                         </span>
                       </div>
                     );
