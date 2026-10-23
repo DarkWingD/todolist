@@ -13,27 +13,7 @@ const THEME_NAME: Record<Theme, string> = { tento: 'Tento', nudge: 'Nudge', mome
 
 export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   const { theme, appearance, density, textScale, setPrefs } = useTheme();
-  const utils = trpc.useUtils();
   const update = trpc.prefs.update.useMutation();
-  const { data: serverPrefs } = trpc.prefs.get.useQuery();
-  // These two live outside the theme bundle: they change what the app shows,
-  // not how it looks, and the server is the source of truth for both.
-  const setMealsVisible = trpc.prefs.setMealsVisible.useMutation({
-    onSuccess: () => utils.prefs.get.invalidate(),
-  });
-  const setWeekStart = trpc.prefs.setWeekStart.useMutation({
-    onSuccess: () => utils.prefs.get.invalidate(),
-  });
-  const setKidsVisible = trpc.prefs.setKidsVisible.useMutation({
-    onSuccess: () => utils.prefs.get.invalidate(),
-  });
-  const setLiveLocation = trpc.prefs.setLiveLocation.useMutation({
-    onSuccess: () => utils.prefs.get.invalidate(),
-  });
-  const showMeals = serverPrefs?.showMeals ?? true;
-  const showKids = serverPrefs?.showKids ?? true;
-  const useLiveLocation = serverPrefs?.useLiveLocation ?? false;
-  const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
 
   function apply(patch: Partial<ThemePrefs>) {
     const next = { theme, appearance, density, textScale, ...patch };
@@ -191,73 +171,6 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
             </span>
           </div>
         </div>
-      </div>
-
-      <div className="mt-d4">
-        <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
-          Week starts on
-        </div>
-        {seg<'sun' | 'mon'>(
-          weekStartsOn === 0 ? 'sun' : 'mon',
-          [
-            { value: 'sun', label: 'Sunday' },
-            { value: 'mon', label: 'Monday' },
-          ],
-          (v) => setWeekStart.mutate({ weekStartsOn: v === 'sun' ? 0 : 1 }),
-        )}
-        <p className="mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-          Used by the meal week and the calendar.
-        </p>
-      </div>
-
-      <div className="mt-d4">
-        <div className="mb-2 font-semibold" style={{ fontSize: 'var(--fs-sm)' }}>
-          Sections
-        </div>
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={showMeals}
-            onChange={(e) => setMealsVisible.mutate({ showMeals: e.target.checked })}
-            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
-          />
-          <span style={{ fontSize: 'var(--fs-base)' }}>Show Meals</span>
-        </label>
-        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-          Hides the tab. Your meal plan and its shopping list stay exactly as they are.
-        </p>
-
-        <label className="mt-d3 flex items-center gap-3">
-          <input
-            type="checkbox"
-
-            checked={showKids}
-
-            onChange={(e) => setKidsVisible.mutate({ showKids: e.target.checked })}
-
-            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
-          />
-
-          <span style={{ fontSize: 'var(--fs-base)' }}>Show kids on Today</span>
-        </label>
-
-        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-          Hides the &ldquo;Where everyone is&rdquo; section. The children themselves stay in Lists.
-        </p>
-
-        <label className="mt-d3 flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={useLiveLocation}
-            onChange={(e) => setLiveLocation.mutate({ useLiveLocation: e.target.checked })}
-            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
-          />
-          <span style={{ fontSize: 'var(--fs-base)' }}>Use my location for weather</span>
-        </label>
-        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-          Your phone's own position instead of home, for while you're away. Your browser will ask
-          to allow it; say no and this just falls back to home.
-        </p>
       </div>
     </>
   );

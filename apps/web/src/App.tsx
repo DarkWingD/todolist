@@ -12,6 +12,7 @@ import { DESKTOP_QUERY, useMediaQuery } from './lib/useMediaQuery';
 import { AccountScreen } from './screens/AccountScreen';
 import { ActivityScreen } from './screens/ActivityScreen';
 import { AppearanceScreen } from './screens/AppearanceScreen';
+import { PreferencesScreen } from './screens/PreferencesScreen';
 import { CalScreen } from './screens/CalScreen';
 import { ChildScreen } from './screens/ChildScreen';
 import { FamilyScreen } from './screens/FamilyScreen';
@@ -147,6 +148,7 @@ type View =
   | 'activity'
   | 'you'
   | 'appearance'
+  | 'preferences'
   | 'taskDetail'
   | 'account'
   | 'privacy'
@@ -158,6 +160,7 @@ type View =
 const YOU_VIEWS: ReadonlySet<View> = new Set<View>([
   'you',
   'appearance',
+  'preferences',
   'account',
   'privacy',
   'manageLists',
@@ -509,6 +512,7 @@ function AuthedApp({ me }: { me: SessionUser }) {
           me={me}
           themeName={theme}
           onOpenAppearance={() => setView('appearance')}
+          onOpenPreferences={() => setView('preferences')}
           onOpenAccount={() => setView('account')}
           onOpenPrivacy={() => setView('privacy')}
           onOpenManageLists={() => setView('manageLists')}
@@ -518,6 +522,8 @@ function AuthedApp({ me }: { me: SessionUser }) {
     );
   } else if (view === 'appearance') {
     content = <AppearanceScreen onBack={() => setView('you')} />;
+  } else if (view === 'preferences') {
+    content = <PreferencesScreen onBack={() => setView('you')} />;
   } else if (view === 'account') {
     content = <AccountScreen me={me} onBack={() => setView('you')} />;
   } else if (view === 'privacy') {

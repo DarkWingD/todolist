@@ -30,6 +30,7 @@ export function YouScreen({
   me,
   themeName,
   onOpenAppearance,
+  onOpenPreferences,
   onOpenAccount,
   onOpenPrivacy,
   onOpenManageLists,
@@ -38,6 +39,7 @@ export function YouScreen({
   me: SessionUser;
   themeName: string;
   onOpenAppearance: () => void;
+  onOpenPreferences: () => void;
   onOpenAccount: () => void;
   onOpenPrivacy: () => void;
   onOpenManageLists: () => void;
@@ -198,6 +200,7 @@ export function YouScreen({
 
       <div className="mb-d3 overflow-hidden rounded-card bg-surface shadow-card">
         {row('🎨', 'Appearance', { onClick: onOpenAppearance, value: THEME_LABEL[themeName] })}
+        {row('🧭', 'Preferences', { onClick: onOpenPreferences })}
         {row('🔔', 'Notifications & reminders', { onClick: onOpenNotifications })}
         {row('🗂️', 'Lists & tags', { onClick: onOpenManageLists })}
       </div>
