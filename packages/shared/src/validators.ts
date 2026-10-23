@@ -373,6 +373,14 @@ export const resendHouseholdInviteSchema = z.object({ id: z.string().uuid() });
 
 export const searchTownsSchema = z.object({ q: z.string().trim().min(2).max(80) });
 
+/** A phone's own position, for weather on Today instead of the home town. */
+export const liveLocationSchema = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+  })
+  .optional();
+
 export const setHomeTownSchema = z
   .object({
     name: z.string().trim().min(1).max(120),

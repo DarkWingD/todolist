@@ -1,0 +1,1 @@
+ALTER TABLE "user_prefs" ADD COLUMN "use_live_location" boolean DEFAULT false NOT NULL;

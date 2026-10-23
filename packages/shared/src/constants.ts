@@ -39,6 +39,7 @@ export const DEFAULT_PREFS = {
   showMeals: true,
   showKids: true,
   weekStartsOn: 1 as WeekStart,
+  useLiveLocation: false,
 };
 
 /** 1 = Monday, 0 = Sunday — the same numbering as Date.getDay(). */

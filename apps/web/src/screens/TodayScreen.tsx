@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { TaskRow } from '../components/TaskRow';
 import { groupAgenda } from '../lib/agenda';
@@ -69,9 +69,26 @@ export function TodayScreen({
   const { data: children = [] } = trpc.children.mine.useQuery(localDay, { enabled: showKids });
   // Grown-ups with a work pattern: at work, or a day off.
   const { data: adults = [] } = trpc.household.whereToday.useQuery(localDay);
-  // The home town's weather, if one has been set. Null either way is fine —
-  // the header just shows the date on its own.
-  const { data: weather } = trpc.household.weather.useQuery(undefined, {
+  const { data: prefs } = trpc.prefs.get.useQuery();
+  // One position, asked for once per visit (not watched continuously), with
+  // the browser allowed to hand back a recent fix rather than getting a fresh
+  // one every time. Denied, unsupported, or the preference being off all look
+  // the same here — home town weather underneath.
+  const [liveCoords, setLiveCoords] = useState<{ lat: number; lon: number } | null>(null);
+  useEffect(() => {
+    if (!prefs?.useLiveLocation || !navigator.geolocation) {
+      setLiveCoords(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLiveCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => setLiveCoords(null),
+      { maximumAge: 10 * 60 * 1000, timeout: 10_000 },
+    );
+  }, [prefs?.useLiveLocation]);
+  // The home town's weather, or the phone's own if asked for and available.
+  // Null either way is fine — the header just shows the date on its own.
+  const { data: weather } = trpc.household.weather.useQuery(liveCoords ?? undefined, {
     staleTime: 10 * 60 * 1000,
   });
   // Anyone who has had medicine in the last day: last dose and when the next can be.

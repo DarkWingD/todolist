@@ -153,6 +153,11 @@ export const userPrefs = pgTable('user_prefs', {
   // the calendar alike; two different first-days in one app would be worse than
   // either choice.
   weekStartsOn: smallint('week_starts_on').notNull().default(1),
+  // Ask the phone for its own position and use that for this person's weather
+  // on Today, instead of the household's home town — for travel. Off by
+  // default: the permission prompt should only ever show up because someone
+  // asked for it.
+  useLiveLocation: boolean('use_live_location').notNull().default(false),
   // When this person last looked at what the family has been doing. Anything
   // newer, done by someone else, is "new" on Today.
   activitySeenAt: timestamp('activity_seen_at', { withTimezone: true }),

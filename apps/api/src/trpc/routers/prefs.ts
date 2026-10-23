@@ -68,6 +68,20 @@ export const prefsRouter = router({
       return { ok: true };
     }),
 
+  /** For weather on Today: this phone's own position instead of the home town. */
+  setLiveLocation: protectedProcedure
+    .input(z.object({ useLiveLocation: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .insert(userPrefs)
+        .values({ userId: ctx.user.id, useLiveLocation: input.useLiveLocation })
+        .onConflictDoUpdate({
+          target: userPrefs.userId,
+          set: { useLiveLocation: input.useLiveLocation, updatedAt: new Date() },
+        });
+      return { ok: true };
+    }),
+
   /** 1 = Monday, 0 = Sunday. Applies to the meal week and the calendar alike. */
   setWeekStart: protectedProcedure
     .input(z.object({ weekStartsOn: z.union([z.literal(0), z.literal(1)]) }))

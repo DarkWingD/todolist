@@ -12,6 +12,7 @@ import {
 import {
   addChildSchema,
   inviteToHouseholdSchema,
+  liveLocationSchema,
   localDaySchema,
   renameHouseholdSchema,
   resendHouseholdInviteSchema,
@@ -131,8 +132,25 @@ export const householdRouter = router({
     return { ok: true };
   }),
 
-  /** The home town's weather right now, or null if none is set (or the fetch failed). */
-  weather: protectedProcedure.query(async ({ ctx }) => {
+  /**
+   * Weather right now — the caller's own phone position if given (e.g. while
+   * travelling), otherwise the household's home town. Null if neither is
+   * available, or the fetch failed: Open-Meteo having a bad moment shouldn't
+   * take the rest of Today down with it.
+   *
+   * A live position skips naming the place (that needs a separate reverse
+   * lookup this doesn't do) and asks Open-Meteo to work out the timezone
+   * itself, rather than this trusting a stale one from wherever home is.
+   */
+  weather: protectedProcedure.input(liveLocationSchema).query(async ({ ctx, input }) => {
+    if (input) {
+      try {
+        const w = await fetchWeather(input.lat, input.lon, 'auto');
+        return { ...w, townName: null };
+      } catch {
+        return null;
+      }
+    }
     const [hh] = await db
       .select({
         name: household.homeTownName,
@@ -148,7 +166,6 @@ export const householdRouter = router({
       const w = await fetchWeather(hh.lat, hh.lon, hh.timezone);
       return { ...w, townName: hh.name };
     } catch {
-      // Open-Meteo having a bad moment shouldn't take the rest of Today down with it.
       return null;
     }
   }),

@@ -27,8 +27,12 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
   const setKidsVisible = trpc.prefs.setKidsVisible.useMutation({
     onSuccess: () => utils.prefs.get.invalidate(),
   });
+  const setLiveLocation = trpc.prefs.setLiveLocation.useMutation({
+    onSuccess: () => utils.prefs.get.invalidate(),
+  });
   const showMeals = serverPrefs?.showMeals ?? true;
   const showKids = serverPrefs?.showKids ?? true;
+  const useLiveLocation = serverPrefs?.useLiveLocation ?? false;
   const weekStartsOn = (serverPrefs?.weekStartsOn ?? 1) as 0 | 1;
 
   function apply(patch: Partial<ThemePrefs>) {
@@ -239,6 +243,20 @@ export function AppearanceScreen({ onBack }: { onBack: () => void }) {
 
         <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
           Hides the &ldquo;Where everyone is&rdquo; section. The children themselves stay in Lists.
+        </p>
+
+        <label className="mt-d3 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={useLiveLocation}
+            onChange={(e) => setLiveLocation.mutate({ useLiveLocation: e.target.checked })}
+            style={{ accentColor: 'var(--color-accent)', width: 18, height: 18 }}
+          />
+          <span style={{ fontSize: 'var(--fs-base)' }}>Use my location for weather</span>
+        </label>
+        <p className="ml-8 mt-1 text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+          Your phone's own position instead of home, for while you're away. Your browser will ask
+          to allow it; say no and this just falls back to home.
         </p>
       </div>
     </>
