@@ -369,6 +369,8 @@ export const renameHouseholdSchema = z.object({ name: z.string().trim().min(1).m
 
 export const inviteToHouseholdSchema = z.object({ email: emailSchema });
 
+export const resendHouseholdInviteSchema = z.object({ id: z.string().uuid() });
+
 export const addChildSchema = z.object({
   name: z.string().trim().min(1).max(120),
   emojiIcon: emojiSchema,

@@ -90,6 +90,13 @@ export function FamilyScreen({
       setEmail('');
     },
   });
+  const [resentId, setResentId] = useState<string | null>(null);
+  const resendInvite = trpc.household.resendInvite.useMutation({
+    onSuccess: (_, vars) => {
+      setResentId(vars.id);
+      setTimeout(() => setResentId((cur) => (cur === vars.id ? null : cur)), 3000);
+    },
+  });
 
   // The floating + on this tab adds a child.
   const lastAdd = useRef(addSignal);
@@ -278,6 +285,19 @@ export function FamilyScreen({
                     Invited · waiting for them to accept
                   </span>
                 </span>
+                <button
+                  type="button"
+                  disabled={resendInvite.isPending && resendInvite.variables?.id === i.id}
+                  className="flex-none font-bold text-accent disabled:opacity-50"
+                  style={{ fontSize: 'var(--fs-sm)' }}
+                  onClick={() => resendInvite.mutate({ id: i.id })}
+                >
+                  {resentId === i.id
+                    ? 'Sent'
+                    : resendInvite.isPending && resendInvite.variables?.id === i.id
+                      ? 'Sending…'
+                      : 'Resend'}
+                </button>
               </div>
             ))}
             {inviting ? (

@@ -13,6 +13,7 @@ import {
   addChildSchema,
   inviteToHouseholdSchema,
   renameHouseholdSchema,
+  resendHouseholdInviteSchema,
   setBinsSchema,
   setWorkWeekSchema,
   updatePersonSchema,
@@ -41,6 +42,16 @@ function weekParity(anchor: string, day: string): 0 | 1 {
   const d = Date.parse(`${day}T00:00:00Z`);
   const weeks = Math.floor((d - a) / (7 * 86_400_000));
   return (((weeks % 2) + 2) % 2) as 0 | 1;
+}
+
+async function sendHouseholdInviteEmail(inviterName: string, email: string, token: string) {
+  const url = `${env.WEB_ORIGIN}/invite/${token}`;
+  await sendEmail({
+    to: email,
+    subject: `${inviterName} invited you to their family on Sorted`,
+    text: `Open this link to join: ${url}`,
+    html: `<p>${inviterName} has invited you to join their family on Sorted — shared lists, the calendar, the meal plan and the kids' weeks, all in one place.</p><p><a href="${url}">Accept the invite</a></p>`,
+  });
 }
 
 async function assertHouseholdPerson(householdId: string, personId: string) {
@@ -113,15 +124,33 @@ export const householdRouter = router({
       invitedBy: ctx.user.id,
       expiresAt: new Date(Date.now() + INVITE_TTL_MS),
     });
-    const url = `${env.WEB_ORIGIN}/invite/${token}`;
-    await sendEmail({
-      to: input.email,
-      subject: `${ctx.user.name} invited you to their family on Sorted`,
-      text: `Open this link to join: ${url}`,
-      html: `<p>${ctx.user.name} has invited you to join their family on Sorted — shared lists, the calendar, the meal plan and the kids' weeks, all in one place.</p><p><a href="${url}">Accept the invite</a></p>`,
-    });
+    await sendHouseholdInviteEmail(ctx.user.name, input.email, token);
     return { ok: true };
   }),
+
+  /** Same link, a fresh week to use it. For when the first email was missed or binned. */
+  resendInvite: protectedProcedure
+    .input(resendHouseholdInviteSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [inv] = await db
+        .select()
+        .from(householdInvite)
+        .where(
+          and(
+            eq(householdInvite.id, input.id),
+            eq(householdInvite.householdId, ctx.person.householdId),
+          ),
+        )
+        .limit(1);
+      if (!inv) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (inv.status !== 'pending')
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'This invite has already been used.' });
+
+      const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+      await db.update(householdInvite).set({ expiresAt }).where(eq(householdInvite.id, inv.id));
+      await sendHouseholdInviteEmail(ctx.user.name, inv.email, inv.token);
+      return { ok: true };
+    }),
 
   addChild: protectedProcedure.input(addChildSchema).mutation(async ({ ctx, input }) => {
     const { person: kid, list: created } = await createChild(
