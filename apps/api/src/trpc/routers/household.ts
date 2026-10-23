@@ -15,7 +15,9 @@ import {
   localDaySchema,
   renameHouseholdSchema,
   resendHouseholdInviteSchema,
+  searchTownsSchema,
   setBinsSchema,
+  setHomeTownSchema,
   setWorkWeekSchema,
   updatePersonSchema,
 } from '@todolist/shared';
@@ -24,6 +26,7 @@ import { z } from 'zod';
 import { env } from '../../env.js';
 import { sendEmail } from '../../email.js';
 import { createChild } from '../household.js';
+import { fetchWeather, searchTowns } from '../../lib/weather.js';
 import { logActivity } from '../activity.js';
 import { protectedProcedure, router } from '../trpc.js';
 
@@ -69,7 +72,7 @@ export const householdRouter = router({
   /** The family: its name, and everyone in it, adults first. */
   get: protectedProcedure.query(async ({ ctx }) => {
     const [hh] = await db
-      .select({ id: household.id, name: household.name })
+      .select({ id: household.id, name: household.name, homeTownName: household.homeTownName })
       .from(household)
       .where(eq(household.id, ctx.person.householdId))
       .limit(1);
@@ -104,7 +107,50 @@ export const householdRouter = router({
       me: ctx.person.id,
       people,
       pendingInvites: pending.filter((i) => i.email),
+      homeTownName: hh?.homeTownName ?? null,
     };
+  }),
+
+  /** Towns matching what's been typed so far, to pick a home from. */
+  searchTowns: protectedProcedure.input(searchTownsSchema).query(async ({ input }) => {
+    return searchTowns(input.q);
+  }),
+
+  /** Set (or clear, with null) where the household lives — for weather and local time. */
+  setHomeTown: protectedProcedure.input(setHomeTownSchema).mutation(async ({ ctx, input }) => {
+    await db
+      .update(household)
+      .set({
+        homeTownName: input?.name ?? null,
+        homeLat: input?.lat ?? null,
+        homeLon: input?.lon ?? null,
+        homeTimezone: input?.timezone ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(household.id, ctx.person.householdId));
+    return { ok: true };
+  }),
+
+  /** The home town's weather right now, or null if none is set (or the fetch failed). */
+  weather: protectedProcedure.query(async ({ ctx }) => {
+    const [hh] = await db
+      .select({
+        name: household.homeTownName,
+        lat: household.homeLat,
+        lon: household.homeLon,
+        timezone: household.homeTimezone,
+      })
+      .from(household)
+      .where(eq(household.id, ctx.person.householdId))
+      .limit(1);
+    if (!hh?.lat || !hh.lon || !hh.timezone) return null;
+    try {
+      const w = await fetchWeather(hh.lat, hh.lon, hh.timezone);
+      return { ...w, townName: hh.name };
+    } catch {
+      // Open-Meteo having a bad moment shouldn't take the rest of Today down with it.
+      return null;
+    }
   }),
 
   rename: protectedProcedure.input(renameHouseholdSchema).mutation(async ({ ctx, input }) => {

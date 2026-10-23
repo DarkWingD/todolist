@@ -75,6 +75,12 @@ export const household = pgTable('household', {
   // Lets a wall display fetch the household's day without a sign-in. Rotate
   // it from Family if a link gets out.
   wallToken: text('wall_token').unique(),
+  // Where the household lives, for weather and local time. All three are set
+  // together from one geocoding pick, or not at all.
+  homeTownName: text('home_town_name'),
+  homeLat: doublePrecision('home_lat'),
+  homeLon: doublePrecision('home_lon'),
+  homeTimezone: text('home_timezone'), // IANA name, e.g. "Australia/Brisbane"
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

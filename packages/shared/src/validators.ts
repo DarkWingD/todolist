@@ -371,6 +371,17 @@ export const inviteToHouseholdSchema = z.object({ email: emailSchema });
 
 export const resendHouseholdInviteSchema = z.object({ id: z.string().uuid() });
 
+export const searchTownsSchema = z.object({ q: z.string().trim().min(2).max(80) });
+
+export const setHomeTownSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    timezone: z.string().min(1).max(64),
+  })
+  .nullable();
+
 /**
  * A caller's own local "today", so a server that runs UTC doesn't call it
  * yesterday for anywhere east of Greenwich. Optional for callers that haven't

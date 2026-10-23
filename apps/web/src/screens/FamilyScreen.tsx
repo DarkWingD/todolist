@@ -4,6 +4,7 @@ import { ColorPicker, pickUnusedColor } from '../components/ColorPicker';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { AvatarPhotoButton } from '../components/AvatarPhotoButton';
 import { BinSettings } from '../components/BinSettings';
+import { HomeTownSettings } from '../components/HomeTownSettings';
 import { WorkWeekSheet } from '../components/WorkWeekSheet';
 import { trpc } from '../lib/trpc';
 import type { SessionUser } from '../types';
@@ -56,6 +57,7 @@ export function FamilyScreen({
   const [workFor, setWorkFor] = useState<Person | null>(null);
   const [showWall, setShowWall] = useState(false);
   const [showBins, setShowBins] = useState(false);
+  const [showHomeTown, setShowHomeTown] = useState(false);
   const { data: wall } = trpc.household.wallLink.useQuery(undefined, { enabled: showWall });
   const rotateWall = trpc.household.rotateWallToken.useMutation({
     onSuccess: () => {
@@ -73,6 +75,7 @@ export function FamilyScreen({
 
   const refresh = () => {
     utils.household.get.invalidate();
+    utils.household.weather.invalidate();
     utils.calendar.people.invalidate();
     utils.children.mine.invalidate();
     utils.lists.mine.invalidate();
@@ -569,6 +572,47 @@ export function FamilyScreen({
             Kids don't sign in. They can still be given tasks and events, and each has a page for
             their school week, term dates and the details you otherwise hunt for in an email.
           </p>
+
+          <h2 className={sectionH} style={sectionStyle}>
+            Home town
+          </h2>
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            {showHomeTown ? (
+              <div className="px-3.5 py-3">
+                <HomeTownSettings
+                  current={hh?.homeTownName ?? null}
+                  onDone={() => {
+                    setShowHomeTown(false);
+                    refresh();
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowHomeTown(true)}
+                className="flex w-full items-center gap-d3 px-3.5 py-3 text-left"
+              >
+                <span
+                  className="grid h-10 w-10 flex-none place-items-center rounded-full"
+                  style={{ background: 'var(--color-accent-soft)', fontSize: 18 }}
+                >
+                  📍
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+                    {hh?.homeTownName ?? 'Not set'}
+                  </span>
+                  <span className="block text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                    For weather and local time on Today
+                  </span>
+                </span>
+                <span className="text-muted" style={{ fontSize: 18 }}>
+                  ›
+                </span>
+              </button>
+            )}
+          </div>
         </>
       )}
 

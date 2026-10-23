@@ -69,6 +69,11 @@ export function TodayScreen({
   const { data: children = [] } = trpc.children.mine.useQuery(localDay, { enabled: showKids });
   // Grown-ups with a work pattern: at work, or a day off.
   const { data: adults = [] } = trpc.household.whereToday.useQuery(localDay);
+  // The home town's weather, if one has been set. Null either way is fine —
+  // the header just shows the date on its own.
+  const { data: weather } = trpc.household.weather.useQuery(undefined, {
+    staleTime: 10 * 60 * 1000,
+  });
   // Anyone who has had medicine in the last day: last dose and when the next can be.
   const { data: doses = [] } = trpc.doses.status.useQuery();
   const dosesForList = (listId: string) => {
@@ -170,6 +175,13 @@ export function TodayScreen({
           </h1>
           <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {today}
+            {weather && (
+              <>
+                {' · '}
+                {weather.icon} {weather.tempNow}° (H {weather.high}° L {weather.low}°)
+                {weather.townName ? ` · ${weather.townName} ${weather.localTime}` : ''}
+              </>
+            )}
           </div>
         </div>
         {/* The avatar is 36px, which is the size it should look; the button around it is 44,
