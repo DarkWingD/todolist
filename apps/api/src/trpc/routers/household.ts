@@ -12,6 +12,7 @@ import {
 import {
   addChildSchema,
   inviteToHouseholdSchema,
+  localDaySchema,
   renameHouseholdSchema,
   resendHouseholdInviteSchema,
   setBinsSchema,
@@ -308,16 +309,19 @@ export const householdRouter = router({
   /**
    * Where each grown-up is today. Only adults with a pattern are listed; a day
    * with no row is a day off. Feeds Today's "Where everyone is".
+   *
+   * `input` is the caller's own local day — this server runs UTC, so without
+   * it "today" was a day behind for anywhere east of Greenwich until 10am.
    */
-  whereToday: protectedProcedure.query(async ({ ctx }) => {
+  whereToday: protectedProcedure.input(localDaySchema).query(async ({ ctx, input }) => {
     const [hh] = await db
       .select({ anchor: household.fortnightAnchor })
       .from(household)
       .where(eq(household.id, ctx.person.householdId))
       .limit(1);
-    const day = todayKey();
+    const day = input?.dayKey ?? todayKey();
     const week = weekParity(hh?.anchor ?? '2026-01-05', day);
-    const weekday = new Date().getDay();
+    const weekday = input?.weekday ?? new Date().getDay();
     const adults = await db
       .select({
         id: person.id,

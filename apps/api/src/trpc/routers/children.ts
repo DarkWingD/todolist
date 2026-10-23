@@ -11,6 +11,7 @@ import {
 } from '@todolist/db';
 import {
   createChildSchema,
+  localDaySchema,
   setChildDaysSchema,
   updateChildProfileSchema,
   upsertSchoolPeriodSchema,
@@ -153,8 +154,13 @@ export async function kidsToday(
 }
 
 export const childrenRouter = router({
-  /** Every child the user can see, with where they are today. */
-  mine: protectedProcedure.query(async ({ ctx }) => {
+  /**
+   * Every child the user can see, with where they are today.
+   *
+   * `input` is the caller's own local day — without it this server's UTC
+   * clock made "today" a day behind for anywhere east of Greenwich until 10am.
+   */
+  mine: protectedProcedure.input(localDaySchema).query(async ({ ctx, input }) => {
     const lists = await db
       .select({
         id: list.id,
@@ -168,7 +174,7 @@ export const childrenRouter = router({
         and(eq(listMember.userId, ctx.user.id), eq(list.type, 'child'), isNull(list.deletedAt)),
       )
       .orderBy(asc(list.sortOrder), asc(list.name));
-    return kidsToday(lists);
+    return kidsToday(lists, input);
   }),
 
   /** One child, with everything its screen needs. */

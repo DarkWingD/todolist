@@ -371,6 +371,18 @@ export const inviteToHouseholdSchema = z.object({ email: emailSchema });
 
 export const resendHouseholdInviteSchema = z.object({ id: z.string().uuid() });
 
+/**
+ * A caller's own local "today", so a server that runs UTC doesn't call it
+ * yesterday for anywhere east of Greenwich. Optional for callers that haven't
+ * been updated to send it yet; they just keep the old server-local behaviour.
+ */
+export const localDaySchema = z
+  .object({
+    dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    weekday: z.number().int().min(0).max(6),
+  })
+  .optional();
+
 export const addChildSchema = z.object({
   name: z.string().trim().min(1).max(120),
   emojiIcon: emojiSchema,

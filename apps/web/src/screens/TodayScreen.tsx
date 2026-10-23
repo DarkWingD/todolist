@@ -59,13 +59,16 @@ export function TodayScreen({
     d.setDate(d.getDate() + HORIZON_DAYS);
     return d.toISOString();
   })();
+  // This device's own today, so the server (which runs UTC) doesn't call it
+  // yesterday until 10am for anywhere east of Greenwich.
+  const localDay = { dayKey: todayKey(), weekday: dayStart.getDay() };
 
   const { data: tasks = [], isLoading } = trpc.tasks.agenda.useQuery({ until });
   const { data: flagged = [] } = trpc.tasks.highPriority.useQuery();
   // Where each child is today, already crossed with term dates server-side.
-  const { data: children = [] } = trpc.children.mine.useQuery(undefined, { enabled: showKids });
+  const { data: children = [] } = trpc.children.mine.useQuery(localDay, { enabled: showKids });
   // Grown-ups with a work pattern: at work, or a day off.
-  const { data: adults = [] } = trpc.household.whereToday.useQuery();
+  const { data: adults = [] } = trpc.household.whereToday.useQuery(localDay);
   // Anyone who has had medicine in the last day: last dose and when the next can be.
   const { data: doses = [] } = trpc.doses.status.useQuery();
   const dosesForList = (listId: string) => {
