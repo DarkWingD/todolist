@@ -110,6 +110,24 @@ export function App() {
   const { data: session, isPending } = useSession();
   const inviteToken = window.location.pathname.match(/^\/invite\/(.+)$/)?.[1];
   const [welcomed, setWelcomed] = useState(hasSeenWelcome);
+  // A second, server-side check for the same thing localStorage normally remembers: an
+  // installed Home Screen app on iOS can lose its own storage (Safari/WebKit's own tracking
+  // rules, applied to standalone web apps too), which otherwise means the welcome tour — and
+  // the notification prompt inside it — reappearing every single time it happens. A past
+  // subscription, on any device, is good enough evidence this person doesn't need the tour again.
+  const { data: hasSubscribed } = trpc.push.hasSubscribed.useQuery(undefined, {
+    enabled: !welcomed && !!session,
+  });
+  useEffect(() => {
+    if (!welcomed && hasSubscribed) {
+      try {
+        localStorage.setItem(WELCOME_KEY, '1');
+      } catch {
+        // Keeps reappearing, same as the other failure mode — see hasSeenWelcome's own comment.
+      }
+      setWelcomed(true);
+    }
+  }, [welcomed, hasSubscribed]);
 
   // The wall display carries its own token; no sign-in, no shell.
   const wallToken =
@@ -126,6 +144,10 @@ export function App() {
   // wait until they've accepted.
   if (inviteToken) return <InviteAcceptScreen token={inviteToken} />;
   if (!welcomed) {
+    // Wait to hear back rather than flash the whole tour for someone who already has push
+    // working — the effect above will flip `welcomed` on the next render if so.
+    if (hasSubscribed === undefined) return <Splash />;
+    if (hasSubscribed) return <Splash />;
     return (
       <WelcomeScreen
         onDone={() => {
