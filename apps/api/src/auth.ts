@@ -12,6 +12,19 @@ export const auth = betterAuth({
   basePath: '/api/auth',
   trustedOrigins: [env.WEB_ORIGIN],
 
+  // Every request arrives via nginx's proxy_pass, which appends its own hop onto
+  // X-Forwarded-For — so Better Auth's own default (single-value X-Forwarded-For) could
+  // never resolve a real client IP, and fell back to one shared rate-limit bucket for
+  // everyone. CF-Connecting-IP is Cloudflare's own header, set once at the edge and never
+  // touched afterward — the same one nginx's sign-in limiter already keys on
+  // (infra/nginx.conf: $http_cf_connecting_ip) — so this just points Better Auth at the
+  // same already-correct source instead of inventing a second way to parse the chain.
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ['cf-connecting-ip'],
+    },
+  },
+
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: { user, session, account, verification },
