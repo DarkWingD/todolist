@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db, dose, person, reminder, task } from '@todolist/db';
 import { logDoseSchema } from '@todolist/shared';
@@ -92,6 +92,30 @@ export const dosesRouter = router({
       title: input.medicine,
       meta: { personId: who.id, amount: input.amount ?? null, givenAt: givenAt.toISOString() },
     });
+
+    // A fresh dose supersedes any earlier "next <medicine> can be from now" task for this
+    // child — nothing ever marks those done otherwise, so they sit forever as overdue and
+    // every later dose piles another copy on top (the wall/briefing showing the same
+    // medicine twice, repeating every day).
+    const priorTitle = `${who.name.split(' ')[0]}: next ${input.medicine} can be from now`;
+    const stale = await db
+      .select({ id: task.id })
+      .from(task)
+      .where(
+        and(
+          eq(task.listId, input.listId),
+          eq(task.assigneeId, who.id),
+          isNull(task.completedAt),
+          sql`lower(${task.title}) = lower(${priorTitle})`,
+        ),
+      );
+    if (stale.length) {
+      const staleIds = stale.map((t) => t.id);
+      await db.update(task).set({ completedAt: new Date() }).where(inArray(task.id, staleIds));
+      await db
+        .delete(reminder)
+        .where(and(inArray(reminder.taskId, staleIds), isNull(reminder.sentAt)));
+    }
 
     // The reminder system hangs off tasks, so "next dose possible" becomes a
     // small task on the child's list, due when the gap has passed, with a
@@ -198,6 +222,3 @@ export async function doseStatusFor(householdId: string, personIds: string[]) {
   const wanted = new Set(personIds);
   return all.filter((s) => wanted.has(s.personId));
 }
-
-// Keep the unused-import checker honest: inArray is handy for callers.
-void inArray;
