@@ -46,6 +46,20 @@ This brings up Postgres, runs migrations, then starts the API, worker, web (ngin
 Cloudflare Tunnel, and the nightly backup job. Point your tunnel's public hostname at
 `http://web:80`.
 
+## Shipping a change
+
+`main` on the Fedora host auto-deploys: `receive.denyCurrentBranch` is set to `updateInstead`
+there, and a `post-receive` hook (`.git/hooks/post-receive`, not tracked in this repo) backs up
+the database and runs `docker compose up -d --build` whenever a push actually advances
+`refs/heads/main`. A push to any other branch just updates that ref — nothing redeploys until
+it lands on `main`. So shipping a change is one command from a clone:
+
+```bash
+git push origin <your-branch>:main
+```
+
+The hook's own log is `~/todolist/deploy.log` on the host.
+
 ## Local development
 
 ```bash
