@@ -1,8 +1,19 @@
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { httpBatchLink } from '@trpc/client';
 import { useState, type ReactNode } from 'react';
 import { describeError, ErrorProvider, useErrorReporter } from './errors';
 import { trpc } from './trpc';
+
+// Bump this when a query's cached shape changes in a way old data can't satisfy (a field
+// renamed or removed) — it busts anything persisted under the old shape instead of a page
+// crashing on it. Not tied to the app version: most releases don't touch cached shapes.
+const PERSIST_BUSTER = 'sorted-cache-v1';
+// How long a persisted entry is still worth painting on a cold open before it's not even
+// worth showing as a stale placeholder. Independent of staleTime (which only governs
+// background refetch) — this governs the much coarser "is this worth keeping at all".
+const PERSIST_MAX_AGE = 24 * 60 * 60 * 1000;
 
 /**
  * The query client is created inside the error provider so that every mutation
@@ -16,7 +27,12 @@ function QueryLayer({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { staleTime: 5_000, retry: 1 } },
+        defaultOptions: {
+          // gcTime needs to outlive PERSIST_MAX_AGE below, or the persisted entry gets
+          // garbage-collected from memory (and so never re-persisted) before it's stale enough
+          // to matter — the cache would quietly stop surviving a relaunch.
+          queries: { staleTime: 5_000, gcTime: PERSIST_MAX_AGE, retry: 1 },
+        },
         // A failed write is the dangerous one: the user believes it saved.
         mutationCache: new MutationCache({
           onError: (err) => {
@@ -46,10 +62,19 @@ function QueryLayer({ children }: { children: ReactNode }) {
       ],
     }),
   );
+  // localStorage, not IndexedDB: the whole cache is small (a household's tasks/calendar/
+  // doses, not media) and sync storage means the very first paint can read it, before any
+  // await — an async persister still shows a blank frame on cold open.
+  const [persister] = useState(() => createSyncStoragePersister({ storage: window.localStorage }));
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister, maxAge: PERSIST_MAX_AGE, buster: PERSIST_BUSTER }}
+      >
+        {children}
+      </PersistQueryClientProvider>
     </trpc.Provider>
   );
 }
